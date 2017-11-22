@@ -1,30 +1,23 @@
-# library-feature-generation
-generate time series features 
 
-```
-Setup Development Environment
------------------------------
 
-###Create conda environment
+## Setup Development Environment
+
+### Create conda environment
 ```bash
 $ conda create -n feat-gen-env python=3.5
 $ source activate feat-gen-env
 ```
-###Install dependencies
-```bash
-$ pip  install --upgrade --ignore-installed --no-cache-dir setuptools pip
-$ pip install -r dev-requirements.txt 
 
-###Running the test suite
+### Install dependencies
+
 ```bash
-$ PYTHONPATH=. pytest tests/
+$ pip install -U setuptools --ignore-installed --no-cache-dir
+$ pip install -r dev-requirements.txt --src $CONDA_PREFIX
 ```
 
-Install
-=======
-
-To install run
-```text
-$ python setup.py install
+### Running the test suite
+```bash
+pytest tests/
 ```
+
 

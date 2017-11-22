@@ -1,7 +1,0 @@
-feature_config_list:
-  - name: close
-    transformation:
-      name: log-return
-  - name: close
-    transformation:
-      name: log-return
