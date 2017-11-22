@@ -266,7 +266,7 @@ class TestFinancialFeature(TestCase):
 
     def test_get_prediction_data(self):
         feature_list = [self.feature_1, self.feature_2, self.feature_7]
-        expected_length_list = [15, 34, 68]
+        expected_length_list = [15, 35, 69]
         for feature, expected_length in zip(feature_list, expected_length_list):
             self.run_get_prediction_data_test(feature, expected_length)
 
