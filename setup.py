@@ -11,6 +11,8 @@ setup(
     install_requires=['numpy',
                       'pandas',
                       'scikit-learn',
-                      'ipython'
+                      'ipython',
+                      'scipy',
+                      'pandas_market_calendars'
                       ]
 )
