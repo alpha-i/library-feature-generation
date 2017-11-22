@@ -90,7 +90,7 @@ class TestFinancialDataTransformation(TestCase):
             target_timestamp,
         )
 
-        expected_n_time_dict = {'open_value': 15, 'high_log-return': 14, 'close_log-return': 14}
+        expected_n_time_dict = {'open_value': 15, 'high_log-return': 15, 'close_log-return': 15}
         expected_n_symbols = 4
         expected_n_features = 3
 
@@ -110,7 +110,7 @@ class TestFinancialDataTransformation(TestCase):
             prediction_timestamp,
         )
 
-        expected_n_time_dict = {'open_value': 15, 'high_log-return': 14, 'close_log-return': 14}
+        expected_n_time_dict = {'open_value': 15, 'high_log-return': 15, 'close_log-return': 15}
         expected_n_symbols = 5
         expected_n_features = 3
 
@@ -121,7 +121,7 @@ class TestFinancialDataTransformation(TestCase):
 
     def test_create_data(self):
         expected_n_samples = 30
-        expected_n_time_dict = {'open_value': 15, 'high_log-return': 14, 'close_log-return': 14}
+        expected_n_time_dict = {'open_value': 15, 'high_log-return': 15, 'close_log-return': 15}
         expected_n_symbols = 4
         expected_n_features = 3
         expected_n_bins = 5

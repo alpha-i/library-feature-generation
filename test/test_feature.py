@@ -111,32 +111,32 @@ class TestFinancialFeature(TestCase):
         )
 
     def test_process_prediction_data_x_1(self):
-        data_frame_x = sample_hourly_ohlcv_data_dict[self.feature_1.name]
-        processed_prediction_data_x = self.feature_1.process_prediction_data_x(data_frame_x)
-        assert processed_prediction_data_x.equals(data_frame_x)
+        data_dict_x = sample_hourly_ohlcv_data_dict
+        processed_prediction_data_x = self.feature_1.process_prediction_data_x(data_dict_x)
+        assert processed_prediction_data_x.equals(data_dict_x[self.feature_1.name])
 
     def test_process_prediction_data_x_2(self):
-        data_frame_x = sample_hourly_ohlcv_data_dict[self.feature_2.name]
-        processed_prediction_data_x = self.feature_2.process_prediction_data_x(data_frame_x)
-        expected_log_returns = np.log(data_frame_x.pct_change() + 1). \
+        data_dict_x = sample_hourly_ohlcv_data_dict
+        processed_prediction_data_x = self.feature_2.process_prediction_data_x(data_dict_x)
+        expected_log_returns = np.log(data_dict_x[self.feature_2.name].pct_change() + 1). \
             replace([np.inf, -np.inf], np.nan).dropna()
         assert_almost_equal(processed_prediction_data_x, expected_log_returns.values, ASSERT_NDECIMALS)
 
     def test_process_prediction_data_x_3(self):
-        data_frame_x = sample_hourly_ohlcv_data_dict[self.feature_3.name]
-        processed_prediction_data_x = self.feature_3.process_prediction_data_x(data_frame_x)
+        data_dict_x = sample_hourly_ohlcv_data_dict
+        processed_prediction_data_x = self.feature_3.process_prediction_data_x(data_dict_x )
         expected_normalized_log_returns = \
-            (np.log(data_frame_x.pct_change() + 1).replace([np.inf, -np.inf], np.nan).dropna()).values
+            (np.log(data_dict_x[self.feature_3.name].pct_change() + 1).replace([np.inf, -np.inf], np.nan).dropna()).values
         assert_almost_equal(processed_prediction_data_x, expected_normalized_log_returns, ASSERT_NDECIMALS)
 
     def test_process_prediction_data_x_4(self):
-        data_frame_x = sample_hourly_ohlcv_data_dict[self.feature_4.name]
-        processed_prediction_data_x = self.feature_4.process_prediction_data_x(data_frame_x)
+        data_dict_x = sample_hourly_ohlcv_data_dict
+        processed_prediction_data_x = self.feature_4.process_prediction_data_x(data_dict_x)
 
-        columns = data_frame_x.columns
+        columns = data_dict_x[self.feature_4.name].columns
 
-        expected_result = ((data_frame_x.iloc[-1] - data_frame_x.min()) /
-                           (data_frame_x.max() - data_frame_x.min())) * 100.
+        expected_result = ((data_dict_x[self.feature_4.name].iloc[-1] - data_dict_x[self.feature_4.name].min()) /
+                           (data_dict_x[self.feature_4.name].max() - data_dict_x[self.feature_4.name].min())) * 100.
 
         expected_result = np.expand_dims(expected_result, axis=0)
         expected_result = pd.DataFrame(expected_result, columns=columns)
@@ -144,18 +144,18 @@ class TestFinancialFeature(TestCase):
         assert_almost_equal(processed_prediction_data_x.values, expected_result.values, ASSERT_NDECIMALS)
 
     def test_process_prediction_data_x_5(self):
-        data_frame_x = sample_hourly_ohlcv_data_dict[self.feature_5.name]
-        processed_prediction_data_x = self.feature_5.process_prediction_data_x(data_frame_x)
+        data_dict_x = sample_hourly_ohlcv_data_dict
+        processed_prediction_data_x = self.feature_5.process_prediction_data_x(data_dict_x)
 
-        expected_result = data_frame_x.ewm(halflife=self.feature_5.transformation['halflife']).mean()
+        expected_result = data_dict_x[self.feature_5.name].ewm(halflife=self.feature_5.transformation['halflife']).mean()
         assert_almost_equal(processed_prediction_data_x.values, expected_result.values, ASSERT_NDECIMALS)
 
     def test_process_prediction_data_x_6(self):
-        data_frame_x = sample_hourly_ohlcv_data_dict[self.feature_6.name]
-        processed_prediction_data_x = self.feature_6.process_prediction_data_x(data_frame_x)
+        data_dict_x = sample_hourly_ohlcv_data_dict
+        processed_prediction_data_x = self.feature_6.process_prediction_data_x(data_dict_x)
 
-        direction = data_frame_x.diff(self.feature_6.transformation['lag']).abs()
-        volatility = data_frame_x.diff().abs().rolling(window=self.feature_6.transformation['lag']).sum()
+        direction = data_dict_x[self.feature_6.name].diff(self.feature_6.transformation['lag']).abs()
+        volatility = data_dict_x[self.feature_6.name].diff().abs().rolling(window=self.feature_6.transformation['lag']).sum()
 
         direction.dropna(axis=0, inplace=True)
         volatility.dropna(axis=0, inplace=True)
@@ -170,7 +170,7 @@ class TestFinancialFeature(TestCase):
         data_frame_x = data_frame.iloc[:-1]
         prediction_reference_data = data_frame_x.iloc[-1]
         data_frame_y = data_frame.iloc[-1]
-        self.feature_1.process_prediction_data_x(data_frame_x)
+        self.feature_1.process_prediction_data_x(sample_hourly_ohlcv_data_dict)
         processed_prediction_data_y = \
             self.feature_1.process_prediction_data_y(data_frame_y, prediction_reference_data)
         assert processed_prediction_data_y.equals(data_frame_y)
@@ -181,7 +181,7 @@ class TestFinancialFeature(TestCase):
         data_frame_x = data_frame.iloc[:-1]
         prediction_reference_data = data_frame_x.iloc[-1]
         data_frame_y = data_frame.iloc[-1]
-        self.feature_2.process_prediction_data_x(data_frame_x)
+        self.feature_2.process_prediction_data_x(sample_hourly_ohlcv_data_dict)
         processed_prediction_data_y = \
             self.feature_2.process_prediction_data_y(data_frame_y, prediction_reference_data)
         expected_log_returns = np.log(data_frame_y / prediction_reference_data)
@@ -192,7 +192,7 @@ class TestFinancialFeature(TestCase):
         data_frame_x = data_frame.iloc[:-1]
         prediction_reference_data = data_frame_x.iloc[-1]
         data_frame_y = data_frame.iloc[-1]
-        self.feature_3.process_prediction_data_x(data_frame_x)
+        self.feature_3.process_prediction_data_x(sample_hourly_ohlcv_data_dict)
 
         self.assertRaises(NotImplementedError, self.feature_3.process_prediction_data_y,
                           data_frame_y, prediction_reference_data)
@@ -202,7 +202,7 @@ class TestFinancialFeature(TestCase):
         data_frame_x = data_frame.iloc[:-1]
         prediction_reference_data = data_frame_x.iloc[-1]
         data_frame_y = data_frame.iloc[-1]
-        self.feature_7.process_prediction_data_x(data_frame_x)
+        self.feature_7.process_prediction_data_x(sample_hourly_ohlcv_data_dict)
 
         processed_prediction_data_y = \
             self.feature_7.process_prediction_data_y(data_frame_y, prediction_reference_data)
