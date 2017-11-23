@@ -440,9 +440,14 @@ class FinancialDataTransformation(DataTransformation):
         return feature_x_dict, feature_y_dict
 
     def add_transformation(self, raw_data_dict):
+        """
+        add new features to data dictionary
+        :param raw_data_dict: dictionary of dataframes
+        :return: dict with new keys
+        """
 
         for feature in self.features:
-            if feature.full_name not in raw_data_dict.keys():
+            if feature.full_name not in raw_data_dict.keys() and not feature.local:
                 raw_data_dict[feature.full_name] = feature.process_prediction_data_x(raw_data_dict)
 
         return raw_data_dict

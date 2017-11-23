@@ -1,6 +1,6 @@
 from sklearn.preprocessing import RobustScaler, MinMaxScaler, StandardScaler
 
-FINANCIAL_FEATURE_TRANSFORMATIONS = ['value', 'log-return', 'stochastic_k', 'ewma', 'KER']
+FINANCIAL_FEATURE_TRANSFORMATIONS = ['value', 'log-return', 'stochastic_k', 'ewma', 'KER', 'GASF', 'GADF', 'MTF']
 FINANCIAL_FEATURE_NORMALIZATIONS = [None, 'robust', 'min_max', 'standard', 'gaussian']
 FINANCIAL_FEATURE_KEYS = [
     'transformation',
