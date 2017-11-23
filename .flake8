@@ -1,0 +1,14 @@
+[flake8]
+max-line-length = 120
+exclude=
+    # src is where the pip installs other build related stuff in CI builds.
+    src/,
+    # we don't want the flake8 to look in third party.
+    doc/,
+    # No need to traverse our git directory
+    .git/,
+    __pycache__,
+    build,
+    dist,
+    setup.py
+    
