@@ -1,22 +1,3 @@
-#machine:
-#  post:
-#    - wget https://repo.continuum.io/miniconda/Miniconda3-4.2.11-Linux-x86_64.sh -O ~/miniconda.sh
-#    - bash ~/miniconda.sh -b -p $HOME/miniconda
-#    - echo 'PATH="$HOME/miniconda/bin:$PATH"' >> .bashrc
-#
-#dependencies:
-#  pre:
-#    - conda install --yes pip
-#    - pip install --upgrade pip
-#    - pip install -U setuptools --ignore-installed
-#  override:
-#    - pip install -r dev-requirements.txt
-#
-#test:
-#  override:
-#    - PYTHONPATH=. pytest --cov=feature-generation --cov-report html:$CIRCLE_ARTIFACTS tests/
-#
-
 
 # Python CircleCI 2.0 configuration file
 #
@@ -64,7 +45,7 @@ jobs:
           name: run tests
           command: |
             . venv/bin/activate
-            PYTHONPATH=. pytest --cov=feature-generation --cov-report
+            PYTHONPATH=. pytest --cov=alphai_feature_generation --cov-report html:test-reports tests/
 
       - store_artifacts:
           path: test-reports
