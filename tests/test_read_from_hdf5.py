@@ -2,13 +2,13 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from test.helpers import (
+from tests.helpers import (
     SAMPLE_START_DATE,
     SAMPLE_END_DATE,
     SAMPLE_SYMBOLS,
     sample_hdf5_file,
 )
-from test.hdf5_reader import read_symbol_data_dict_from_hdf5, read_feature_data_dict_from_hdf5, \
+from tests.hdf5_reader import read_symbol_data_dict_from_hdf5, read_feature_data_dict_from_hdf5, \
     get_all_table_names_in_hdf5
 
 
@@ -77,7 +77,7 @@ def test_read_feature_data_dict_from_hdf5_check_file_content():
     high_describe_1 = data_dict['high'].describe().values[1]
     np.testing.assert_allclose(high_describe_1, [73.028583,  23.415788,  34.655273], atol=1e-6)
 
-    # two test on volume
+    # two tests on volume
     volume_describe_0 = data_dict['volume'].describe().values[2]
     np.testing.assert_allclose(volume_describe_0,
                                [265075.256502,  171988.439997,  247455.665898], atol=1e-6)

@@ -1,6 +1,6 @@
 pandas
 scikit-learn
 numpy
-ipython
 scipy
 pandas_market_calendars
+tables

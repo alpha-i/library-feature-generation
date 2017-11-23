@@ -29,7 +29,7 @@ from alphai_feature_generation.cleaning import (
     find_duplicated_symbols_data_frame,
     remove_duplicated_symbols_ohlcv,
 )
-from test.helpers import (
+from tests.helpers import (
     COLUMNS_OHLCV,
     sample_data_dict,
     sample_data_frame,
