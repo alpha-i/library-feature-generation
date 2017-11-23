@@ -1,0 +1,17 @@
+machine:
+  post:
+    - wget https://repo.continuum.io/miniconda/Miniconda3-4.2.11-Linux-x86_64.sh -O ~/miniconda.sh
+    - bash ~/miniconda.sh -b -p $HOME/miniconda
+    - echo 'PATH="$HOME/miniconda/bin:$PATH"' >> .bashrc
+
+dependencies:
+  pre:
+    - conda install --yes pip
+    - pip install --upgrade pip
+    - pip install -U setuptools --ignore-installed
+  override:
+    - pip install -r dev-requirements.txt
+
+test:
+  override:
+    - PYTHONPATH=. pytest --cov=feature-generation --cov-report html:$CIRCLE_ARTIFACTS tests/
