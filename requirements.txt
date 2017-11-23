@@ -1,0 +1,6 @@
+pandas
+scikit-learn
+numpy
+scipy
+pandas_market_calendars
+tables
