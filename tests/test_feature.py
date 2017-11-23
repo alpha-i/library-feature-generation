@@ -13,7 +13,7 @@ from alphai_feature_generation.feature import (
     get_feature_names,
     get_feature_max_ndays
 )
-from test.helpers import (
+from tests.helpers import (
     sample_market_calendar,
     sample_hourly_ohlcv_data_dict,
     sample_fin_feature_factory_list,

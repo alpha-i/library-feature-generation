@@ -8,7 +8,7 @@ from alphai_feature_generation.classifier import (
     extract_point_estimates
 )
 
-from test.helpers import (
+from tests.helpers import (
     N_BINS,
     MIN_EDGE,
     MAX_EDGE,

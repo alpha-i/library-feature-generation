@@ -6,7 +6,7 @@ import pandas as pd
 from alphai_feature_generation.transformation import (
     FinancialDataTransformation,
 )
-from test.helpers import (
+from tests.helpers import (
     sample_hourly_ohlcv_data_dict,
     sample_fin_data_transf_feature_factory_list_nobins,
     sample_fin_data_transf_feature_factory_list_bins,
@@ -26,7 +26,7 @@ ASSERT_NDECIMALS = 5
 class TestFinancialDataTransformation(TestCase):
     def setUp(self):
 
-        # FIXME we need to find a test case for classify_per_series: False and normalise_per_series: False
+        # FIXME we need to find a tests case for classify_per_series: False and normalise_per_series: False
 
         configuration_nobins = {
             'feature_config_list': sample_fin_data_transf_feature_factory_list_nobins,
