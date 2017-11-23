@@ -439,14 +439,13 @@ class FinancialDataTransformation(DataTransformation):
 
         return feature_x_dict, feature_y_dict
 
-
     def add_transformation(self, raw_data_dict):
 
         for feature in self.features:
-            raw_data_dict[feature.full_name] = feature.process_prediction_data_x(raw_data_dict)
+            if feature.full_name not in raw_data_dict.keys():
+                raw_data_dict[feature.full_name] = feature.process_prediction_data_x(raw_data_dict)
 
         return raw_data_dict
-
 
     def stack_samples_for_each_feature(self, samples, reference_samples=None):
         """ Collate a list of samples (the training set) into a single dictionary

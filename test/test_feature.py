@@ -124,9 +124,10 @@ class TestFinancialFeature(TestCase):
 
     def test_process_prediction_data_x_3(self):
         data_dict_x = sample_hourly_ohlcv_data_dict
-        processed_prediction_data_x = self.feature_3.process_prediction_data_x(data_dict_x )
+        processed_prediction_data_x = self.feature_3.process_prediction_data_x(data_dict_x)
         expected_normalized_log_returns = \
-            (np.log(data_dict_x[self.feature_3.name].pct_change() + 1).replace([np.inf, -np.inf], np.nan).dropna()).values
+            (np.log(data_dict_x[self.feature_3.name].pct_change() + 1).replace([np.inf, -np.inf], np.nan).dropna()
+             ).values
         assert_almost_equal(processed_prediction_data_x, expected_normalized_log_returns, ASSERT_NDECIMALS)
 
     def test_process_prediction_data_x_4(self):
@@ -147,7 +148,8 @@ class TestFinancialFeature(TestCase):
         data_dict_x = sample_hourly_ohlcv_data_dict
         processed_prediction_data_x = self.feature_5.process_prediction_data_x(data_dict_x)
 
-        expected_result = data_dict_x[self.feature_5.name].ewm(halflife=self.feature_5.transformation['halflife']).mean()
+        expected_result = data_dict_x[self.feature_5.name].ewm(halflife=self.feature_5.transformation['halflife']
+                                                               ).mean()
         assert_almost_equal(processed_prediction_data_x.values, expected_result.values, ASSERT_NDECIMALS)
 
     def test_process_prediction_data_x_6(self):
@@ -155,7 +157,8 @@ class TestFinancialFeature(TestCase):
         processed_prediction_data_x = self.feature_6.process_prediction_data_x(data_dict_x)
 
         direction = data_dict_x[self.feature_6.name].diff(self.feature_6.transformation['lag']).abs()
-        volatility = data_dict_x[self.feature_6.name].diff().abs().rolling(window=self.feature_6.transformation['lag']).sum()
+        volatility = data_dict_x[self.feature_6.name].diff().abs().rolling(window=self.feature_6.transformation['lag']
+                                                                           ).sum()
 
         direction.dropna(axis=0, inplace=True)
         volatility.dropna(axis=0, inplace=True)
