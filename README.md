@@ -11,7 +11,7 @@ Features we want to implement
 - [ ] N-day momentum Momentum: helps pinpoint the end of a decline or advance
 - [ ] ROC Price rate of change: shows the speed at which a stock’s price is changing
 - [ ] Stochastic Momentum Index: shows where the close price is relative to the midpoint of the same range.
- -[ ] WVAD Williams’s Variable Accumulation/Distribution: measures the buying and selling pressure
+- [ ] WVAD Williams’s Variable Accumulation/Distribution: measures the buying and selling pressure
 
 
 
