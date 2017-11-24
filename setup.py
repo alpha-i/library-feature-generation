@@ -15,6 +15,6 @@ setup(
                       'pandas_market_calendars',
                       'tables',
                       'pyts',
-                      'future'
+                      'future',
                       ]
 )

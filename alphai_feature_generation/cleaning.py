@@ -1,8 +1,11 @@
 from copy import deepcopy
 import datetime
+import logging
 
 import numpy as np
 import pandas as pd
+
+logging.getLogger(__name__).addHandler(logging.NullHandler())
 
 
 def select_between_timestamps(data, start_timestamp=None, end_timestamp=None):
@@ -438,6 +441,23 @@ def select_columns_data_dict(data_dict, select_columns):
     return {map_key: map_df[select_columns] for map_key, map_df in data_dict.items()}
 
 
+def slice_data_dict(data_dict, slice_start, slice_end=None):
+    """
+    Time-slice all dataframes contained in a data_dict
+    :param data_dict: a dictionary with (timestamp, symbol)-dataframes as values
+    :param slice_start: first index to be used for slicing
+    :param slice_end: last index to be used for slicing. Can be None.
+    :return:
+    """
+    selected_data_dict = {}
+    for key, data_frame in data_dict.items():
+        if slice_end is None:
+            selected_data_dict[key] = data_frame.iloc[slice_start:]
+        else:
+            selected_data_dict[key] = data_frame.iloc[slice_start:slice_end]
+    return selected_data_dict
+
+
 def find_duplicated_symbols_data_frame(data_frame, max_correlation=0.999):
     """
     Remove duplicated symbols from dataframe (correlation higher than input max_correlation)
@@ -446,23 +466,10 @@ def find_duplicated_symbols_data_frame(data_frame, max_correlation=0.999):
     :return: data dictionary after removing duplicated symbols
     """
     corr_matrix = data_frame.corr()
-    above_max = pd.DataFrame(np.tril(corr_matrix > max_correlation),
+    above_max = pd.DataFrame(np.triu(corr_matrix > max_correlation, k=1),
                              index=corr_matrix.index, columns=corr_matrix.columns)
 
-    duplicated_symbol_list = []
-    for i in range(len(above_max)):
-        tmp_duplicated_symbols = tuple(above_max.index[above_max[above_max.columns[i]]])
-        if len(tmp_duplicated_symbols) > 1:
-            duplicated_symbol_list.append(tmp_duplicated_symbols)
-
-    # Remove nested duplicateds
-    for idx, first_tuple in enumerate(duplicated_symbol_list):
-        for second_tuple in duplicated_symbol_list[idx + 1:]:
-            if set(first_tuple).issubset(second_tuple):
-                duplicated_symbol_list.remove(first_tuple)
-            if set(second_tuple).issubset(first_tuple):
-                duplicated_symbol_list.remove(second_tuple)
-    return duplicated_symbol_list
+    return list(above_max[above_max].stack().index)
 
 
 def remove_duplicated_symbols_ohlcv(ohlcv_data, max_correlation=0.999):
@@ -481,7 +488,19 @@ def remove_duplicated_symbols_ohlcv(ohlcv_data, max_correlation=0.999):
     for duplicated_symbols in duplicated_symbol_list:
         symbols_to_drop += list(volumes[list(duplicated_symbols)].sort_values(ascending=False).index[1:])
 
+    logging.info("Dropping symbols: {}".format(symbols_to_drop))
+
     for key in ohlcv_data.keys():
         clean_ohlcv_data[key] = ohlcv_data[key].drop(symbols_to_drop, axis=1)
 
     return clean_ohlcv_data
+
+
+def swap_keys_and_columns(data_dict):
+    """
+    Swap the keys and the columns of a data_dict, dictionary of dataframes.
+    :param data_dict: a dictionary with dataframes as values
+    :return: inverted data_dict.
+    """
+    data_panel = pd.Panel(data_dict)
+    return {key: data_panel.loc[:, :, key] for key in data_panel.minor_axis}
