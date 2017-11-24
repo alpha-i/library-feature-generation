@@ -28,6 +28,7 @@ from alphai_feature_generation.cleaning import (
     select_columns_data_dict,
     find_duplicated_symbols_data_frame,
     remove_duplicated_symbols_ohlcv,
+    swap_keys_and_columns,
 )
 from tests.helpers import (
     COLUMNS_OHLCV,
@@ -35,6 +36,7 @@ from tests.helpers import (
     sample_data_frame,
     sample_market_calendar,
     sample_hourly_ohlcv_data_dict,
+    tmp_symbols,
 )
 
 
@@ -75,12 +77,39 @@ def test_resample_data_frame_wrong_sampling_function():
         resample_data_frame(sample_data_frame, '15T', 'wrong')
 
 
-def test_resample_data_frame():
+def test_resample_data_frame_rules():
     resample_rules = ['1T', '2T', '5T', '10T', '60T', '1H']
     expected_lengths = [782, 392, 158, 80, 16, 16]
     for resample_rule, expected_length in zip(resample_rules, expected_lengths):
         resampled_data_frame = resample_data_frame(sample_data_frame, resample_rule)
         assert len(resampled_data_frame) == expected_length
+
+
+def test_resample_data_frame_functions():
+    index = pd.date_range('1/1/2000', periods=9, freq='T')
+    data_frame = pd.DataFrame(list(range(9)), index=index, columns=['col'])
+    resample_rule = '3T'
+
+    sampling_function = 'mean'
+    assert_almost_equal(resample_data_frame(data_frame, resample_rule, sampling_function)['col'], [1, 4, 7])
+
+    sampling_function = 'median'
+    assert_almost_equal(resample_data_frame(data_frame, resample_rule, sampling_function)['col'], [1, 4, 7])
+
+    sampling_function = 'sum'
+    assert_almost_equal(resample_data_frame(data_frame, resample_rule, sampling_function)['col'], [3, 12, 21])
+
+    sampling_function = 'first'
+    assert_almost_equal(resample_data_frame(data_frame, resample_rule, sampling_function)['col'], [0, 3, 6])
+
+    sampling_function = 'last'
+    assert_almost_equal(resample_data_frame(data_frame, resample_rule, sampling_function)['col'], [2, 5, 8])
+
+    sampling_function = 'min'
+    assert_almost_equal(resample_data_frame(data_frame, resample_rule, sampling_function)['col'], [0, 3, 6])
+
+    sampling_function = 'max'
+    assert_almost_equal(resample_data_frame(data_frame, resample_rule, sampling_function)['col'], [2, 5, 8])
 
 
 def test_resample_data_dict_wrong_resample_rule_type():
@@ -368,7 +397,7 @@ def test_find_duplicated_symbols_data_frame():
     mu = np.array([20., 20., 20., 100., 100., 100])
     data_frame = make_correlated_data_frame(mu, 100)
     duplicated_symbols = find_duplicated_symbols_data_frame(data_frame)
-    assert duplicated_symbols == [('A', 'C'), ('D', 'E', 'F')]
+    assert duplicated_symbols == [('A', 'C'), ('D', 'E'), ('D', 'F'), ('E', 'F')]
 
 
 def test_remove_duplicated_symbols_ohlcv():
@@ -387,3 +416,10 @@ def test_remove_duplicated_symbols_ohlcv():
 
     for key in cleaned_ohlcv_data.keys():
         assert cleaned_ohlcv_data[key].equals(ohlcv_data[key].drop(expected_dropped_symbols, axis=1))
+
+
+def test_swap_keys_and_columns():
+    swapped_data_dict = swap_keys_and_columns(sample_data_dict)
+    assert set(swapped_data_dict.keys()) == set(tmp_symbols)
+    for key in swapped_data_dict.keys():
+        assert set(swapped_data_dict[key].columns) == set(['dummy_key'])
