@@ -166,7 +166,7 @@ sample_fin_data_transf_feature_factory_list_bins = [
         'normalization': None,
         'nbins': None,
         'is_target': False,
-        'local': True
+        'local': False
     },
     {
         'name': 'high',
@@ -174,7 +174,7 @@ sample_fin_data_transf_feature_factory_list_bins = [
         'normalization': 'standard',
         'nbins': 5,
         'is_target': True,
-        'local': True
+        'local': False
     },
 ]
 

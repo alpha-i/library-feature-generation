@@ -142,6 +142,7 @@ class FinancialDataTransformation(DataTransformation):
                 self.features_start_market_minute,
                 single_feature_dict['is_target'],
                 self.exchange_calendar,
+                single_feature_dict['local'],
                 self.classify_per_series,
                 self.normalise_per_series
             ))

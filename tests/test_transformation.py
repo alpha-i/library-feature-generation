@@ -40,6 +40,7 @@ class TestFinancialDataTransformation(TestCase):
             'target_market_minute': 30,
             'n_classification_bins': 5,
             'nassets': 5,
+            'local': False,
             'classify_per_series': False,
             'normalise_per_series': False
         }
@@ -58,6 +59,7 @@ class TestFinancialDataTransformation(TestCase):
             'target_market_minute': 30,
             'n_classification_bins': 5,
             'nassets': 5,
+            'local': False,
             'classify_per_series': False,
             'normalise_per_series': False
         }
@@ -90,7 +92,7 @@ class TestFinancialDataTransformation(TestCase):
             target_timestamp,
         )
 
-        expected_n_time_dict = {'open_value': 15, 'high_log-return': 15, 'close_log-return': 15}
+        expected_n_time_dict = {'open_value': 15, 'high_log-return': 14, 'close_log-return': 14}
         expected_n_symbols = 4
         expected_n_features = 3
 
@@ -110,7 +112,7 @@ class TestFinancialDataTransformation(TestCase):
             prediction_timestamp,
         )
 
-        expected_n_time_dict = {'open_value': 15, 'high_log-return': 15, 'close_log-return': 15}
+        expected_n_time_dict = {'open_value': 15, 'high_log-return': 14, 'close_log-return': 14}
         expected_n_symbols = 5
         expected_n_features = 3
 
@@ -156,7 +158,7 @@ class TestFinancialDataTransformation(TestCase):
                           'features_resample_minutes': 60, 'features_start_market_minute': 1, 'exchange_name': 'NYSE',
                           'prediction_frequency_ndays': 1, 'prediction_market_minute': 30, 'target_delta_ndays': 5,
                           'target_market_minute': 30, 'n_classification_bins': 5, 'nassets': expected_n_symbols,
-                          'classify_per_series': False, 'normalise_per_series': False}
+                          'local': False, 'classify_per_series': False, 'normalise_per_series': False}
 
         return default_config
 
