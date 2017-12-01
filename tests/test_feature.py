@@ -95,7 +95,7 @@ class TestFinancialFeature(TestCase):
         )
         self.feature_6 = FinancialFeature(
             name='high',
-            transformation={'name': 'KER', 'lag': 20},
+            transformation={'name': 'ker', 'lag': 20},
             normalization=None,
             nbins=10,
             ndays=10,
@@ -119,7 +119,7 @@ class TestFinancialFeature(TestCase):
         )
         self.feature_8 = FinancialFeature(
             name='close',
-            transformation={'name': 'GASF', 'image_size': 24},
+            transformation={'name': 'gasf', 'image_size': 24},
             normalization='standard',
             nbins=10,
             ndays=10,
@@ -131,7 +131,7 @@ class TestFinancialFeature(TestCase):
         )
         self.feature_9 = FinancialFeature(
             name='close',
-            transformation={'name': 'GADF', 'image_size': 24},
+            transformation={'name': 'gadf', 'image_size': 24},
             normalization='standard',
             nbins=10,
             ndays=10,
@@ -143,7 +143,7 @@ class TestFinancialFeature(TestCase):
         )
         self.feature_10 = FinancialFeature(
             name='close',
-            transformation={'name': 'MTF', 'image_size': 24},
+            transformation={'name': 'mtf', 'image_size': 24},
             normalization='standard',
             nbins=10,
             ndays=10,

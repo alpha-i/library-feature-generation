@@ -137,7 +137,7 @@ class FinancialFeature(object):
             processed_prediction_data_x = \
                 processed_prediction_data_x.ewm(halflife=self.transformation['halflife']).mean()
 
-        if self.transformation['name'] == 'KER':
+        if self.transformation['name'] == 'ker':
             direction = processed_prediction_data_x.diff(self.transformation['lag']).abs()
             volatility = processed_prediction_data_x.diff().abs().rolling(window=self.transformation['lag']).sum()
 
@@ -149,21 +149,21 @@ class FinancialFeature(object):
             processed_prediction_data_x = direction / volatility
             processed_prediction_data_x.dropna(axis=0, inplace=True)
 
-        if self.transformation['name'] == 'GASF':
+        if self.transformation['name'] == 'gasf':
             columns = processed_prediction_data_x.columns
             gasf = GASF(image_size=self.transformation['image_size'], overlapping=False, scale='-1')
             processed_prediction_data_x = gasf.transform(processed_prediction_data_x.values.T)
             processed_prediction_data_x = processed_prediction_data_x.reshape(processed_prediction_data_x.shape[0], -1)
             processed_prediction_data_x = pd.DataFrame(processed_prediction_data_x.T, columns=columns)
 
-        if self.transformation['name'] == 'GADF':
+        if self.transformation['name'] == 'gadf':
             columns = processed_prediction_data_x.columns
             gadf = GADF(image_size=self.transformation['image_size'], overlapping=False, scale='-1')
             processed_prediction_data_x = gadf.transform(processed_prediction_data_x.values.T)
             processed_prediction_data_x = processed_prediction_data_x.reshape(processed_prediction_data_x.shape[0], -1)
             processed_prediction_data_x = pd.DataFrame(processed_prediction_data_x.T, columns=columns)
 
-        if self.transformation['name'] == 'MTF':
+        if self.transformation['name'] == 'mtf':
             columns = processed_prediction_data_x.columns
             mtf = MTF(image_size=self.transformation['image_size'], n_bins=7, quantiles='empirical', overlapping=False)
             processed_prediction_data_x = mtf.transform(processed_prediction_data_x.values.T)
