@@ -56,6 +56,7 @@ class FinancialDataTransformation(DataTransformation):
                                                          configuration['n_classification_bins'])
         self.n_series = configuration['nassets']
         self.configuration = configuration
+        self.fill_limit = configuration['fill_limit']
 
     @staticmethod
     def _assert_input(configuration):
@@ -76,6 +77,7 @@ class FinancialDataTransformation(DataTransformation):
             if single_feature_dict['is_target']:
                 n_targets += 1
         assert n_targets == 1
+        assert isinstance(configuration['fill_limit'], int)
 
     def get_total_ticks_x(self):
         """

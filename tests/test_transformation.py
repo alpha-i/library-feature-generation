@@ -42,7 +42,8 @@ class TestFinancialDataTransformation(TestCase):
             'nassets': 5,
             'local': False,
             'classify_per_series': False,
-            'normalise_per_series': False
+            'normalise_per_series': False,
+            'fill_limit' : 0
         }
 
         self.fin_data_transf_nobins = FinancialDataTransformation(configuration_nobins)
@@ -61,7 +62,8 @@ class TestFinancialDataTransformation(TestCase):
             'nassets': 5,
             'local': False,
             'classify_per_series': False,
-            'normalise_per_series': False
+            'normalise_per_series': False,
+            'fill_limit': 0
         }
         self.fin_data_transf_bins = FinancialDataTransformation(configuration_bins)
 
@@ -158,7 +160,7 @@ class TestFinancialDataTransformation(TestCase):
                           'features_resample_minutes': 60, 'features_start_market_minute': 1, 'exchange_name': 'NYSE',
                           'prediction_frequency_ndays': 1, 'prediction_market_minute': 30, 'target_delta_ndays': 5,
                           'target_market_minute': 30, 'n_classification_bins': 5, 'nassets': expected_n_symbols,
-                          'local': False, 'classify_per_series': False, 'normalise_per_series': False}
+                          'local': False, 'classify_per_series': False, 'normalise_per_series': False, 'fill_limit':0}
 
         return default_config
 
