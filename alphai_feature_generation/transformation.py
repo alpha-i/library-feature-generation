@@ -249,8 +249,6 @@ class FinancialDataTransformation(DataTransformation):
         market_open_list = self._get_market_open_list(raw_data_dict)
         data_x_list, data_y_list = [], []
 
-        raw_data_dict = self.add_transformation(raw_data_dict) # TODO can remove I think
-
         for prediction_market_open in simulated_market_dates:
             date_index = pd.Index(market_open_list).get_loc(prediction_market_open)
             target_index = date_index + self.target_delta_ndays
@@ -448,7 +446,7 @@ class FinancialDataTransformation(DataTransformation):
         """
 
         for feature in self.features:
-            if feature.full_name not in raw_data_dict.keys() and not feature.local:
+            if not feature.local and feature.full_name not in raw_data_dict.keys():
                 raw_data_dict[feature.full_name] = feature.process_prediction_data_x(raw_data_dict)
 
         return raw_data_dict
