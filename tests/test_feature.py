@@ -4,6 +4,7 @@ from unittest import TestCase
 import numpy as np
 import pandas as pd
 import pytest
+from pyts.transformation import GASF, GADF, MTF
 from numpy.testing import assert_almost_equal, assert_array_equal
 
 from alphai_feature_generation.feature import (
@@ -42,6 +43,7 @@ class TestFinancialFeature(TestCase):
             start_market_minute=30,
             is_target=True,
             exchange_calendar=sample_market_calendar,
+            local=False
         )
         self.feature_2 = FinancialFeature(
             name='close',
@@ -53,6 +55,7 @@ class TestFinancialFeature(TestCase):
             start_market_minute=90,
             is_target=True,
             exchange_calendar=sample_market_calendar,
+            local=False
         )
         self.feature_3 = FinancialFeature(
             name='high',
@@ -64,6 +67,7 @@ class TestFinancialFeature(TestCase):
             start_market_minute=150,
             is_target=True,
             exchange_calendar=sample_market_calendar,
+            local=False
         )
         self.feature_4 = FinancialFeature(
             name='high',
@@ -75,6 +79,7 @@ class TestFinancialFeature(TestCase):
             start_market_minute=150,
             is_target=True,
             exchange_calendar=sample_market_calendar,
+            local=False
         )
         self.feature_5 = FinancialFeature(
             name='high',
@@ -86,10 +91,11 @@ class TestFinancialFeature(TestCase):
             start_market_minute=150,
             is_target=True,
             exchange_calendar=sample_market_calendar,
+            local=False
         )
         self.feature_6 = FinancialFeature(
             name='high',
-            transformation={'name': 'KER', 'lag': 20},
+            transformation={'name': 'ker', 'lag': 20},
             normalization=None,
             nbins=10,
             ndays=10,
@@ -97,6 +103,7 @@ class TestFinancialFeature(TestCase):
             start_market_minute=150,
             is_target=True,
             exchange_calendar=sample_market_calendar,
+            local=False
         )
         self.feature_7 = FinancialFeature(
             name='high',
@@ -108,6 +115,43 @@ class TestFinancialFeature(TestCase):
             start_market_minute=150,
             is_target=True,
             exchange_calendar=sample_market_calendar,
+            local=False
+        )
+        self.feature_8 = FinancialFeature(
+            name='close',
+            transformation={'name': 'gasf', 'image_size': 24},
+            normalization='standard',
+            nbins=10,
+            ndays=10,
+            resample_minutes=60,
+            start_market_minute=150,
+            is_target=True,
+            exchange_calendar=sample_market_calendar,
+            local=True
+        )
+        self.feature_9 = FinancialFeature(
+            name='close',
+            transformation={'name': 'gadf', 'image_size': 24},
+            normalization='standard',
+            nbins=10,
+            ndays=10,
+            resample_minutes=60,
+            start_market_minute=150,
+            is_target=True,
+            exchange_calendar=sample_market_calendar,
+            local=True
+        )
+        self.feature_10 = FinancialFeature(
+            name='close',
+            transformation={'name': 'mtf', 'image_size': 24},
+            normalization='standard',
+            nbins=10,
+            ndays=10,
+            resample_minutes=60,
+            start_market_minute=150,
+            is_target=True,
+            exchange_calendar=sample_market_calendar,
+            local=True
         )
 
     def test_process_prediction_data_x_1(self):
@@ -167,6 +211,27 @@ class TestFinancialFeature(TestCase):
         expected_result.dropna(axis=0, inplace=True)
 
         assert_almost_equal(processed_prediction_data_x.values, expected_result.values, ASSERT_NDECIMALS)
+
+    def test_process_prediction_data_x_8(self):
+        data_frame_x = sample_hourly_ohlcv_data_dict[self.feature_8.name]
+        processed_prediction_data_x = self.feature_8.process_prediction_data_x(data_frame_x)
+
+        assert processed_prediction_data_x.shape == (self.feature_8.transformation['image_size']**2,
+                                                     data_frame_x.shape[1])
+
+    def test_process_prediction_data_x_9(self):
+        data_frame_x = sample_hourly_ohlcv_data_dict[self.feature_9.name]
+        processed_prediction_data_x = self.feature_9.process_prediction_data_x(data_frame_x)
+
+        assert processed_prediction_data_x.shape == (self.feature_9.transformation['image_size']**2,
+                                                     data_frame_x.shape[1])
+
+    def test_process_prediction_data_x_10(self):
+        data_frame_x = sample_hourly_ohlcv_data_dict[self.feature_10.name]
+        processed_prediction_data_x = self.feature_10.process_prediction_data_x(data_frame_x)
+
+        assert processed_prediction_data_x.shape == (self.feature_10.transformation['image_size']**2,
+                                                     data_frame_x.shape[1])
 
     def test_process_prediction_data_y_1(self):
         data_frame = sample_hourly_ohlcv_data_dict[self.feature_1.name]

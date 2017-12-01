@@ -14,5 +14,7 @@ setup(
                       'scipy',
                       'pandas_market_calendars',
                       'tables',
+                      'pyts',
+                      'future',
                       ]
 )
