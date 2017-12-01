@@ -249,7 +249,7 @@ class FinancialDataTransformation(DataTransformation):
         market_open_list = self._get_market_open_list(raw_data_dict)
         data_x_list, data_y_list = [], []
 
-        raw_data_dict = self.add_transformation(raw_data_dict)
+        raw_data_dict = self.add_transformation(raw_data_dict) # TODO can remove I think
 
         for prediction_market_open in simulated_market_dates:
             date_index = pd.Index(market_open_list).get_loc(prediction_market_open)

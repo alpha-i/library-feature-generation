@@ -57,7 +57,7 @@ class VolumeUniverseProvider(AbstractUniverseProvider):
         self._rrule = FREQUENCY_RRULE_MAP[self._update_frequency]
 
     def _get_universe_at(self, date, data_dict, selection_key):
-        assert type(date) == datetime.date
+        assert (type(date) == datetime.date) or (type(date) == pd.Timestamp)
 
         for key, value in data_dict.items():
             if key == selection_key:
@@ -93,12 +93,13 @@ class VolumeUniverseProvider(AbstractUniverseProvider):
                     self._get_universe_at(period_start_date.date(),
                                           select_between_timestamps(relevant_dict, end_timestamp=end_timestamp), key)
                 ]
-            historical_universes.iloc[-1]['end_date'] = end_date
+            historical_universes.iloc[-1]['end_date'] = end_date.date()
+
         elif len(rrule_dates) == 1:
             end_timestamp = pd.Timestamp(start_date, tz=data_timezone)
             historical_universes.loc[0] = [
-                start_date,
-                end_date,
+                start_date.date(),
+                end_date.date(),
                 self._get_universe_at(start_date,
                                       select_between_timestamps(relevant_dict, end_timestamp=end_timestamp), key)
             ]
