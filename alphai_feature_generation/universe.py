@@ -43,14 +43,12 @@ class VolumeUniverseProvider(AbstractUniverseProvider):
         :param nassets: Number of assets to select
         :param ndays_window: Number of days over which to calculate the period liquidity
         :param update_frequency: str in ['daily', 'weekly', 'monthly', 'yearly']: updates of the historical universe
-        :param fill_limit: forward and backward fill gaps in data for a maximum of fill_limit points
         :param dropna: if True drops columns containing any nan after gaps-filling
         """
 
         self._nassets = configuration['nassets']
         self._ndays_window = configuration['ndays_window']
         self._update_frequency = configuration['update_frequency']
-        self._fill_limit = configuration['fill_limit']
         self._dropna = configuration['dropna']
 
         self._nminutes_window = self._ndays_window * MINUTES_IN_ONE_TRADING_DAY
