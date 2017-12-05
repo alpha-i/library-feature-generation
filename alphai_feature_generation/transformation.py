@@ -263,6 +263,13 @@ class FinancialDataTransformation(DataTransformation):
             try:
                 feature_x_dict, feature_y_dict = self.build_features(raw_data_dict, historical_universes,
                                                                      prediction_market_open, target_market_open)
+            except KeyError as e:
+                logging.error("Error while building features. {}. prediction_time: {}. target_time: {}".format(
+                    e,
+                    prediction_market_open,
+                    target_market_open
+                ))
+                continue
             except Exception as e:
                 logging.error('Failed to build a set of features', exc_info=e)
                 raise e
