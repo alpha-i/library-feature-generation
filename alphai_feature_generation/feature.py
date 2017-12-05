@@ -122,7 +122,8 @@ class FinancialFeature(object):
                 replace([np.inf, -np.inf], np.nan)
 
             # Remove the zeros / nans associated with log return
-            processed_prediction_data_x = processed_prediction_data_x.iloc[1:]
+            if self.local:
+                processed_prediction_data_x = processed_prediction_data_x.iloc[1:]
 
         if self.transformation['name'] == 'stochastic_k':
             columns = processed_prediction_data_x.columns

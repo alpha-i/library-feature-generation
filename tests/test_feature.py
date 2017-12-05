@@ -163,14 +163,14 @@ class TestFinancialFeature(TestCase):
         data_dict_x = sample_hourly_ohlcv_data_dict
         processed_prediction_data_x = self.feature_2.process_prediction_data_x(data_dict_x)
         expected_log_returns = np.log(data_dict_x[self.feature_2.name].pct_change() + 1). \
-            replace([np.inf, -np.inf], np.nan).dropna()
+            replace([np.inf, -np.inf], np.nan)
         assert_almost_equal(processed_prediction_data_x, expected_log_returns.values, ASSERT_NDECIMALS)
 
     def test_process_prediction_data_x_3(self):
         data_dict_x = sample_hourly_ohlcv_data_dict
         processed_prediction_data_x = self.feature_3.process_prediction_data_x(data_dict_x)
         expected_normalized_log_returns = \
-            (np.log(data_dict_x[self.feature_3.name].pct_change() + 1).replace([np.inf, -np.inf], np.nan).dropna()
+            (np.log(data_dict_x[self.feature_3.name].pct_change() + 1).replace([np.inf, -np.inf], np.nan)
              ).values
         assert_almost_equal(processed_prediction_data_x, expected_normalized_log_returns, ASSERT_NDECIMALS)
 
