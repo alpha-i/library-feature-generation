@@ -85,17 +85,12 @@ def resample_data_frame(data_frame, resample_rule, sampling_function='mean'):
     Resample dataframe according to input rules and drop nans horizontally.
     :param data_frame: Dataframe with time as index
     :param resample_rule: string specifying the pandas resampling rule
-    :param sampling_function: string specifying the sampling function in ['mean', 'median', 'sum']
+    :param sampling_function: string specifying the sampling function in
+           ['mean', 'median', 'sum', 'first', 'last', 'min', 'max']
     :return: resampled dataframe.
     """
-    assert isinstance(sampling_function, str)
-    assert sampling_function in ['mean', 'median', 'sum']
-    if sampling_function == 'mean':
-        return data_frame.resample(resample_rule).mean().dropna(axis=[0, 1], how='all')
-    elif sampling_function == 'median':
-        return data_frame.resample(resample_rule).median().dropna(axis=[0, 1], how='all')
-    else:
-        return data_frame.resample(resample_rule).sum().dropna(axis=[0, 1], how='all')
+    assert sampling_function in ['mean', 'median', 'sum', 'first', 'last', 'min', 'max']
+    return getattr(data_frame.resample(resample_rule), sampling_function)().dropna(axis=[0, 1], how='all')
 
 
 def resample_data_dict(data_dict, resample_rule, sampling_function_mapping='mean'):
@@ -103,8 +98,8 @@ def resample_data_dict(data_dict, resample_rule, sampling_function_mapping='mean
     Resample dictionary of dataframes data according to input rules and drop nans horizontally.
     :param data_dict: a dictionary with (timestamp, symbol)-dataframes as values
     :param resample_rule: string specifying the pandas resampling rule
-    :param sampling_function_mapping: dictionary of strings (or string) specifying the
-           sampling function in ['mean', 'median', 'sum'] for each key in data_dict. If a string
+    :param sampling_function_mapping: dictionary of strings (or string) specifying the sampling function in
+           ['mean', 'median', 'sum', 'first', 'last', 'min', 'max'] for each key in data_dict. If a string
            is passed, it will be used for all keys in data_dict.
     :return: dictionary of resampled dataframes.
     """
@@ -120,21 +115,18 @@ def resample_data_dict(data_dict, resample_rule, sampling_function_mapping='mean
     return resampled_data_dict
 
 
-def resample_ohlcv(ohlcv_data, resample_rule, averaging_function='mean'):
+def resample_ohlcv(ohlcv_data, resample_rule):
     """
     Resample ['open', 'high', 'low', 'close', 'volume'] history data according to input rule
     and drop nans horizontally.
     :param ohlcv_data: Dictionary of dataframes with time as index and OHLCV as keys
     :param resample_rule: string specifying the pandas resampling rule
-    :param averaging_function: string specifying the averaging function in ['mean', 'median']
     :return: dictionary of resampled dataframes.
     """
-    assert isinstance(averaging_function, str)
-    assert averaging_function in ['mean', 'median']
-    sampling_function_mapping = {'open': averaging_function,
-                                 'high': averaging_function,
-                                 'low': averaging_function,
-                                 'close': averaging_function,
+    sampling_function_mapping = {'open': 'first',
+                                 'high': 'max',
+                                 'low': 'min',
+                                 'close': 'last',
                                  'volume': 'sum'}
     return resample_data_dict(ohlcv_data, resample_rule, sampling_function_mapping)
 
@@ -241,7 +233,6 @@ def fill_gaps_data_frame(data_frame, fill_limit, dropna=True):
     """
     tmp_data_frame = deepcopy(data_frame)
     tmp_data_frame = tmp_data_frame.fillna(method='ffill', limit=fill_limit)
-    tmp_data_frame = tmp_data_frame.fillna(method='backfill', limit=fill_limit)
     if dropna:
         # Drop columns that after nan filling still contain nans
         tmp_data_frame = tmp_data_frame.dropna(axis=1, how='any')
@@ -290,13 +281,8 @@ def interpolate_gaps_data_frame(data_frame, limit, dropna=True, method='linear')
     :return: dataframe with gaps filled and nan-containing columns removed if required.
     """
     tmp_data_frame = deepcopy(data_frame)
-    tmp_bf_data_frame = deepcopy(data_frame)
 
     tmp_data_frame = tmp_data_frame.interpolate(method=method, limit=limit, limit_direction='forward')
-
-    tmp_bf_data_frame = tmp_bf_data_frame.interpolate(limit=limit, limit_direction='backward').\
-        where(data_frame.ffill().isnull())
-    tmp_data_frame[tmp_bf_data_frame.notnull()] = tmp_bf_data_frame
 
     if dropna:
         tmp_data_frame = tmp_data_frame.dropna(axis=1, how='any')

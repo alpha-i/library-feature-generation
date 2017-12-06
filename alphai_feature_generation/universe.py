@@ -28,10 +28,10 @@ OHLCV = 'open high low close volume'.split()
 
 class AbstractUniverseProvider(metaclass=ABCMeta):
     @abstractmethod
-    def get_historical_universes(self, data):
+    def get_historical_universes(self, data_dict):
         """
         Get a dataframe with arrays of all the relevant equities between two dates, categorised by date ranges.
-        :param data: dict of dataframes
+        :param data_dict: dict of dataframes
         :return: Dataframe with three columns ['start_date', 'end_date', 'assets']
         """
 
@@ -54,29 +54,27 @@ class VolumeUniverseProvider(AbstractUniverseProvider):
         self._nminutes_window = self._ndays_window * MINUTES_IN_ONE_TRADING_DAY
         self._rrule = FREQUENCY_RRULE_MAP[self._update_frequency]
 
-    def _get_universe_at(self, date, data_dict, selection_key):
+    def _get_universe_at(self, date, data_dict):
         assert (type(date) == datetime.date) or (type(date) == pd.Timestamp)
 
-        for key, value in data_dict.items():
-            if key == selection_key:
-                data_dict[key] = value.resample('1D').sum().dropna(axis=[0, 1], how='all')
-            elif key == 'close':
-                data_dict[key] = value.resample('1D').mean().dropna(axis=[0, 1], how='all')
+        data_dict['volume'] = data_dict['volume'] .resample('1D').sum().dropna(axis=[0, 1], how='all')
+        data_dict['close'] = data_dict['close'].resample('1D').last().dropna(axis=[0, 1], how='all')
 
         selected_daily_data_dict = slice_data_dict(data_dict, slice_start=-self._ndays_window)
-        #assert len(selected_daily_data_dict[selection_key]) == self._ndays_window
-        no_duplicates_data_dict = remove_duplicated_symbols_ohlcv(data_dict)
-        universe_at_date = np.array(list(no_duplicates_data_dict[selection_key].sum().sort_values(ascending=False).index))
+        assert len(selected_daily_data_dict['volume']) == self._ndays_window
+
+        no_duplicates_data_dict = remove_duplicated_symbols_ohlcv(selected_daily_data_dict)
+        universe_at_date = np.array(list(no_duplicates_data_dict['volume'].sum().sort_values(ascending=False).index))
 
         return universe_at_date[:self._nassets]
 
-    def get_historical_universes(self, data_dict, key='volume'):
+    def get_historical_universes(self, data_dict):
 
         historical_universes = pd.DataFrame(columns=HISTORICAL_UNIVERSE_COLUMNS)
-        data_timezone = data_dict[key].index.tz
-        start_date = data_dict[key].index[0] + datetime.timedelta(days=self._ndays_window)
-        end_date = data_dict[key].index[-1]
-        relevant_dict = {k: data_dict[k] for k in (key, 'close')}
+        data_timezone = data_dict['volume'].index.tz
+        start_date = data_dict['volume'].index[0] + datetime.timedelta(days=self._ndays_window + 1)
+        end_date = data_dict['volume'].index[-1]
+        relevant_dict = {k: data_dict[k] for k in ('volume', 'close')}
         rrule_dates = list(rrule.rrule(self._rrule, dtstart=start_date, until=end_date))
 
         if len(rrule_dates) > 1:
@@ -89,7 +87,7 @@ class VolumeUniverseProvider(AbstractUniverseProvider):
                     period_start_date.date(),
                     period_end_date.date(),
                     self._get_universe_at(period_start_date.date(),
-                                          select_between_timestamps(relevant_dict, end_timestamp=end_timestamp), key)
+                                          select_between_timestamps(relevant_dict, end_timestamp=end_timestamp))
                 ]
             historical_universes.iloc[-1]['end_date'] = end_date.date()
 
@@ -99,6 +97,6 @@ class VolumeUniverseProvider(AbstractUniverseProvider):
                 start_date.date(),
                 end_date.date(),
                 self._get_universe_at(start_date,
-                                      select_between_timestamps(relevant_dict, end_timestamp=end_timestamp), key)
+                                      select_between_timestamps(relevant_dict, end_timestamp=end_timestamp))
             ]
         return historical_universes
