@@ -19,6 +19,10 @@ TOTAL_TICKS_M1_FINANCIAL_FEATURES = ['open_log-return', 'high_log-return', 'low_
 logging.getLogger(__name__).addHandler(logging.NullHandler())
 
 
+class DateNotInUniverseError(Exception):
+    pass
+
+
 class DataTransformation(metaclass=ABCMeta):
     @abstractmethod
     def create_train_data(self, *args):
@@ -252,6 +256,7 @@ class FinancialDataTransformation(DataTransformation):
         data_x_list, data_y_list = [], []
 
         for prediction_market_open in simulated_market_dates:
+
             date_index = pd.Index(market_open_list).get_loc(prediction_market_open)
             target_index = date_index + self.target_delta_ndays
 
@@ -261,9 +266,13 @@ class FinancialDataTransformation(DataTransformation):
                 target_market_open = None
 
             try:
-                feature_x_dict, feature_y_dict = self.build_features(raw_data_dict, historical_universes,
+               feature_x_dict, feature_y_dict = self.build_features(raw_data_dict, historical_universes,
                                                                      prediction_market_open, target_market_open)
-            except KeyError as e:
+            except DateNotInUniverseError as e:
+                logging.error(e)
+                continue
+
+            except (KeyError) as e:
                 logging.error("Error while building features. {}. prediction_time: {}. target_time: {}".format(
                     e,
                     prediction_market_open,
@@ -416,21 +425,21 @@ class FinancialDataTransformation(DataTransformation):
 
         return y_list
 
-    def build_features(self, raw_data_dict, historical_universes, prediction_market_open, target_market_open):
+    def build_features(self, raw_data_dict, universe, prediction_market_open, target_market_open):
         """ Creates dictionaries of features and labels for a single window
 
         :param dict raw_data_dict: dictionary of dataframes containing features data.
-        :param pd.Dataframe historical_universes: Dataframe with three columns ['start_date', 'end_date', 'assets']
+        :param pd.Dataframe universe: Dataframe with three columns ['start_date', 'end_date', 'assets']
         :param prediction_market_open:
         :param target_market_open:
         :return:
         """
 
-        if historical_universes is None:
+        if universe is None:
             universe = None
         else:
             prediction_date = prediction_market_open.date()
-            universe = _get_universe_from_date(prediction_date, historical_universes)
+            universe = _get_universe_from_date(prediction_date, universe)
 
         prediction_timestamp = prediction_market_open + timedelta(minutes=self.prediction_market_minute)
 
@@ -546,9 +555,12 @@ def _get_universe_from_date(date, historical_universes):
     :param pd.Dataframe historical_universes: Dataframe with three columns ['start_date', 'end_date', 'assets']
     :return list: list of relevant symbols
     """
-    universe_idx = historical_universes[(date >= historical_universes.start_date) &
-                                        (date < historical_universes.end_date)].index[0]
-    return historical_universes.assets[universe_idx]
+    try:
+        universe_idx = historical_universes[(date >= historical_universes.start_date) &
+                                            (date < historical_universes.end_date)].index[0]
+        return historical_universes.assets[universe_idx]
+    except IndexError as e:
+        raise DateNotInUniverseError("Error getting universe from date. date {} not in universe".format(date))
 
 
 def get_unique_symbols(data_list):
