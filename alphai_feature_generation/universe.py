@@ -57,8 +57,8 @@ class VolumeUniverseProvider(AbstractUniverseProvider):
     def _get_universe_at(self, date, data_dict):
         assert (type(date) == datetime.date) or (type(date) == pd.Timestamp)
 
-        for key, value in data_dict.items():
-            data_dict[key] = value.resample('1D').sum().dropna(axis=[0, 1], how='all')
+        data_dict['volume'] = data_dict['volume'] .resample('1D').sum().dropna(axis=[0, 1], how='all')
+        data_dict['close'] = data_dict['close'].resample('1D').last().dropna(axis=[0, 1], how='all')
 
         selected_daily_data_dict = slice_data_dict(data_dict, slice_start=-self._ndays_window)
         assert len(selected_daily_data_dict['volume']) == self._ndays_window
@@ -72,7 +72,7 @@ class VolumeUniverseProvider(AbstractUniverseProvider):
 
         historical_universes = pd.DataFrame(columns=HISTORICAL_UNIVERSE_COLUMNS)
         data_timezone = data_dict['volume'].index.tz
-        start_date = data_dict['volume'].index[0] + datetime.timedelta(days=self._ndays_window)
+        start_date = data_dict['volume'].index[0] + datetime.timedelta(days=self._ndays_window + 1)
         end_date = data_dict['volume'].index[-1]
         relevant_dict = {k: data_dict[k] for k in ('volume', 'close')}
         rrule_dates = list(rrule.rrule(self._rrule, dtstart=start_date, until=end_date))
