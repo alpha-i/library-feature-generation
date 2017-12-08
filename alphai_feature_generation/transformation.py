@@ -184,7 +184,7 @@ class FinancialDataTransformation(DataTransformation):
         :return (dict, dict): feature_x_dict, feature_y_dict
         """
         feature_x_dict, feature_y_dict = {}, {}
-        self.features
+
         for feature in self.features:
             if universe is None:
                 universe = raw_data_dict[feature.name].columns
