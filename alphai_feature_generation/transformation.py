@@ -189,8 +189,9 @@ class FinancialDataTransformation(DataTransformation):
             if universe is None:
                 universe = raw_data_dict[feature.name].columns
 
+            feature_name = feature.full_name if feature.full_name in raw_data_dict.keys() else feature.name
             feature_x, feature_y = feature.get_prediction_data(
-                raw_data_dict[feature.name].loc[:, universe],
+                raw_data_dict[feature_name].loc[:, universe],
                 prediction_timestamp,
                 target_timestamp,
             )
