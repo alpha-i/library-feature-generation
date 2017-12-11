@@ -105,7 +105,7 @@ def resample_data_dict(data_dict, resample_rule, sampling_function_mapping='mean
     """
     assert isinstance(sampling_function_mapping, (dict, str))
     if isinstance(sampling_function_mapping, dict):
-        assert set(data_dict.keys()).issubset(set(sampling_function_mapping.keys()))
+        assert set(data_dict).issubset(set(sampling_function_mapping))
     else:
         sampling_function_mapping = {key: sampling_function_mapping for key in data_dict.keys()}
     resampled_data_dict = {}
