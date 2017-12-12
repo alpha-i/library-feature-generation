@@ -262,7 +262,7 @@ class FinancialDataTransformation(DataTransformation):
 
         target_market_open = None
 
-        if simulated_market_dates.empty:
+        if len(simulated_market_dates) == 0:
             logging.error("Empty Market dates")
 
             raise ValueError("Empty Market dates")
@@ -307,6 +307,7 @@ class FinancialDataTransformation(DataTransformation):
         if n_valid_samples < n_samples:
             logging.info("{} out of {} samples were found to be valid".format(n_valid_samples, n_samples))
             self.print_diagnostics(rejected_x_list[-1], rejected_y_list[-1])
+
         data_x_list = self._make_normalised_x_list(data_x_list, do_normalisation_fitting)
 
         if target_market_open is None:
