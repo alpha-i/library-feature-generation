@@ -275,6 +275,7 @@ class FinancialDataTransformation(DataTransformation):
 
         n_samples = len(simulated_market_dates)
         market_open_list = self._get_market_open_list(raw_data_dict)
+        prediction_timestamp_list = []
 
         data_x_list = []
         data_y_list = []
