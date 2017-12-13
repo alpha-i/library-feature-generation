@@ -62,6 +62,7 @@ class FinancialDataTransformation(DataTransformation):
         self.features = self._financial_features_factory(configuration['feature_config_list'],
                                                          configuration['n_classification_bins'])
         self.n_series = configuration['nassets']
+        self.prediction_delay = configuration.get('prediction_delay', False)
         self.configuration = configuration
         self.fill_limit = configuration['fill_limit']
 
@@ -478,10 +479,18 @@ class FinancialDataTransformation(DataTransformation):
 
         prediction_timestamp = prediction_market_open + timedelta(minutes=self.prediction_market_minute)
 
+        if self.prediction_delay:
+            market_close = self.exchange_calendar.schedule(prediction_timestamp.date(),
+                                                           prediction_timestamp.date())['market_close']
+            prediction_timestamp = pd.to_datetime(market_close).iloc[0]
+
         if target_market_open is None:
             target_timestamp = None
         else:
             target_timestamp = target_market_open + timedelta(minutes=self.target_market_minute)
+
+        if prediction_timestamp > target_timestamp:
+            raise ValueError('Target timestamp should be later than prediction_timestamp')
 
         feature_x_dict, feature_y_dict = self.get_prediction_data_all_features(raw_data_dict,
                                                                                prediction_timestamp,
