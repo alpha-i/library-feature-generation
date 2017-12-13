@@ -1,31 +1,46 @@
 import numpy as np
 import logging
+from scipy.special import erfinv
+
 
 logging.getLogger(__name__).addHandler(logging.NullHandler())
 
 
 class BinDistribution:
 
-    def __init__(self, training_labels, n_bins):
+    def __init__(self, data, n_bins, use_centred_bins=False):
 
-        self.training_labels = training_labels.flatten()
+        data = data.flatten()
+
         self.n_bins = n_bins
         self.pdf_type = self.find_best_fit_pdf_type()
 
-        self.mean = np.mean(self.training_labels)
-        self.median = np.median(self.training_labels)
-        self.sigma = np.std(self.training_labels)
+        self.mean = np.mean(data)
+        self.median = np.median(data)
+        self.sigma = np.std(data)
 
-        self.bin_edges = self._compute_balanced_bin_edges()
+        n_datapoints = len(data)
+        if n_datapoints > 0:
+            self.bin_edges = self._compute_balanced_bin_edges(data, use_centred_bins)
+            counts, bins = np.histogram(data, self.bin_edges, density=False)
 
-        pdf, bins = np.histogram(self.training_labels, self.bin_edges, density=False)
-        self.pdf = pdf / self.training_labels.shape[0]
+            if use_centred_bins:  # Catch outliers
+                counts[0] += np.sum(data < self.bin_edges[0])
+                counts[-1] += np.sum(data > self.bin_edges[-1])
 
-        self.n_bins = n_bins
-        self.bin_centres = self._compute_bin_centres()
-        self.bin_widths = self._compute_bin_widths()
-        self.mean_bin_width = self._calc_mean_bin_width()
-        self.sheppards_correction = self._calc_sheppards_correction()
+            self.pdf = counts / n_datapoints
+            self.n_bins = n_bins
+            self.bin_centres = self._compute_bin_centres()
+            self.bin_widths = self._compute_bin_widths()
+            self.mean_bin_width = self._calc_mean_bin_width()
+            self.sheppards_correction = self._calc_sheppards_correction()
+        else:
+            self.bin_edges = [0]
+            self.pdf = [1]
+            self.bin_centres = 0
+            self.bin_widths = 0
+            self.mean_bin_width = 0
+            self.sheppards_correction = 0
 
     def find_best_fit_pdf_type(self):
         """
@@ -35,20 +50,27 @@ class BinDistribution:
         """
         return 'Gaussian'  # TODO: enable tests for t-distributed data; lognormal, etc
 
-    def _compute_balanced_bin_edges(self):
+    def _compute_balanced_bin_edges(self, data, use_centred_bins):
         """
         Finds the bins needed such that they equally divided the data.
 
+        :param bool centred_bins: whether to force the bins to be centred on zero
         :return ndarray: of length (n_bins + 1) which defines edges of bins which contain an equal number of data points
         """
 
-        if self.training_labels.ndim != 1:
+        if data.ndim != 1:
             raise ValueError("Currently only supports one dimensional input")
-        n_xvals = len(self.training_labels)
-        xrange = np.linspace(0, n_xvals - 1, self.n_bins + 1)
+        n_xvals = len(data)
         n_array = np.arange(n_xvals)
 
-        return np.interp(xrange, n_array, np.sort(self.training_labels))
+        if use_centred_bins:
+            unit_gaussian_edges = _calculate_unit_gaussian_edges(self.n_bins + 1)
+            bin_edges = unit_gaussian_edges * self.sigma
+        else:  # Original bin definition
+            xrange = np.linspace(0, n_xvals - 1, self.n_bins + 1)
+            bin_edges = np.interp(xrange, n_array, np.sort(data))
+
+        return bin_edges
 
     def _compute_bin_centres(self):
         """
@@ -85,6 +107,23 @@ class BinDistribution:
         :return float: The amount by which the variance of the discrete pdf overestimates the continuous pdf
         """
         return np.median(self.bin_widths ** 2) / 12
+
+
+def _calculate_unit_gaussian_edges(n_edges):
+    """ Retrieve array of edges for a unit gaussian such that the bins hold equal probability
+
+    :param nparray n_bins:
+    :return: nparray edges: The bin edges
+    """
+
+    stepsize = 2 / n_edges
+    startval = -1 + stepsize / 2
+    stopval = 1
+    sampler = np.arange(startval, stopval, stepsize)
+
+    gaussian_edges = erfinv(sampler) * np.sqrt(2)
+
+    return gaussian_edges
 
 
 def classify_labels(bin_edges, labels):
@@ -133,7 +172,6 @@ def declassify_labels(dist, pdf_arrays):
 
     mean = np.mean(point_estimates)
     variance = np.var(point_estimates) - dist.sheppards_correction
-
     variance = np.maximum(variance, dist.sheppards_correction)  # Prevent variance becoming too small
 
     return mean, variance
@@ -157,7 +195,6 @@ def extract_point_estimates(bin_centres, pdf_array):
     normalisation_offset = np.sum(pdf_array[0, :]) - 1.0
 
     if np.abs(normalisation_offset) > 1e-3:
-
         logging.warning('Probability mass function not normalised')
         logging.info('PDF Array shape: {}'.format(pdf_array.shape))
         logging.info('Normalisation offset: {}'.format(normalisation_offset))
