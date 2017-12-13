@@ -96,7 +96,8 @@ sample_fin_feature_factory_list = [
         'start_market_minute': 1,
         'is_target': False,
         'exchange_name': 'NYSE',
-        'local': True
+        'local': True,
+        'length': 10
     },
     {
         'name': 'close',
@@ -108,7 +109,8 @@ sample_fin_feature_factory_list = [
         'start_market_minute': 1,
         'is_target': False,
         'exchange_name': 'NYSE',
-        'local': True
+        'local': True,
+        'length': 10
     },
     {
         'name': 'high',
@@ -120,7 +122,8 @@ sample_fin_feature_factory_list = [
         'start_market_minute': 1,
         'is_target': True,
         'exchange_name': 'NYSE',
-        'local': True
+        'local': True,
+        'length': 10
     },
 ]
 
@@ -191,7 +194,8 @@ sample_fin_feature_list = [
         exchange_calendar=sample_market_calendar,
         classify_per_series=False,
         normalise_per_series=False,
-        local=True
+        local=True,
+        length=10
     ),
     FinancialFeature(
         name='close',
@@ -205,7 +209,8 @@ sample_fin_feature_list = [
         exchange_calendar=sample_market_calendar,
         classify_per_series=False,
         normalise_per_series=False,
-        local=True
+        local=True,
+        length=10
     ),
     FinancialFeature(
         name='high',
@@ -219,7 +224,8 @@ sample_fin_feature_list = [
         exchange_calendar=sample_market_calendar,
         classify_per_series=False,
         normalise_per_series=False,
-        local=True
+        local=True,
+        length=10
     ),
 ]
 
