@@ -43,7 +43,8 @@ class TestFinancialFeature(TestCase):
             start_market_minute=30,
             is_target=True,
             exchange_calendar=sample_market_calendar,
-            local=False
+            local=False,
+            length=15
         )
         self.feature_2 = FinancialFeature(
             name='close',
@@ -55,7 +56,8 @@ class TestFinancialFeature(TestCase):
             start_market_minute=90,
             is_target=True,
             exchange_calendar=sample_market_calendar,
-            local=False
+            local=False,
+            length=35
         )
         self.feature_3 = FinancialFeature(
             name='high',
@@ -67,7 +69,8 @@ class TestFinancialFeature(TestCase):
             start_market_minute=150,
             is_target=True,
             exchange_calendar=sample_market_calendar,
-            local=False
+            local=False,
+            length=69
         )
         self.feature_4 = FinancialFeature(
             name='high',
@@ -79,7 +82,8 @@ class TestFinancialFeature(TestCase):
             start_market_minute=150,
             is_target=True,
             exchange_calendar=sample_market_calendar,
-            local=False
+            local=False,
+            length=10
         )
         self.feature_5 = FinancialFeature(
             name='high',
@@ -91,7 +95,8 @@ class TestFinancialFeature(TestCase):
             start_market_minute=150,
             is_target=True,
             exchange_calendar=sample_market_calendar,
-            local=False
+            local=False,
+            length=10
         )
         self.feature_6 = FinancialFeature(
             name='high',
@@ -103,7 +108,8 @@ class TestFinancialFeature(TestCase):
             start_market_minute=150,
             is_target=True,
             exchange_calendar=sample_market_calendar,
-            local=False
+            local=False,
+            length=10
         )
         self.feature_7 = FinancialFeature(
             name='high',
@@ -115,7 +121,8 @@ class TestFinancialFeature(TestCase):
             start_market_minute=150,
             is_target=True,
             exchange_calendar=sample_market_calendar,
-            local=False
+            local=False,
+            length=69
         )
         self.feature_8 = FinancialFeature(
             name='close',
@@ -127,7 +134,8 @@ class TestFinancialFeature(TestCase):
             start_market_minute=150,
             is_target=True,
             exchange_calendar=sample_market_calendar,
-            local=True
+            local=True,
+            length=10
         )
         self.feature_9 = FinancialFeature(
             name='close',
@@ -139,7 +147,8 @@ class TestFinancialFeature(TestCase):
             start_market_minute=150,
             is_target=True,
             exchange_calendar=sample_market_calendar,
-            local=True
+            local=True,
+            length=10
         )
         self.feature_10 = FinancialFeature(
             name='close',
@@ -151,7 +160,8 @@ class TestFinancialFeature(TestCase):
             start_market_minute=150,
             is_target=True,
             exchange_calendar=sample_market_calendar,
-            local=True
+            local=True,
+            length=10
         )
 
     def test_process_prediction_data_x_1(self):
@@ -310,9 +320,10 @@ class TestFinancialFeature(TestCase):
         selected_prediction_data = \
             self.feature_1._select_prediction_data_x(data_frame, prediction_timestamp)
 
-        start_timestamp_x_1 = self.feature_1._get_start_timestamp_x(prediction_timestamp)
-        expected_data_frame = data_frame[(data_frame.index >= start_timestamp_x_1) &
-                                         (data_frame.index <= prediction_timestamp)]
+        last_index = np.argwhere(data_frame.index <= prediction_timestamp)[-1][0] + 1
+        first_index = last_index - self.feature_1.length
+        expected_data_frame = data_frame.iloc[first_index:last_index]
+
         assert selected_prediction_data.equals(expected_data_frame)
 
     @staticmethod
