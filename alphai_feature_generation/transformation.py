@@ -56,14 +56,14 @@ class FinancialDataTransformation(DataTransformation):
         self.target_market_minute = configuration['target_market_minute']
         self.classify_per_series = configuration['classify_per_series']
         self.normalise_per_series = configuration['normalise_per_series']
+        self.feature_length = self.get_feature_length()
         self.features = self._financial_features_factory(configuration['feature_config_list'],
                                                          configuration['n_classification_bins'])
         self.n_series = configuration['nassets']
         self.configuration = configuration
         self.fill_limit = configuration['fill_limit']
 
-    @staticmethod
-    def _assert_input(configuration):
+    def _assert_input(self, configuration):
         assert isinstance(configuration['exchange_name'], str)
         assert isinstance(configuration['features_ndays'], int) and configuration['features_ndays'] >= 0
         assert isinstance(configuration['features_resample_minutes'], int) \
@@ -82,6 +82,13 @@ class FinancialDataTransformation(DataTransformation):
                 n_targets += 1
         assert n_targets == 1
         assert isinstance(configuration['fill_limit'], int)
+
+    def get_feature_length(self):
+        """
+        Calculate expected total ticks for x data
+        :return int: expected total number of ticks for x data
+        """
+        return self.get_total_ticks_x()
 
     def get_total_ticks_x(self):
         """
@@ -103,12 +110,8 @@ class FinancialDataTransformation(DataTransformation):
         correct_dimensions = True
 
         for feature_full_name, feature_array in feature_x_dict.items():
-            if feature_full_name in TOTAL_TICKS_FINANCIAL_FEATURES:
-                if feature_array.shape[0] != self.get_total_ticks_x():
-                    correct_dimensions = False
-            elif feature_full_name in TOTAL_TICKS_M1_FINANCIAL_FEATURES:
-                if feature_array.shape[0] != self.get_total_ticks_x():
-                    correct_dimensions = False
+            if feature_array.shape[0] != self.get_total_ticks_x():
+                correct_dimensions = False
 
         return correct_dimensions
 
@@ -143,6 +146,7 @@ class FinancialDataTransformation(DataTransformation):
                 single_feature_dict['transformation'],
                 single_feature_dict['normalization'],
                 n_classification_bins,
+                self.get_total_ticks_x(),
                 self.features_ndays,
                 self.features_resample_minutes,
                 self.features_start_market_minute,
@@ -239,6 +243,7 @@ class FinancialDataTransformation(DataTransformation):
         clean_nan_from_dict = self.configuration.get('clean_nan_from_dict', False)
         if clean_nan_from_dict:
             predict_x = remove_nans_from_dict(predict_x)
+            logging.warning("May need to update symbols when removing nans from dict")
 
         return predict_x, symbols
 
@@ -332,7 +337,7 @@ class FinancialDataTransformation(DataTransformation):
         """
 
         x_sample = list(xdict.values())[0]
-        x_expected_shape = self.get_total_ticks_x() - 1
+        x_expected_shape = self.get_total_ticks_x()
         logging.info("Last rejected xdict: {}".format(x_sample.shape))
         logging.info("x_expected_shape: {}".format(x_expected_shape))
 

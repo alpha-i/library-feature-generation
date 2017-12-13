@@ -18,7 +18,7 @@ logging.getLogger(__name__).addHandler(logging.NullHandler())
 
 
 class FinancialFeature(object):
-    def __init__(self, name, transformation, normalization, nbins, ndays, resample_minutes, start_market_minute,
+    def __init__(self, name, transformation, normalization, nbins, length, ndays, resample_minutes, start_market_minute,
                  is_target, exchange_calendar, local, classify_per_series=False, normalise_per_series=False):
         """
         Object containing all the information to manipulate the data relative to a financial feature.
@@ -27,6 +27,7 @@ class FinancialFeature(object):
             FINANCIAL_FEATURE_TRANSFORMATIONS
         :param str/None normalization: type of normalization. Can be None.
         :param int/None nbins: number of bins to be used for target classification. Can be None.
+        :param int length: expected number of elements in the feature
         :param int ndays: number of trading days worth of data the feature should use.
         :param int resample_minutes: resampling frequency in number of minutes.
         :param int start_market_minute: number of minutes after market open the data collection should start from.
@@ -35,8 +36,8 @@ class FinancialFeature(object):
         """
         # FIXME the get_default_flags args are temporary. We need to load a get_default_flags config in the unit tests.
 
-        self._assert_input(name, transformation, normalization, nbins, ndays, resample_minutes, start_market_minute,
-                           is_target, local)
+        self._assert_input(name, transformation, normalization, nbins, length, ndays, resample_minutes,
+                           start_market_minute, is_target, local)
         self.name = name
         self.transformation = transformation
         self.normalization = normalization
@@ -48,6 +49,7 @@ class FinancialFeature(object):
         self.exchange_calendar = exchange_calendar
         self.n_series = None
         self.local = local
+        self.length = length
 
         self.bin_distribution = None
         if self.nbins:
@@ -79,7 +81,7 @@ class FinancialFeature(object):
         return '{}_{}'.format(self.name, self.transformation['name'])
 
     @staticmethod
-    def _assert_input(name, transformation, normalization, nbins, ndays, resample_minutes, start_market_minute,
+    def _assert_input(name, transformation, normalization, nbins, length, ndays, resample_minutes, start_market_minute,
                       is_target, local):
         assert isinstance(name, str)
         assert isinstance(transformation, dict)
@@ -91,6 +93,7 @@ class FinancialFeature(object):
         assert isinstance(resample_minutes, int) and resample_minutes >= 0
         assert isinstance(start_market_minute, int)
         assert start_market_minute < MINUTES_IN_TRADING_DAY
+        assert (isinstance(length, int) and length > 0)
         assert isinstance(is_target, bool)
         assert isinstance(local, bool)
         if transformation['name'] == 'ewma':
@@ -181,12 +184,14 @@ class FinancialFeature(object):
         :return:
         """
 
+        symbol_data.flatten()
+        symbol_data = symbol_data[np.isfinite(symbol_data)]
+        symbol_data = symbol_data.reshape(-1, 1)  # Reshape for scikitlearn
+
         if symbol:
             self.scaler_dict[symbol] = deepcopy(self.scaler)
-            symbol_data = symbol_data.reshape(-1, 1)  # Reshape for scikitlearn
             self.scaler_dict[symbol].fit(symbol_data)
         else:
-            symbol_data = symbol_data.reshape(-1, 1)  # Reshape for scikitlearn
             self.scaler.fit(symbol_data)
 
     def apply_normalisation(self, dataframe):
@@ -297,8 +302,17 @@ class FinancialFeature(object):
         :param Timestamp prediction_timestamp: Timestamp when the prediction is made
         :return pd.Dataframe: selected x-data (unprocessed)
         """
-        prediction_index_selection_x = self._index_selection_x(data_frame.index, prediction_timestamp)
-        return data_frame[prediction_index_selection_x]
+
+        try:
+            end_point = data_frame.index.get_loc(prediction_timestamp, method='pad')
+            end_index = end_point + 1  # +1 because iloc is not inclusive of end index
+            start_index = end_point - self.length + 1
+        except:
+            logging.warning('Prediction timestamp {} not within range of dataframe'.format(prediction_timestamp))
+            start_index = 0
+            end_index = -1
+
+        return data_frame.iloc[start_index:end_index, :]
 
     def get_prediction_data(self, data_frame, prediction_timestamp, target_timestamp=None):
         """
@@ -348,7 +362,9 @@ class FinancialFeature(object):
 
             if symbol in self.bin_distribution_dict:
                 symbol_binning = self.bin_distribution_dict[symbol]
-                hot_dataframe[symbol] = np.squeeze(classify_labels(symbol_binning.bin_edges, data_y))
+                one_hot_labels = classify_labels(symbol_binning.bin_edges, data_y)
+                if one_hot_labels.shape[-1] > 1:
+                    hot_dataframe[symbol] = np.squeeze(one_hot_labels)
             else:
                 logging.warning("Symbol lacks clasification bins: {}".format(symbol))
                 dataframe.drop(symbol, axis=1, inplace=True)
@@ -426,6 +442,7 @@ def single_financial_feature_factory(feature_config):
         feature_config['transformation'],
         feature_config['normalization'],
         feature_config['nbins'],
+        feature_config['length'],
         feature_config['ndays'],
         feature_config['resample_minutes'],
         feature_config['start_market_minute'],
