@@ -238,7 +238,7 @@ class FinancialDataTransformation(DataTransformation):
         """
 
         training_dates = self.get_training_market_dates(raw_data_dict)
-        train_x, train_y, _ = self._create_data(raw_data_dict, training_dates, historical_universes,
+        train_x, train_y, _, _ = self._create_data(raw_data_dict, training_dates, historical_universes,
                                                 do_normalisation_fitting=True)
         clean_nan_from_dict = self.configuration.get('clean_nan_from_dict', False)
         if clean_nan_from_dict:
@@ -254,14 +254,14 @@ class FinancialDataTransformation(DataTransformation):
         """
 
         current_market_open = self.get_current_market_date(raw_data_dict)
-        predict_x, _, symbols = self._create_data(raw_data_dict, simulated_market_dates=current_market_open)
+        predict_x, _, symbols, predict_timestamp = self._create_data(raw_data_dict, simulated_market_dates=current_market_open)
 
         clean_nan_from_dict = self.configuration.get('clean_nan_from_dict', False)
         if clean_nan_from_dict:
             predict_x = remove_nans_from_dict(predict_x)
             logging.warning("May need to update symbols when removing nans from dict")
 
-        return predict_x, symbols
+        return predict_x, symbols, predict_timestamp
 
     def _create_data(self, raw_data_dict, simulated_market_dates,
                      historical_universes=None, do_normalisation_fitting=False):
@@ -281,6 +281,8 @@ class FinancialDataTransformation(DataTransformation):
         rejected_x_list = []
         rejected_y_list = []
 
+        prediction_timestamp_list = []
+
         target_market_open = None
 
         if len(simulated_market_dates) == 0:
@@ -299,8 +301,11 @@ class FinancialDataTransformation(DataTransformation):
                 target_market_open = None
 
             try:
-                feature_x_dict, feature_y_dict = self.build_features(raw_data_dict, historical_universes,
-                                                                     prediction_market_open, target_market_open)
+                feature_x_dict, feature_y_dict, prediction_timestamp = self.build_features(raw_data_dict,
+                                                                                           historical_universes,
+                                                                                           prediction_market_open,
+                                                                                           target_market_open)
+                prediction_timestamp_list.append(prediction_timestamp)
             except DateNotInUniverseError as e:
                 logging.error(e)
                 continue
@@ -346,7 +351,7 @@ class FinancialDataTransformation(DataTransformation):
             y_dict, _ = self.stack_samples_for_each_feature(y_list)
             logging.info("Assembled training dict with {} symbols".format(len(x_symbols)))
 
-        return x_dict, y_dict, x_symbols
+        return x_dict, y_dict, x_symbols, prediction_timestamp_list[-1]
 
     def print_diagnostics(self, xdict, ydict):
         """
@@ -500,7 +505,7 @@ class FinancialDataTransformation(DataTransformation):
                                                                                target_timestamp,
                                                                                )
 
-        return feature_x_dict, feature_y_dict
+        return feature_x_dict, feature_y_dict, prediction_timestamp
 
     def add_transformation(self, raw_data_dict):
         """
