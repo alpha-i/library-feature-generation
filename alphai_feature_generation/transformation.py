@@ -254,7 +254,18 @@ class FinancialDataTransformation(DataTransformation):
 
         n_samples = len(simulated_market_dates)
         market_open_list = self._get_market_open_list(raw_data_dict)
-        data_x_list, data_y_list = [], []
+
+        data_x_list = []
+        data_y_list = []
+        rejected_x_list = []
+        rejected_y_list = []
+
+        target_market_open = None
+
+        if len(simulated_market_dates) == 0:
+            logging.error("Empty Market dates")
+
+            raise ValueError("Empty Market dates")
 
         for prediction_market_open in simulated_market_dates:
 
@@ -267,13 +278,13 @@ class FinancialDataTransformation(DataTransformation):
                 target_market_open = None
 
             try:
-               feature_x_dict, feature_y_dict = self.build_features(raw_data_dict, historical_universes,
+                feature_x_dict, feature_y_dict = self.build_features(raw_data_dict, historical_universes,
                                                                      prediction_market_open, target_market_open)
             except DateNotInUniverseError as e:
                 logging.error(e)
                 continue
 
-            except (KeyError) as e:
+            except KeyError as e:
                 logging.error("Error while building features. {}. prediction_time: {}. target_time: {}".format(
                     e,
                     prediction_market_open,
@@ -287,13 +298,15 @@ class FinancialDataTransformation(DataTransformation):
             if self.check_x_batch_dimensions(feature_x_dict):
                 data_x_list.append(feature_x_dict)
                 data_y_list.append(feature_y_dict)
+            else:
+                rejected_x_list.append(feature_x_dict)
+                rejected_y_list.append(feature_y_dict)
 
         n_valid_samples = len(data_x_list)
 
         if n_valid_samples < n_samples:
             logging.info("{} out of {} samples were found to be valid".format(n_valid_samples, n_samples))
-            if n_valid_samples == 0:
-                self.print_diagnostics(feature_x_dict, feature_y_dict)
+            self.print_diagnostics(rejected_x_list[-1], rejected_y_list[-1])
 
         data_x_list = self._make_normalised_x_list(data_x_list, do_normalisation_fitting)
 
