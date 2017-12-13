@@ -499,9 +499,6 @@ class FinancialDataTransformation(DataTransformation):
             if prediction_timestamp > target_timestamp:
                 raise ValueError('Target timestamp should be later than prediction_timestamp')
 
-        if prediction_timestamp > target_timestamp:
-            raise ValueError('Target timestamp should be later than prediction_timestamp')
-
         feature_x_dict, feature_y_dict = self.get_prediction_data_all_features(raw_data_dict,
                                                                                prediction_timestamp,
                                                                                universe,
