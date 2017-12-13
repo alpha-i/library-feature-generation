@@ -338,7 +338,10 @@ class FinancialDataTransformation(DataTransformation):
             logging.info("Assembled prediction dict with {} symbols".format(len(x_symbols)))
         else:
             logging.info("{} out of {} samples were found to be valid".format(n_valid_samples, n_samples))
-            y_list = self._make_classified_y_list(data_y_list)
+            if self.configuration["n_classification_bins"]:
+                y_list = self._make_classified_y_list(data_y_list)
+            else:
+                y_list = data_y_list
             x_dict, x_symbols = self.stack_samples_for_each_feature(data_x_list, y_list)
             y_dict, _ = self.stack_samples_for_each_feature(y_list)
             logging.info("Assembled training dict with {} symbols".format(len(x_symbols)))
@@ -488,9 +491,8 @@ class FinancialDataTransformation(DataTransformation):
             target_timestamp = None
         else:
             target_timestamp = target_market_open + timedelta(minutes=self.target_market_minute)
-
-        if prediction_timestamp > target_timestamp:
-            raise ValueError('Target timestamp should be later than prediction_timestamp')
+            if prediction_timestamp > target_timestamp:
+                raise ValueError('Target timestamp should be later than prediction_timestamp')
 
         feature_x_dict, feature_y_dict = self.get_prediction_data_all_features(raw_data_dict,
                                                                                prediction_timestamp,
