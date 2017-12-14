@@ -16,6 +16,8 @@ TOTAL_TICKS_FINANCIAL_FEATURES = ['open_value', 'high_value', 'low_value', 'clos
 TOTAL_TICKS_M1_FINANCIAL_FEATURES = ['open_log-return', 'high_log-return', 'low_log-return', 'close_log-return',
                                      'volume_log-return']
 
+HARDCODED_FEATURE_FOR_EXTRACT_Y = 'close'
+
 logging.getLogger(__name__).addHandler(logging.NullHandler())
 
 
@@ -207,7 +209,7 @@ class FinancialDataTransformation(DataTransformation):
 
             if feature.is_target:
                 _, feature_y = feature.get_prediction_data(
-                    raw_data_dict['close'].loc[:, universe],
+                    raw_data_dict[HARDCODED_FEATURE_FOR_EXTRACT_Y].loc[:, universe],
                     prediction_timestamp,
                     target_timestamp,
                     calculate_target=True
