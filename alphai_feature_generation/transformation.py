@@ -194,11 +194,24 @@ class FinancialDataTransformation(DataTransformation):
                 universe = raw_data_dict[feature.name].columns
 
             feature_name = feature.full_name if feature.full_name in raw_data_dict.keys() else feature.name
+
             feature_x, feature_y = feature.get_prediction_data(
                 raw_data_dict[feature_name].loc[:, universe],
                 prediction_timestamp,
                 target_timestamp,
+                calculate_target=False
             )
+
+            # currently target is harder coded to be log-return calculated on the close (Chris B)
+            # TODO seperate feature and target calculation
+
+            if feature.is_target:
+                _, feature_y = feature.get_prediction_data(
+                    raw_data_dict['close'].loc[:, universe],
+                    prediction_timestamp,
+                    target_timestamp,
+                    calculate_target=True
+                )
 
             if feature_x is not None:
                 feature_x_dict[feature.full_name] = feature_x
@@ -272,7 +285,8 @@ class FinancialDataTransformation(DataTransformation):
 
             raise ValueError("Empty Market dates")
 
-        for prediction_market_open in simulated_market_dates:
+        for i, prediction_market_open in enumerate(simulated_market_dates):
+            print(i)
 
             date_index = pd.Index(market_open_list).get_loc(prediction_market_open)
             target_index = date_index + self.target_delta_ndays
@@ -311,7 +325,8 @@ class FinancialDataTransformation(DataTransformation):
 
         if n_valid_samples < n_samples:
             logging.info("{} out of {} samples were found to be valid".format(n_valid_samples, n_samples))
-            self.print_diagnostics(rejected_x_list[-1], rejected_y_list[-1])
+            if len(rejected_x_list) > 0:
+                self.print_diagnostics(rejected_x_list[-1], rejected_y_list[-1])
 
         data_x_list = self._make_normalised_x_list(data_x_list, do_normalisation_fitting)
 
