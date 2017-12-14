@@ -324,16 +324,16 @@ class FinancialFeature(object):
         :return (pd.Dataframe, pd.Dataframe): prediction_data_x, prediction_data_y (selected and processed)
         """
 
+        prediction_data_y = None
+        prediction_data_x = None
+
         if not calculate_target:
-            prediction_data_y = None
             prediction_data_x = self._select_prediction_data_x(data_frame, prediction_timestamp)
 
             if self.local:
                 prediction_data_x = self.process_prediction_data_x(prediction_data_x)
 
         else:
-            prediction_data_y = None
-            prediction_data_x = None
             if self.is_target and target_timestamp is not None:
                 prediction_data_y = self.process_prediction_data_y(
                     data_frame.loc[target_timestamp],
