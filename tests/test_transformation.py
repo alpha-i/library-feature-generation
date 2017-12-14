@@ -190,4 +190,4 @@ def mock_ml_model_multi_pass(predict_x, n_passes, nbins):
                 predict_y[i, j, i % nbins] = 1
         return predict_y
     else:
-        raise NotImplementedError("Only classification currently supported")
+        raise ValueError("Only classification currently supported")

@@ -272,7 +272,7 @@ class TestFinancialFeature(TestCase):
         data_frame_y = data_frame.iloc[-1]
         self.feature_3.process_prediction_data_x(sample_hourly_ohlcv_data_dict)
 
-        self.assertRaises(NotImplementedError, self.feature_3.process_prediction_data_y,
+        self.assertRaises(ValueError, self.feature_3.process_prediction_data_y,
                           data_frame_y, prediction_reference_data)
 
     def test_process_prediction_data_y_7(self):

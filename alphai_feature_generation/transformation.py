@@ -28,11 +28,11 @@ class DateNotInUniverseError(Exception):
 class DataTransformation(metaclass=ABCMeta):
     @abstractmethod
     def create_train_data(self, *args):
-        raise NotImplementedError()
+        raise NotImplementedError
 
     @abstractmethod
     def create_predict_data(self, *args):
-        raise NotImplementedError()
+        raise NotImplementedError
 
 
 class FinancialDataTransformation(DataTransformation):

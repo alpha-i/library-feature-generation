@@ -154,7 +154,7 @@ def classify_labels(bin_edges, labels):
     elif n_label_dimensions == 3:
         binned_labels = binned_labels.reshape(label_shape[0], label_shape[1], label_shape[2], n_bins)
     elif n_label_dimensions > 3:
-        raise NotImplementedError("Label dimension too high:", n_label_dimensions)
+        raise ValueError("Label dimension too high:", n_label_dimensions)
 
     return binned_labels
 
