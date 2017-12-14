@@ -314,25 +314,31 @@ class FinancialFeature(object):
 
         return data_frame.iloc[start_index:end_index, :]
 
-    def get_prediction_data(self, data_frame, prediction_timestamp, target_timestamp=None):
+    def get_prediction_data(self, data_frame, prediction_timestamp, target_timestamp=None, calculate_target=False):
         """
         Calculate x and y data for prediction. y-data will be None if target_timestamp is None.
+        :param calculate_target: boolean: calculate target or the feature
         :param pd.Dataframe data_frame: raw data (unselected, unprocessed).
         :param Timestamp prediction_timestamp: Timestamp when the prediction is made
         :param Timestamp target_timestamp: Timestamp the prediction is for.
         :return (pd.Dataframe, pd.Dataframe): prediction_data_x, prediction_data_y (selected and processed)
         """
-        prediction_data_x = self._select_prediction_data_x(data_frame, prediction_timestamp)
-
-        if self.local:
-            prediction_data_x = self.process_prediction_data_x(prediction_data_x)
 
         prediction_data_y = None
-        if self.is_target and target_timestamp is not None:
-            prediction_data_y = self.process_prediction_data_y(
-                data_frame.loc[target_timestamp],
-                data_frame.loc[prediction_timestamp],
-            )
+        prediction_data_x = None
+
+        if not calculate_target:
+            prediction_data_x = self._select_prediction_data_x(data_frame, prediction_timestamp)
+
+            if self.local:
+                prediction_data_x = self.process_prediction_data_x(prediction_data_x)
+
+        else:
+            if self.is_target and target_timestamp is not None:
+                prediction_data_y = self.process_prediction_data_y(
+                    data_frame.loc[target_timestamp],
+                    data_frame.loc[prediction_timestamp],
+                )
 
         return prediction_data_x, prediction_data_y
 

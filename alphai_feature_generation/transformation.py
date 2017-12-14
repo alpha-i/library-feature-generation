@@ -16,6 +16,8 @@ TOTAL_TICKS_FINANCIAL_FEATURES = ['open_value', 'high_value', 'low_value', 'clos
 TOTAL_TICKS_M1_FINANCIAL_FEATURES = ['open_log-return', 'high_log-return', 'low_log-return', 'close_log-return',
                                      'volume_log-return']
 
+HARDCODED_FEATURE_FOR_EXTRACT_Y = 'close'
+
 logging.getLogger(__name__).addHandler(logging.NullHandler())
 
 
@@ -194,11 +196,24 @@ class FinancialDataTransformation(DataTransformation):
                 universe = raw_data_dict[feature.name].columns
 
             feature_name = feature.full_name if feature.full_name in raw_data_dict.keys() else feature.name
+
             feature_x, feature_y = feature.get_prediction_data(
                 raw_data_dict[feature_name].loc[:, universe],
                 prediction_timestamp,
                 target_timestamp,
+                calculate_target=False
             )
+
+            # currently target is harder coded to be log-return calculated on the close (Chris B)
+            # TODO seperate feature and target calculation
+
+            if feature.is_target:
+                _, feature_y = feature.get_prediction_data(
+                    raw_data_dict[HARDCODED_FEATURE_FOR_EXTRACT_Y].loc[:, universe],
+                    prediction_timestamp,
+                    target_timestamp,
+                    calculate_target=True
+                )
 
             if feature_x is not None:
                 feature_x_dict[feature.full_name] = feature_x
@@ -311,7 +326,8 @@ class FinancialDataTransformation(DataTransformation):
 
         if n_valid_samples < n_samples:
             logging.info("{} out of {} samples were found to be valid".format(n_valid_samples, n_samples))
-            self.print_diagnostics(rejected_x_list[-1], rejected_y_list[-1])
+            if len(rejected_x_list) > 0:
+                self.print_diagnostics(rejected_x_list[-1], rejected_y_list[-1])
 
         data_x_list = self._make_normalised_x_list(data_x_list, do_normalisation_fitting)
 
