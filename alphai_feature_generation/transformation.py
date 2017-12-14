@@ -285,8 +285,7 @@ class FinancialDataTransformation(DataTransformation):
 
             raise ValueError("Empty Market dates")
 
-        for i, prediction_market_open in enumerate(simulated_market_dates):
-            print(i)
+        for i, prediction_market_open in simulated_market_dates:
 
             date_index = pd.Index(market_open_list).get_loc(prediction_market_open)
             target_index = date_index + self.target_delta_ndays
