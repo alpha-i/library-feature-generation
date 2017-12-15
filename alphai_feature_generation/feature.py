@@ -71,7 +71,7 @@ class FinancialFeature(object):
             elif self.normalization == 'gaussian':
                 self.scaler = QuantileTransformer(output_distribution='normal')
             else:
-                raise NotImplementedError('Requested normalisation not supported: {}'.format(self.normalization))
+                raise ValueError('Requested normalisation not supported: {}'.format(self.normalization))
         else:
             self.scaler = None
             self.scaler_dict = None
@@ -258,7 +258,7 @@ class FinancialFeature(object):
 
         if self.scaler:
             if self.nbins is None:
-                raise NotImplementedError('y scaling is not required for classifiers, but is required for regression')
+                raise ValueError('y scaling is not required for classifiers, but is required for regression')
 
         return processed_prediction_data_y
 
