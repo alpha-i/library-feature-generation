@@ -275,7 +275,6 @@ class FinancialDataTransformation(DataTransformation):
 
         n_samples = len(simulated_market_dates)
         market_open_list = self._get_market_open_list(raw_data_dict)
-        prediction_timestamp_list = []
 
         data_x_list = []
         data_y_list = []
@@ -352,7 +351,9 @@ class FinancialDataTransformation(DataTransformation):
             y_dict, _ = self.stack_samples_for_each_feature(y_list)
             logging.info("Assembled training dict with {} symbols".format(len(x_symbols)))
 
-        return x_dict, y_dict, x_symbols, prediction_timestamp_list[-1]
+        prediction_timestamp = prediction_timestamp_list[-1] if len(prediction_timestamp_list) > 0 else None
+
+        return x_dict, y_dict, x_symbols, prediction_timestamp
 
     def print_diagnostics(self, xdict, ydict):
         """
