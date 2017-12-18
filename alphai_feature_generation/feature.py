@@ -314,37 +314,50 @@ class FinancialFeature(object):
 
         return data_frame.iloc[start_index:end_index, :]
 
-    def get_prediction_data(self, data_frame, prediction_timestamp, target_timestamp=None, calculate_target=False):
+    def get_prediction_targets(self, data_frame, prediction_timestamp, target_timestamp=None):
         """
-        Calculate x and y data for prediction. y-data will be None if target_timestamp is None.
-        :param calculate_target: boolean: calculate target or the feature
-        :param pd.Dataframe data_frame: raw data (unselected, unprocessed).
-        :param Timestamp prediction_timestamp: Timestamp when the prediction is made
-        :param Timestamp target_timestamp: Timestamp the prediction is for.
-        :return (pd.Dataframe, pd.Dataframe): prediction_data_x, prediction_data_y (selected and processed)
+        Compute targets from dataframe only if the current feature is target
+
+        :param data_frame: Time indexed data
+        :type data_frame: pd.DataFrame
+        :param prediction_timestamp: the time of prediction
+        :type prediction_timestamp: pd.Timestamp
+        :param target_timestamp: the time predicted
+        :type target_timestamp: pd.Timestamp
+        :rtype pd.DataFrame
         """
+        prediction_target = None
 
-        prediction_data_y = None
-        prediction_data_x = None
+        if self.is_target and target_timestamp:
+            prediction_target = self.process_prediction_data_y(
+                data_frame.loc[target_timestamp],
+                data_frame.loc[prediction_timestamp],
+            )
 
-        if not calculate_target:
-            prediction_data_x = self._select_prediction_data_x(data_frame, prediction_timestamp)
+        return prediction_target
 
-            if self.local:
-                prediction_data_x = self.process_prediction_data_x(prediction_data_x)
+    def get_prediction_features(self, data_frame, prediction_timestamp):
+        """
+        Compute features from dataframe
 
-        else:
-            if self.is_target and target_timestamp is not None:
-                prediction_data_y = self.process_prediction_data_y(
-                    data_frame.loc[target_timestamp],
-                    data_frame.loc[prediction_timestamp],
-                )
+        :param data_frame: Time indexed data
+        :type data_frame: pd.DataFrame
+        :param prediction_timestamp: the time of prediction
+        :type prediction_timestamp: pd.Timestamp
+        :rtype: pd.DataFrame
+        """
+        prediction_features = self._select_prediction_data_x(data_frame, prediction_timestamp)
 
-        return prediction_data_x, prediction_data_y
+        if self.local:
+            prediction_features = self.process_prediction_data_x(prediction_features)
+
+        return prediction_features
 
     def fit_classification(self, symbol, symbol_data):
         """  Fill dict with classifiers
 
+        :param symbol:
+        :rtype symbol: str
         :param symbol_data:
         :return:
         """
