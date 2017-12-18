@@ -87,7 +87,7 @@ class TestFinancialDataTransformation(TestCase):
         prediction_timestamp = sample_hourly_ohlcv_data_dict['open'].index[98]
         universe = sample_hourly_ohlcv_data_dict['open'].columns[:-1]
         target_timestamp = sample_hourly_ohlcv_data_dict['open'].index[133]
-        feature_x_dict, feature_y_dict = self.fin_data_transf_nobins.get_prediction_data_all_features(
+        feature_x_dict, feature_y_dict = self.fin_data_transf_nobins.collect_prediction_from_features(
             raw_data_dict,
             prediction_timestamp,
             universe,
@@ -109,7 +109,7 @@ class TestFinancialDataTransformation(TestCase):
     def test_get_prediction_data_all_features_no_target(self):
         raw_data_dict = sample_hourly_ohlcv_data_dict
         prediction_timestamp = sample_hourly_ohlcv_data_dict['open'].index[98]
-        feature_x_dict, feature_y_dict = self.fin_data_transf_nobins.get_prediction_data_all_features(
+        feature_x_dict, feature_y_dict = self.fin_data_transf_nobins.collect_prediction_from_features(
             raw_data_dict,
             prediction_timestamp,
         )
