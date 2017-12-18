@@ -62,7 +62,7 @@ class FinancialDataTransformation(DataTransformation):
                                                          configuration['n_classification_bins'])
         self.n_series = configuration['nassets']
         self.fill_limit = configuration['fill_limit']
-        self.prediction_delay = configuration.get('prediction_delay', False)
+        self.predict_the_market_close = configuration.get('predict_the_market_close', False)
         self.clean_nan_from_dict = configuration.get('clean_nan_from_dict', False)
 
         self.configuration = configuration
@@ -508,7 +508,7 @@ class FinancialDataTransformation(DataTransformation):
 
         prediction_timestamp = prediction_market_open + timedelta(minutes=self.prediction_market_minute)
 
-        if self.prediction_delay:
+        if self.predict_the_market_close:
             prediction_day = prediction_timestamp.date()
             market_close = self.exchange_calendar.schedule(prediction_day, prediction_day)['market_close']
             prediction_timestamp = pd.to_datetime(market_close).iloc[0]

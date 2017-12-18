@@ -323,12 +323,12 @@ class FinancialFeature(object):
         :param prediction_timestamp: the time of prediction
         :type prediction_timestamp: pd.Timestamp
         :param target_timestamp: the time predicted
-        :rtype target_timestamp: pd.Timestamp
-        :return: pd.DataFrame
+        :type target_timestamp: pd.Timestamp
+        :rtype pd.DataFrame
         """
         prediction_target = None
 
-        if self.is_target and target_timestamp is not None:
+        if self.is_target and target_timestamp:
             prediction_target = self.process_prediction_data_y(
                 data_frame.loc[target_timestamp],
                 data_frame.loc[prediction_timestamp],
@@ -344,7 +344,7 @@ class FinancialFeature(object):
         :type data_frame: pd.DataFrame
         :param prediction_timestamp: the time of prediction
         :type prediction_timestamp: pd.Timestamp
-        :return: pd.DataFrame
+        :rtype: pd.DataFrame
         """
         prediction_features = self._select_prediction_data_x(data_frame, prediction_timestamp)
 
