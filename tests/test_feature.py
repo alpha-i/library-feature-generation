@@ -265,16 +265,6 @@ class TestFinancialFeature(TestCase):
         expected_log_returns = np.log(data_frame_y / prediction_reference_data)
         assert_almost_equal(processed_prediction_data_y, expected_log_returns.values, ASSERT_NDECIMALS)
 
-    def test_process_prediction_data_y_3(self):
-        data_frame = sample_hourly_ohlcv_data_dict[self.feature_3.name]
-        data_frame_x = data_frame.iloc[:-1]
-        prediction_reference_data = data_frame_x.iloc[-1]
-        data_frame_y = data_frame.iloc[-1]
-        self.feature_3.process_prediction_data_x(sample_hourly_ohlcv_data_dict)
-
-        self.assertRaises(ValueError, self.feature_3.process_prediction_data_y,
-                          data_frame_y, prediction_reference_data)
-
     def test_process_prediction_data_y_7(self):
         data_frame = sample_hourly_ohlcv_data_dict[self.feature_7.name]
         data_frame_x = data_frame.iloc[:-1]
