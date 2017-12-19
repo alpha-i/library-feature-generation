@@ -256,10 +256,6 @@ class FinancialFeature(object):
             processed_prediction_data_y = np.log(prediction_data_y / prediction_reference_data). \
                 replace([np.inf, -np.inf], np.nan)
 
-        if self.scaler:
-            if self.nbins is None:
-                raise ValueError('y scaling is not required for classifiers, but is required for regression')
-
         return processed_prediction_data_y
 
     def _get_safe_schedule_start_date(self, prediction_timestamp):
