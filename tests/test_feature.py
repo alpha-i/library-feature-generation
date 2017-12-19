@@ -265,16 +265,6 @@ class TestFinancialFeature(TestCase):
         expected_log_returns = np.log(data_frame_y / prediction_reference_data)
         assert_almost_equal(processed_prediction_data_y, expected_log_returns.values, ASSERT_NDECIMALS)
 
-    def test_process_prediction_data_y_3(self):
-        data_frame = sample_hourly_ohlcv_data_dict[self.feature_3.name]
-        data_frame_x = data_frame.iloc[:-1]
-        prediction_reference_data = data_frame_x.iloc[-1]
-        data_frame_y = data_frame.iloc[-1]
-        self.feature_3.process_prediction_data_x(sample_hourly_ohlcv_data_dict)
-
-        self.assertRaises(ValueError, self.feature_3.process_prediction_data_y,
-                          data_frame_y, prediction_reference_data)
-
     def test_process_prediction_data_y_7(self):
         data_frame = sample_hourly_ohlcv_data_dict[self.feature_7.name]
         data_frame_x = data_frame.iloc[:-1]
@@ -336,11 +326,9 @@ class TestFinancialFeature(TestCase):
         prediction_timestamp = market_open_list[20] + timedelta(minutes=30)
         target_timestamp = market_open_list[21] + timedelta(minutes=90)
 
-        prediction_data_x, _ = \
-            feature.get_prediction_data(data_frame, prediction_timestamp, target_timestamp, calculate_target=False)
+        prediction_data_x = feature.get_prediction_features(data_frame, prediction_timestamp)
 
-        _, prediction_data_y = \
-            feature.get_prediction_data(data_frame, prediction_timestamp, target_timestamp, calculate_target=True)
+        prediction_data_y = feature.get_prediction_targets(data_frame, prediction_timestamp, target_timestamp)
 
         assert isinstance(prediction_data_x, pd.DataFrame) and isinstance(prediction_data_y, pd.Series)
         assert len(prediction_data_x) == expected_length
