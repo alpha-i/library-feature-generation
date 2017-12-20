@@ -255,7 +255,7 @@ class FinancialDataTransformation(DataTransformation):
         :param raw_data_dict:
         :return: tuple: predict, symbol_list, prediction_timestamp, target_timestamp
         """
-        simulated_market_dates = self.get_current_market_date(raw_data_dict)
+        simulated_market_dates = self.get_predict_market_dates(raw_data_dict)
         predict_x, _, symbols, predict_timestamp = self._create_data(raw_data_dict, simulated_market_dates)
 
         if self.clean_nan_from_dict:
@@ -279,11 +279,11 @@ class FinancialDataTransformation(DataTransformation):
         next_month_schedule = self.exchange_calendar.schedule(prediction_day,
                                                               prediction_day + timedelta(days=30))
         target_timestamp = self._extract_target_market_open(next_month_schedule, predict_timestamp)
-        target_timestamp = target_timestamp['market_open'].replace(
-            hour=predict_timestamp.hour,
-            minute=predict_timestamp.minute,
-            second=predict_timestamp.second
-        )
+
+        if self.predict_the_market_close:
+            target_timestamp = target_timestamp['market_close']
+        else:
+            target_timestamp = target_timestamp['market_open'] + timedelta(minutes=self.target_market_minute)
 
         if self.exchange_calendar.open_at_time(next_month_schedule, target_timestamp, include_close=True):
             return target_timestamp
@@ -519,24 +519,30 @@ class FinancialDataTransformation(DataTransformation):
         :return:
         """
 
+        def _get_closing_time_for_day(the_day):
+            market_close = self.exchange_calendar.schedule(the_day, the_day)['market_close']
+
+            return pd.to_datetime(market_close).iloc[0]
+
         if universe is not None:
             prediction_date = prediction_market_open.date()
             universe = _get_universe_from_date(prediction_date, universe)
 
         prediction_timestamp = prediction_market_open + timedelta(minutes=self.prediction_market_minute)
 
-        if self.predict_the_market_close:
-            prediction_day = prediction_timestamp.date()
-            market_close = self.exchange_calendar.schedule(prediction_day, prediction_day)['market_close']
-            prediction_timestamp = pd.to_datetime(market_close).iloc[0]
-
-        target_timestamp = None
-
-        if target_market_open is not None:
+        if target_market_open:
             target_timestamp = target_market_open + timedelta(minutes=self.target_market_minute)
+        else:
+            target_timestamp = None
 
-            if prediction_timestamp > target_timestamp:
-                raise ValueError('Target timestamp should be later than prediction_timestamp')
+        if self.predict_the_market_close:
+            prediction_timestamp = _get_closing_time_for_day(prediction_timestamp.date())
+
+            if target_market_open:
+                target_timestamp = _get_closing_time_for_day(target_market_open.date())
+
+        if target_timestamp and prediction_timestamp > target_timestamp:
+            raise ValueError('Target timestamp should be later than prediction_timestamp')
 
         feature_x_dict, feature_y_dict = self.collect_prediction_from_features(raw_data_dict,
                                                                                prediction_timestamp,
@@ -545,6 +551,8 @@ class FinancialDataTransformation(DataTransformation):
                                                                                )
 
         return feature_x_dict, feature_y_dict, prediction_timestamp
+
+
 
     def add_transformation(self, raw_data_dict):
         """
@@ -627,7 +635,7 @@ class FinancialDataTransformation(DataTransformation):
 
         return means, cov_matrix
 
-    def get_current_market_date(self, raw_data_dict):
+    def get_predict_market_dates(self, raw_data_dict):
         return [self._get_market_open_list(raw_data_dict)[-1]]
 
     def get_training_market_dates(self, raw_data_dict):
