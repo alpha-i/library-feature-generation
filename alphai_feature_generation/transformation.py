@@ -1,6 +1,8 @@
 from abc import ABCMeta, abstractmethod
 from datetime import timedelta
 import logging
+import multiprocessing
+from functools import partial
 
 import numpy as np
 import pandas_market_calendars as mcal
@@ -426,33 +428,42 @@ class FinancialDataTransformation(DataTransformation):
 
         symbols = get_unique_symbols(x_list)
 
-        # Fitting
+        pool = multiprocessing.Pool(processes=len(self.features))
         if do_normalisation_fitting:
-            for feature in self.features:
-                if feature.scaler:
-                    logging.info("Fitting normalisation to: {}".format(feature.full_name))
-                    if self.normalise_per_series:
-                        for symbol in symbols:
-                            symbol_data = self.extract_data_by_symbol(x_list, symbol, feature.full_name)
-                            feature.fit_normalisation(symbol_data, symbol)
-                    else:
-                        all_data = self.extract_all_data(x_list, feature.full_name)
-                        feature.fit_normalisation(all_data)
-                else:
-                    logging.info("Skipping normalisation to: {}".format(feature.full_name))
+            fit_function = partial(self.fit_normalisation, symbols, x_list)
+            fitted_features = pool.map(fit_function, self.features)
+            self.features = fitted_features
 
-        # Applying
-        for feature in self.features:
-            if feature.scaler:
-                logging.info("Applying normalisation to: {}".format(feature.full_name))
-                for x_dict in x_list:
-                    if feature.full_name in x_dict:
-                        x_dict[feature.full_name] = feature.apply_normalisation(x_dict[feature.full_name])
-                    else:
-                        logging.info("Failed to find {} in dict: {}".format(feature.full_name, list(x_dict.keys())))
-                        logging.info("x_list: {}".format(x_list))
+        apply_function = partial(self.apply_normalisation, x_list)
+        applied_features = pool.map(apply_function, self.features)
+        self.features = applied_features
 
         return x_list
+
+    def apply_normalisation(self, x_list, feature):
+        if feature.scaler:
+            logging.info("Applying normalisation to: {}".format(feature.full_name))
+            for x_dict in x_list:
+                if feature.full_name in x_dict:
+                    x_dict[feature.full_name] = feature.apply_normalisation(x_dict[feature.full_name])
+                else:
+                    logging.info("Failed to find {} in dict: {}".format(feature.full_name, list(x_dict.keys())))
+                    logging.info("x_list: {}".format(x_list))
+        return feature
+
+    def fit_normalisation(self, symbols, x_list, feature):
+        if feature.scaler:
+            logging.info("Fitting normalisation to: {}".format(feature.full_name))
+            if self.normalise_per_series:
+                for symbol in symbols:
+                    symbol_data = self.extract_data_by_symbol(x_list, symbol, feature.full_name)
+                    feature.fit_normalisation(symbol_data, symbol)
+            else:
+                all_data = self.extract_all_data(x_list, feature.full_name)
+                feature.fit_normalisation(all_data)
+        else:
+            logging.info("Skipping normalisation to: {}".format(feature.full_name))
+        return feature
 
     @staticmethod
     def extract_data_by_symbol(x_list, symbol, feature_name):
