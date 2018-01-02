@@ -6,3 +6,4 @@ pandas_market_calendars>=0.12
 tables
 pyts
 future
+python-dateutil
