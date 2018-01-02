@@ -9,8 +9,9 @@ import pandas_market_calendars as mcal
 from sklearn.preprocessing import RobustScaler, MinMaxScaler, StandardScaler
 from sklearn.preprocessing import QuantileTransformer
 
-from alphai_feature_generation import FINANCIAL_FEATURE_TRANSFORMATIONS, FINANCIAL_FEATURE_NORMALIZATIONS, \
-    MINUTES_IN_TRADING_DAY, MARKET_DAYS_SEARCH_MULTIPLIER, MIN_MARKET_DAYS_SEARCH
+from alphai_feature_generation import (FINANCIAL_FEATURE_TRANSFORMATIONS, FINANCIAL_FEATURE_NORMALIZATIONS,
+                                       MARKET_DAYS_SEARCH_MULTIPLIER, MIN_MARKET_DAYS_SEARCH)
+from alphai_feature_generation.utils import get_minutes_in_one_trading_day
 
 from alphai_feature_generation.classifier import BinDistribution, classify_labels, declassify_labels
 
@@ -36,8 +37,6 @@ class FinancialFeature(object):
         """
         # FIXME the get_default_flags args are temporary. We need to load a get_default_flags config in the unit tests.
 
-        self._assert_input(name, transformation, normalization, nbins, length, ndays, resample_minutes,
-                           start_market_minute, is_target, local)
         self.name = name
         self.transformation = transformation
         self.normalization = normalization
@@ -47,11 +46,16 @@ class FinancialFeature(object):
         self.start_market_minute = start_market_minute
         self.is_target = is_target
         self.exchange_calendar = exchange_calendar
+        self.minutes_in_trading_day = get_minutes_in_one_trading_day(exchange_calendar.name)
         self.n_series = None
         self.local = local
         self.length = length
 
         self.bin_distribution = None
+
+        self._assert_input(name, transformation, normalization, nbins, length, ndays, resample_minutes,
+                           start_market_minute, is_target, local)
+
         if self.nbins:
             self.bin_distribution_dict = {}
         else:
@@ -80,9 +84,9 @@ class FinancialFeature(object):
     def full_name(self):
         return '{}_{}'.format(self.name, self.transformation['name'])
 
-    @staticmethod
-    def _assert_input(name, transformation, normalization, nbins, length, ndays, resample_minutes, start_market_minute,
-                      is_target, local):
+    def _assert_input(self, name, transformation, normalization, nbins, length, ndays, resample_minutes,
+                      start_market_minute, is_target, local):
+
         assert isinstance(name, str)
         assert isinstance(transformation, dict)
         assert 'name' in transformation, 'The transformation dict does not contain the key "name"'
@@ -92,7 +96,7 @@ class FinancialFeature(object):
         assert isinstance(ndays, int) and ndays >= 0
         assert isinstance(resample_minutes, int) and resample_minutes >= 0
         assert isinstance(start_market_minute, int)
-        assert start_market_minute < MINUTES_IN_TRADING_DAY
+        assert start_market_minute < self.minutes_in_trading_day
         assert (isinstance(length, int) and length > 0)
         assert isinstance(is_target, bool)
         assert isinstance(local, bool)

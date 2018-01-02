@@ -6,10 +6,10 @@ import numpy as np
 import pandas_market_calendars as mcal
 import pandas as pd
 
-from alphai_feature_generation import MINUTES_IN_TRADING_DAY
 from alphai_feature_generation.feature import (FinancialFeature,
                                                get_feature_names,
                                                get_feature_max_ndays)
+from alphai_feature_generation.utils import get_minutes_in_one_trading_day
 
 TOTAL_TICKS_FINANCIAL_FEATURES = ['open_value', 'high_value', 'low_value', 'close_value', 'volume_value']
 TOTAL_TICKS_M1_FINANCIAL_FEATURES = ['open_log-return', 'high_log-return', 'low_log-return', 'close_log-return',
@@ -47,8 +47,8 @@ class FinancialDataTransformation(DataTransformation):
             int target_delta_ndays: target time horizon in number of days
             int target_market_minute: number of minutes after market open for the target timestamp
         """
-        self._assert_input(configuration)
         self.exchange_calendar = mcal.get_calendar(configuration['exchange_name'])
+        self.minutes_in_trading_days = get_minutes_in_one_trading_day(configuration['exchange_name'])
         self.features_ndays = configuration['features_ndays']
         self.features_resample_minutes = configuration['features_resample_minutes']
         self.features_start_market_minute = configuration['features_start_market_minute']
@@ -66,6 +66,7 @@ class FinancialDataTransformation(DataTransformation):
         self.clean_nan_from_dict = configuration.get('clean_nan_from_dict', False)
 
         self.configuration = configuration
+        self._assert_input(configuration)
 
     def _assert_input(self, configuration):
         assert isinstance(configuration['exchange_name'], str)
@@ -73,12 +74,12 @@ class FinancialDataTransformation(DataTransformation):
         assert isinstance(configuration['features_resample_minutes'], int) \
             and configuration['features_resample_minutes'] >= 0
         assert isinstance(configuration['features_start_market_minute'], int)
-        assert configuration['features_start_market_minute'] < MINUTES_IN_TRADING_DAY
+        assert configuration['features_start_market_minute'] < self.minutes_in_trading_days
         assert configuration['prediction_market_minute'] >= 0
-        assert configuration['prediction_market_minute'] < MINUTES_IN_TRADING_DAY
+        assert configuration['prediction_market_minute'] < self.minutes_in_trading_days
         assert configuration['target_delta_ndays'] >= 0
         assert configuration['target_market_minute'] >= 0
-        assert configuration['target_market_minute'] < MINUTES_IN_TRADING_DAY
+        assert configuration['target_market_minute'] < self.minutes_in_trading_days
         assert isinstance(configuration['feature_config_list'], list)
         n_targets = 0
         for single_feature_dict in configuration['feature_config_list']:
@@ -99,7 +100,7 @@ class FinancialDataTransformation(DataTransformation):
         Calculate expected total ticks for x data
         :return int: expected total number of ticks for x data
         """
-        ticks_in_a_day = np.floor(MINUTES_IN_TRADING_DAY / self.features_resample_minutes) + 1
+        ticks_in_a_day = np.floor(self.minutes_in_trading_days / self.features_resample_minutes) + 1
         intra_day_ticks = np.floor((self.prediction_market_minute - self.features_start_market_minute) /
                                    self.features_resample_minutes)
         total_ticks = ticks_in_a_day * self.features_ndays + intra_day_ticks + 1
