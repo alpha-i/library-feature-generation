@@ -552,8 +552,6 @@ class FinancialDataTransformation(DataTransformation):
 
         return feature_x_dict, feature_y_dict, prediction_timestamp
 
-
-
     def add_transformation(self, raw_data_dict):
         """
         add new features to data dictionary

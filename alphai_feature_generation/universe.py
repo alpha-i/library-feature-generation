@@ -19,9 +19,9 @@ METHOD_ANNUAL = 'annual'
 METHOD_LIQUIDITY = 'liquidity'
 METHOD_LIQUIDITY_DAY = 'liquidity_day'
 METHOD_FIXED_HISTORICAL = 'fixed_historical'
-HISTORICAL_UNIVERSE_COLUMNS = ['start_date', 'end_date', 'assets']
+HISTORICAL_UNIVERSE_COLUMNS = ('start_date', 'end_date', 'assets')
 MINUTES_IN_ONE_TRADING_DAY = 390
-UPDATE_FREQUENCIES = ['daily', 'weekly', 'monthly', 'yearly']
+UPDATE_FREQUENCIES = ('daily', 'weekly', 'monthly', 'yearly')
 FREQUENCY_RRULE_MAP = {'daily': rrule.DAILY, 'weekly': rrule.WEEKLY, 'monthly': rrule.MONTHLY, 'yearly': rrule.YEARLY}
 OHLCV = 'open high low close volume'.split()
 
