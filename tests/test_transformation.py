@@ -70,12 +70,14 @@ class TestFinancialDataTransformation(TestCase):
     def test_get_total_ticks_x(self):
         assert self.fin_data_transf_nobins.get_total_ticks_x() == 15
 
-    def test_get_market_open_list(self):
-        market_open_list = self.fin_data_transf_nobins._get_market_open_list(sample_hourly_ohlcv_data_dict)
-        assert isinstance(market_open_list, pd.Series)
-        assert len(market_open_list) == 37
-        assert market_open_list[0] == pd.Timestamp('2015-01-14 14:30:00+0000', tz='UTC')
-        assert market_open_list[-1] == pd.Timestamp('2015-03-09 13:30:00+0000', tz='UTC')
+    def test_extract_schedule_from_data(self):
+
+        data_schedule = self.fin_data_transf_nobins._extract_schedule_from_data(sample_hourly_ohlcv_data_dict)
+
+        assert isinstance(data_schedule, pd.DataFrame)
+        assert len(data_schedule) == 37
+        assert data_schedule.iloc[0].market_open == pd.Timestamp('2015-01-14 14:30:00+0000', tz='UTC')
+        assert data_schedule.iloc[-1].market_open == pd.Timestamp('2015-03-09 13:30:00+0000', tz='UTC')
 
     def test_get_target_feature(self):
         target_feature = self.fin_data_transf_nobins.get_target_feature()
