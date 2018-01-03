@@ -115,10 +115,10 @@ class FinancialDataTransformation(DataTransformation):
         :return bool: False if the dimensions are not those expected
         """
         correct_dimensions = True
+        total_ticks = self.get_total_ticks_x()
 
         for feature_full_name, feature_array in feature_x_dict.items():
-            if feature_array.shape[0] != self.get_total_ticks_x():
-                correct_dimensions = False
+            correct_dimensions = feature_array.shape[0] == total_ticks
 
         return correct_dimensions
 
@@ -133,8 +133,7 @@ class FinancialDataTransformation(DataTransformation):
 
         if feature_y_dict is not None:
             for feature_full_name, feature_array in feature_y_dict.items():
-                if feature_array.shape != expected_shape:
-                    correct_dimensions = False
+                correct_dimensions = feature_array.shape == expected_shape
 
         return correct_dimensions
 
@@ -146,9 +145,8 @@ class FinancialDataTransformation(DataTransformation):
         """
         assert isinstance(feature_config_list, list)
 
-        feature_list = []
-        for single_feature_dict in feature_config_list:
-            feature_list.append(FinancialFeature(
+        return [
+            FinancialFeature(
                 single_feature_dict['name'],
                 single_feature_dict['transformation'],
                 single_feature_dict['normalization'],
@@ -162,9 +160,7 @@ class FinancialDataTransformation(DataTransformation):
                 single_feature_dict.get('local', False),
                 self.classify_per_series,
                 self.normalise_per_series
-            ))
-
-        return feature_list
+        ) for single_feature_dict in feature_config_list]
 
     def _get_market_open_list(self, raw_data_dict):
         """
@@ -183,7 +179,9 @@ class FinancialDataTransformation(DataTransformation):
         Return the target feature in self.features
         :return FinancialFeature: target feature
         """
-        return [feature for feature in self.features if feature.is_target][0]
+        for feature in self.features:
+            if feature.is_target:
+                return feature
 
     def collect_prediction_from_features(self, raw_data_dict, prediction_timestamp, universe=None,
                                          target_timestamp=None):
