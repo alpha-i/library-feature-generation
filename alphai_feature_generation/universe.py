@@ -7,21 +7,20 @@ import numpy as np
 import pandas as pd
 
 from alphai_finance.data.cleaning import (
-    resample_ohlcv,
     select_between_timestamps,
     remove_duplicated_symbols_ohlcv,
-    slice_data_dict,
-    find_duplicated_symbols_data_frame
+    slice_data_dict
 )
+
+from alphai_feature_generation.utils import get_minutes_in_one_trading_day
 
 METHOD_FIXED = 'fixed'
 METHOD_ANNUAL = 'annual'
 METHOD_LIQUIDITY = 'liquidity'
 METHOD_LIQUIDITY_DAY = 'liquidity_day'
 METHOD_FIXED_HISTORICAL = 'fixed_historical'
-HISTORICAL_UNIVERSE_COLUMNS = ['start_date', 'end_date', 'assets']
-MINUTES_IN_ONE_TRADING_DAY = 390
-UPDATE_FREQUENCIES = ['daily', 'weekly', 'monthly', 'yearly']
+HISTORICAL_UNIVERSE_COLUMNS = ('start_date', 'end_date', 'assets')
+UPDATE_FREQUENCIES = ('daily', 'weekly', 'monthly', 'yearly')
 FREQUENCY_RRULE_MAP = {'daily': rrule.DAILY, 'weekly': rrule.WEEKLY, 'monthly': rrule.MONTHLY, 'yearly': rrule.YEARLY}
 OHLCV = 'open high low close volume'.split()
 
@@ -49,9 +48,10 @@ class VolumeUniverseProvider(AbstractUniverseProvider):
         self._nassets = configuration['nassets']
         self._ndays_window = configuration['ndays_window']
         self._update_frequency = configuration['update_frequency']
+        self._exchange = configuration['exchange']
         self._dropna = configuration['dropna']
 
-        self._nminutes_window = self._ndays_window * MINUTES_IN_ONE_TRADING_DAY
+        self._nminutes_window = self._ndays_window * get_minutes_in_one_trading_day(self._exchange)
         self._rrule = FREQUENCY_RRULE_MAP[self._update_frequency]
 
     def _get_universe_at(self, date, data_dict):

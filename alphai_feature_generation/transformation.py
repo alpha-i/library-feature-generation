@@ -1,15 +1,17 @@
 from abc import ABCMeta, abstractmethod
 from datetime import timedelta
 import logging
+import multiprocessing
+from functools import partial
 
 import numpy as np
 import pandas_market_calendars as mcal
 import pandas as pd
 
-from alphai_feature_generation import MINUTES_IN_TRADING_DAY
 from alphai_feature_generation.feature import (FinancialFeature,
                                                get_feature_names,
                                                get_feature_max_ndays)
+from alphai_feature_generation.utils import get_minutes_in_one_trading_day
 
 TOTAL_TICKS_FINANCIAL_FEATURES = ['open_value', 'high_value', 'low_value', 'close_value', 'volume_value']
 TOTAL_TICKS_M1_FINANCIAL_FEATURES = ['open_log-return', 'high_log-return', 'low_log-return', 'close_log-return',
@@ -47,8 +49,8 @@ class FinancialDataTransformation(DataTransformation):
             int target_delta_ndays: target time horizon in number of days
             int target_market_minute: number of minutes after market open for the target timestamp
         """
-        self._assert_input(configuration)
         self.exchange_calendar = mcal.get_calendar(configuration['exchange_name'])
+        self.minutes_in_trading_days = get_minutes_in_one_trading_day(configuration['exchange_name'])
         self.features_ndays = configuration['features_ndays']
         self.features_resample_minutes = configuration['features_resample_minutes']
         self.features_start_market_minute = configuration['features_start_market_minute']
@@ -66,6 +68,7 @@ class FinancialDataTransformation(DataTransformation):
         self.clean_nan_from_dict = configuration.get('clean_nan_from_dict', False)
 
         self.configuration = configuration
+        self._assert_input(configuration)
 
     def _assert_input(self, configuration):
         assert isinstance(configuration['exchange_name'], str)
@@ -73,12 +76,12 @@ class FinancialDataTransformation(DataTransformation):
         assert isinstance(configuration['features_resample_minutes'], int) \
             and configuration['features_resample_minutes'] >= 0
         assert isinstance(configuration['features_start_market_minute'], int)
-        assert configuration['features_start_market_minute'] < MINUTES_IN_TRADING_DAY
+        assert configuration['features_start_market_minute'] < self.minutes_in_trading_days
         assert configuration['prediction_market_minute'] >= 0
-        assert configuration['prediction_market_minute'] < MINUTES_IN_TRADING_DAY
+        assert configuration['prediction_market_minute'] < self.minutes_in_trading_days
         assert configuration['target_delta_ndays'] >= 0
         assert configuration['target_market_minute'] >= 0
-        assert configuration['target_market_minute'] < MINUTES_IN_TRADING_DAY
+        assert configuration['target_market_minute'] < self.minutes_in_trading_days
         assert isinstance(configuration['feature_config_list'], list)
         n_targets = 0
         for single_feature_dict in configuration['feature_config_list']:
@@ -99,7 +102,7 @@ class FinancialDataTransformation(DataTransformation):
         Calculate expected total ticks for x data
         :return int: expected total number of ticks for x data
         """
-        ticks_in_a_day = np.floor(MINUTES_IN_TRADING_DAY / self.features_resample_minutes) + 1
+        ticks_in_a_day = np.floor(self.minutes_in_trading_days / self.features_resample_minutes) + 1
         intra_day_ticks = np.floor((self.prediction_market_minute - self.features_start_market_minute) /
                                    self.features_resample_minutes)
         total_ticks = ticks_in_a_day * self.features_ndays + intra_day_ticks + 1
@@ -425,33 +428,42 @@ class FinancialDataTransformation(DataTransformation):
 
         symbols = get_unique_symbols(x_list)
 
-        # Fitting
+        pool = multiprocessing.Pool(processes=len(self.features))
         if do_normalisation_fitting:
-            for feature in self.features:
-                if feature.scaler:
-                    logging.info("Fitting normalisation to: {}".format(feature.full_name))
-                    if self.normalise_per_series:
-                        for symbol in symbols:
-                            symbol_data = self.extract_data_by_symbol(x_list, symbol, feature.full_name)
-                            feature.fit_normalisation(symbol_data, symbol)
-                    else:
-                        all_data = self.extract_all_data(x_list, feature.full_name)
-                        feature.fit_normalisation(all_data)
-                else:
-                    logging.info("Skipping normalisation to: {}".format(feature.full_name))
+            fit_function = partial(self.fit_normalisation, symbols, x_list)
+            fitted_features = pool.map(fit_function, self.features)
+            self.features = fitted_features
 
-        # Applying
-        for feature in self.features:
-            if feature.scaler:
-                logging.info("Applying normalisation to: {}".format(feature.full_name))
-                for x_dict in x_list:
-                    if feature.full_name in x_dict:
-                        x_dict[feature.full_name] = feature.apply_normalisation(x_dict[feature.full_name])
-                    else:
-                        logging.info("Failed to find {} in dict: {}".format(feature.full_name, list(x_dict.keys())))
-                        logging.info("x_list: {}".format(x_list))
+        apply_function = partial(self.apply_normalisation, x_list)
+        applied_features = pool.map(apply_function, self.features)
+        self.features = applied_features
 
         return x_list
+
+    def apply_normalisation(self, x_list, feature):
+        if feature.scaler:
+            logging.info("Applying normalisation to: {}".format(feature.full_name))
+            for x_dict in x_list:
+                if feature.full_name in x_dict:
+                    x_dict[feature.full_name] = feature.apply_normalisation(x_dict[feature.full_name])
+                else:
+                    logging.info("Failed to find {} in dict: {}".format(feature.full_name, list(x_dict.keys())))
+                    logging.info("x_list: {}".format(x_list))
+        return feature
+
+    def fit_normalisation(self, symbols, x_list, feature):
+        if feature.scaler:
+            logging.info("Fitting normalisation to: {}".format(feature.full_name))
+            if self.normalise_per_series:
+                for symbol in symbols:
+                    symbol_data = self.extract_data_by_symbol(x_list, symbol, feature.full_name)
+                    feature.fit_normalisation(symbol_data, symbol)
+            else:
+                all_data = self.extract_all_data(x_list, feature.full_name)
+                feature.fit_normalisation(all_data)
+        else:
+            logging.info("Skipping normalisation to: {}".format(feature.full_name))
+        return feature
 
     @staticmethod
     def extract_data_by_symbol(x_list, symbol, feature_name):
@@ -551,8 +563,6 @@ class FinancialDataTransformation(DataTransformation):
                                                                                )
 
         return feature_x_dict, feature_y_dict, prediction_timestamp
-
-
 
     def add_transformation(self, raw_data_dict):
         """
