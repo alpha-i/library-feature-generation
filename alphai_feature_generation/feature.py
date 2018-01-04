@@ -1,21 +1,18 @@
+import logging
 from copy import deepcopy
 from datetime import timedelta
-import logging
 
-from pyts.transformation import GASF, GADF, MTF
 import numpy as np
 import pandas as pd
 import pandas_market_calendars as mcal
-from sklearn.preprocessing import RobustScaler, MinMaxScaler, StandardScaler
+from pyts.transformation import GASF, GADF, MTF
 from sklearn.preprocessing import QuantileTransformer
+from sklearn.preprocessing import RobustScaler, MinMaxScaler, StandardScaler
 
 from alphai_feature_generation import (FINANCIAL_FEATURE_TRANSFORMATIONS, FINANCIAL_FEATURE_NORMALIZATIONS,
                                        MARKET_DAYS_SEARCH_MULTIPLIER, MIN_MARKET_DAYS_SEARCH)
-from alphai_feature_generation.utils import get_minutes_in_one_trading_day
-
 from alphai_feature_generation.classifier import BinDistribution, classify_labels, declassify_labels
-
-logging.getLogger(__name__).addHandler(logging.NullHandler())
+from alphai_feature_generation.utils import get_minutes_in_one_trading_day
 
 
 class FinancialFeature(object):
