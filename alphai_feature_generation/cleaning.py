@@ -90,7 +90,9 @@ def resample_data_frame(data_frame, resample_rule, sampling_function='mean'):
     :return: resampled dataframe.
     """
     assert sampling_function in ['mean', 'median', 'sum', 'first', 'last', 'min', 'max']
-    return getattr(data_frame.resample(resample_rule), sampling_function)().dropna(axis=[0, 1], how='all')
+
+    data_frame = data_frame.resample(resample_rule, how=sampling_function, label='right', closed='right')
+    return data_frame.dropna(axis=[0, 1], how='all')
 
 
 def resample_data_dict(data_dict, resample_rule, sampling_function_mapping='mean'):
