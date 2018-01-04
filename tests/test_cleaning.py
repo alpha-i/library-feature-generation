@@ -79,7 +79,7 @@ def test_resample_data_frame_wrong_sampling_function():
 
 def test_resample_data_frame_rules():
     resample_rules = ['1T', '2T', '5T', '10T', '60T', '1H']
-    expected_lengths = [782, 392, 158, 80, 16, 16]
+    expected_lengths = [782, 392, 158, 80, 14, 14]
     for resample_rule, expected_length in zip(resample_rules, expected_lengths):
         resampled_data_frame = resample_data_frame(sample_data_frame, resample_rule)
         assert len(resampled_data_frame) == expected_length
@@ -91,25 +91,25 @@ def test_resample_data_frame_functions():
     resample_rule = '3T'
 
     sampling_function = 'mean'
-    assert_almost_equal(resample_data_frame(data_frame, resample_rule, sampling_function)['col'], [1, 4, 7])
+    assert_almost_equal(resample_data_frame(data_frame, resample_rule, sampling_function)['col'], [0.,  2.,  5.,  7.5])
 
     sampling_function = 'median'
-    assert_almost_equal(resample_data_frame(data_frame, resample_rule, sampling_function)['col'], [1, 4, 7])
+    assert_almost_equal(resample_data_frame(data_frame, resample_rule, sampling_function)['col'], [0.,  2.,  5.,  7.5])
 
     sampling_function = 'sum'
-    assert_almost_equal(resample_data_frame(data_frame, resample_rule, sampling_function)['col'], [3, 12, 21])
+    assert_almost_equal(resample_data_frame(data_frame, resample_rule, sampling_function)['col'], [0,  6, 15, 15])
 
     sampling_function = 'first'
-    assert_almost_equal(resample_data_frame(data_frame, resample_rule, sampling_function)['col'], [0, 3, 6])
+    assert_almost_equal(resample_data_frame(data_frame, resample_rule, sampling_function)['col'], [0, 1, 4, 7])
 
     sampling_function = 'last'
-    assert_almost_equal(resample_data_frame(data_frame, resample_rule, sampling_function)['col'], [2, 5, 8])
+    assert_almost_equal(resample_data_frame(data_frame, resample_rule, sampling_function)['col'], [0, 3, 6, 8])
 
     sampling_function = 'min'
-    assert_almost_equal(resample_data_frame(data_frame, resample_rule, sampling_function)['col'], [0, 3, 6])
+    assert_almost_equal(resample_data_frame(data_frame, resample_rule, sampling_function)['col'], [0, 1, 4, 7])
 
     sampling_function = 'max'
-    assert_almost_equal(resample_data_frame(data_frame, resample_rule, sampling_function)['col'], [2, 5, 8])
+    assert_almost_equal(resample_data_frame(data_frame, resample_rule, sampling_function)['col'], [0, 3, 6, 8])
 
 
 def test_resample_data_dict_wrong_resample_rule_type():
