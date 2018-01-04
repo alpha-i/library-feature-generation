@@ -12,7 +12,7 @@ setup(
                       'pandas',
                       'scikit-learn',
                       'scipy',
-                      'pandas_market_calendars=>0.12',
+                      'pandas_market_calendars>=0.12',
                       'tables',
                       'pyts',
                       'future',
