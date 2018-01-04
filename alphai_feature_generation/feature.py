@@ -466,7 +466,7 @@ def single_financial_feature_factory(feature_config):
         feature_config['resample_minutes'],
         feature_config['start_market_minute'],
         feature_config['is_target'],
-        mcal.get_calendar(feature_config['exchange_name']),
+        mcal.get_calendar(feature_config['exchange']),
         feature_config['local'])
 
 

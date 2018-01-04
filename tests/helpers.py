@@ -95,7 +95,7 @@ sample_fin_feature_factory_list = [
         'resample_minutes': 60,
         'start_market_minute': 1,
         'is_target': False,
-        'exchange_name': 'NYSE',
+        'exchange': 'NYSE',
         'local': True,
         'length': 10
     },
@@ -108,7 +108,7 @@ sample_fin_feature_factory_list = [
         'resample_minutes': 60,
         'start_market_minute': 1,
         'is_target': False,
-        'exchange_name': 'NYSE',
+        'exchange': 'NYSE',
         'local': True,
         'length': 10
     },
@@ -121,7 +121,7 @@ sample_fin_feature_factory_list = [
         'resample_minutes': 60,
         'start_market_minute': 1,
         'is_target': True,
-        'exchange_name': 'NYSE',
+        'exchange': 'NYSE',
         'local': True,
         'length': 10
     },

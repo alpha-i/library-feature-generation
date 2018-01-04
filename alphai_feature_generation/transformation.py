@@ -1,12 +1,12 @@
-from abc import ABCMeta, abstractmethod
-from datetime import timedelta
 import logging
 import multiprocessing
+from abc import ABCMeta, abstractmethod
+from datetime import timedelta
 from functools import partial
 
 import numpy as np
-import pandas_market_calendars as mcal
 import pandas as pd
+import pandas_market_calendars as mcal
 
 from alphai_feature_generation.feature import (FinancialFeature,
                                                get_feature_names,
@@ -41,7 +41,7 @@ class FinancialDataTransformation(DataTransformation):
         """
         :param dict configuration: dictionary containing the feature details.
             list feature_config_list: list of dictionaries containing feature details.
-            str exchange_name: name of the reference exchange
+            str exchange: name of the reference exchange
             int features_ndays: number of trading days worth of data the feature should use.
             int features_resample_minutes: resampling frequency in number of minutes.
             int features_start_market_minute: number of minutes after market open the data collection should start from
@@ -49,8 +49,8 @@ class FinancialDataTransformation(DataTransformation):
             int target_delta_ndays: target time horizon in number of days
             int target_market_minute: number of minutes after market open for the target timestamp
         """
-        self.exchange_calendar = mcal.get_calendar(configuration['exchange_name'])
-        self.minutes_in_trading_days = get_minutes_in_one_trading_day(configuration['exchange_name'])
+        self.exchange_calendar = mcal.get_calendar(configuration['exchange'])
+        self.minutes_in_trading_days = get_minutes_in_one_trading_day(configuration['exchange'])
         self.features_ndays = configuration['features_ndays']
         self.features_resample_minutes = configuration['features_resample_minutes']
         self.features_start_market_minute = configuration['features_start_market_minute']
@@ -71,10 +71,10 @@ class FinancialDataTransformation(DataTransformation):
         self._assert_input(configuration)
 
     def _assert_input(self, configuration):
-        assert isinstance(configuration['exchange_name'], str)
+        assert isinstance(configuration['exchange'], str)
         assert isinstance(configuration['features_ndays'], int) and configuration['features_ndays'] >= 0
         assert isinstance(configuration['features_resample_minutes'], int) \
-            and configuration['features_resample_minutes'] >= 0
+               and configuration['features_resample_minutes'] >= 0
         assert isinstance(configuration['features_start_market_minute'], int)
         assert configuration['features_start_market_minute'] < self.minutes_in_trading_days
         assert configuration['prediction_market_minute'] >= 0
