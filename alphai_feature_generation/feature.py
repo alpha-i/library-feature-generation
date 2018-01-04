@@ -79,7 +79,8 @@ class FinancialFeature(object):
 
     @property
     def full_name(self):
-        return '{}_{}'.format(self.name, self.transformation['name'])
+        resolution = str(self.resample_minutes)
+        return '{}_{}_{}'.format(self.name, self.transformation['name'], resolution)
 
     def _assert_input(self, name, transformation, normalization, nbins, length, ndays, resample_minutes,
                       start_market_minute, is_target, local):
@@ -117,6 +118,8 @@ class FinancialFeature(object):
         if not self.local:
             assert isinstance(prediction_data_x, dict)
             processed_prediction_data_x = deepcopy(prediction_data_x[self.name])
+            resample_rule = str(self.resample_minutes) + 'T'
+            processed_prediction_data_x.resample(resample_rule, label='right', closed='right')
         else:
             assert isinstance(prediction_data_x, pd.DataFrame)
             processed_prediction_data_x = deepcopy(prediction_data_x)

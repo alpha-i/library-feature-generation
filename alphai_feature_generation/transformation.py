@@ -18,6 +18,7 @@ TOTAL_TICKS_M1_FINANCIAL_FEATURES = ['open_log-return', 'high_log-return', 'low_
                                      'volume_log-return']
 
 HARDCODED_FEATURE_FOR_EXTRACT_Y = 'close'
+EXCHANGE = 'exchange_name'
 
 logging.getLogger(__name__).addHandler(logging.NullHandler())
 
@@ -49,8 +50,8 @@ class FinancialDataTransformation(DataTransformation):
             int target_delta_ndays: target time horizon in number of days
             int target_market_minute: number of minutes after market open for the target timestamp
         """
-        self.exchange_calendar = mcal.get_calendar(configuration['exchange'])
-        self.minutes_in_trading_days = get_minutes_in_one_trading_day(configuration['exchange'])
+        self.exchange_calendar = mcal.get_calendar(configuration[EXCHANGE])
+        self.minutes_in_trading_days = get_minutes_in_one_trading_day(configuration[EXCHANGE])
         self.features_ndays = configuration['features_ndays']
         self.features_resample_minutes = configuration['features_resample_minutes']
         self.features_start_market_minute = configuration['features_start_market_minute']
@@ -71,7 +72,7 @@ class FinancialDataTransformation(DataTransformation):
         self._assert_input(configuration)
 
     def _assert_input(self, configuration):
-        assert isinstance(configuration['exchange'], str)
+        assert isinstance(configuration[EXCHANGE], str)
         assert isinstance(configuration['features_ndays'], int) and configuration['features_ndays'] >= 0
         assert isinstance(configuration['features_resample_minutes'], int) \
                and configuration['features_resample_minutes'] >= 0
@@ -151,11 +152,11 @@ class FinancialDataTransformation(DataTransformation):
                 single_feature_dict['transformation'],
                 single_feature_dict['normalization'],
                 n_classification_bins,
-                self.get_total_ticks_x(),
+                single_feature_dict.get('length', self.get_total_ticks_x()),
                 self.features_ndays,
-                self.features_resample_minutes,
+                single_feature_dict.get('resolution', self.features_resample_minutes),
                 self.features_start_market_minute,
-                single_feature_dict['is_target'],
+                single_feature_dict.get('is_target', False),
                 self.exchange_calendar,
                 single_feature_dict.get('local', False),
                 self.classify_per_series,
