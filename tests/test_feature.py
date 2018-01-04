@@ -4,7 +4,6 @@ from unittest import TestCase
 import numpy as np
 import pandas as pd
 import pytest
-from pyts.transformation import GASF, GADF, MTF
 from numpy.testing import assert_almost_equal, assert_array_equal
 
 from alphai_feature_generation.feature import (
