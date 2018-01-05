@@ -480,7 +480,7 @@ def remove_duplicated_symbols_ohlcv(ohlcv_data, max_correlation=0.999):
         symbols_to_drop += list(volumes[list(duplicated_symbols)].sort_values(ascending=False).index[1:])
 
     if len(symbols_to_drop) > 0:
-        logging.info("Dropping symbols: {}".format(symbols_to_drop))
+        logging.info("Dropping {} symbols.".format(len(symbols_to_drop)))
 
     for key in ohlcv_data.keys():
         clean_ohlcv_data[key] = ohlcv_data[key].drop(symbols_to_drop, axis=1)

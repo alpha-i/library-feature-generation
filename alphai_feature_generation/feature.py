@@ -14,6 +14,8 @@ from alphai_feature_generation import (FINANCIAL_FEATURE_TRANSFORMATIONS, FINANC
 from alphai_feature_generation.classifier import BinDistribution, classify_labels, declassify_labels
 from alphai_feature_generation.utils import get_minutes_in_one_trading_day
 
+KEY_EXCHANGE = 'exchange_name'
+
 
 class FinancialFeature(object):
     def __init__(self, name, transformation, normalization, nbins, length, ndays, resample_minutes, start_market_minute,
@@ -79,8 +81,12 @@ class FinancialFeature(object):
 
     @property
     def full_name(self):
-        resolution = str(self.resample_minutes)
-        return '{}_{}_{}'.format(self.name, self.transformation['name'], resolution)
+        full_name = '{}_{}'.format(self.name, self.transformation['name'])
+        if self.resample_minutes > 0:
+            resolution = str(self.resample_minutes)
+            full_name = full_name + resolution
+
+        return full_name
 
     def _assert_input(self, name, transformation, normalization, nbins, length, ndays, resample_minutes,
                       start_market_minute, is_target, local):
@@ -118,13 +124,23 @@ class FinancialFeature(object):
         if not self.local:
             assert isinstance(prediction_data_x, dict)
             processed_prediction_data_x = deepcopy(prediction_data_x[self.name])
-            resample_rule = str(self.resample_minutes) + 'T'
-            processed_prediction_data_x.resample(resample_rule, label='right', closed='right')
+
+            if self.resample_minutes > 0:  # Custom resampling interval for this feature
+                resample_rule = str(self.resample_minutes) + 'T'
+                if self.name == 'volume':
+                    sampling_function = 'sum'
+                else:
+                    sampling_function = 'last'
+                processed_prediction_data_x = getattr(
+                    processed_prediction_data_x.resample(resample_rule, label='right', closed='right'),
+                    sampling_function)()
         else:
             assert isinstance(prediction_data_x, pd.DataFrame)
             processed_prediction_data_x = deepcopy(prediction_data_x)
 
-        if self.transformation['name'] == 'log-return':
+        transform = self.transformation['name']
+
+        if transform == 'log-return':
             processed_prediction_data_x = np.log(processed_prediction_data_x.pct_change() + 1). \
                 replace([np.inf, -np.inf], np.nan)
 
@@ -132,7 +148,7 @@ class FinancialFeature(object):
             if self.local:
                 processed_prediction_data_x = processed_prediction_data_x.iloc[1:]
 
-        if self.transformation['name'] == 'stochastic_k':
+        elif transform == 'stochastic_k':
             columns = processed_prediction_data_x.columns
             processed_prediction_data_x \
                 = ((processed_prediction_data_x.iloc[-1] - processed_prediction_data_x.min()) /
@@ -141,11 +157,11 @@ class FinancialFeature(object):
             processed_prediction_data_x = np.expand_dims(processed_prediction_data_x, axis=0)
             processed_prediction_data_x = pd.DataFrame(processed_prediction_data_x, columns=columns)
 
-        if self.transformation['name'] == 'ewma':
+        elif transform == 'ewma':
             processed_prediction_data_x = \
                 processed_prediction_data_x.ewm(halflife=self.transformation['halflife']).mean()
 
-        if self.transformation['name'] == 'ker':
+        elif transform == 'ker':
             direction = processed_prediction_data_x.diff(self.transformation['lag']).abs()
             volatility = processed_prediction_data_x.diff().abs().rolling(window=self.transformation['lag']).sum()
 
@@ -157,26 +173,31 @@ class FinancialFeature(object):
             processed_prediction_data_x = direction / volatility
             processed_prediction_data_x.dropna(axis=0, inplace=True)
 
-        if self.transformation['name'] == 'gasf':
+        elif transform == 'gasf':
             columns = processed_prediction_data_x.columns
             gasf = GASF(image_size=self.transformation['image_size'], overlapping=False, scale='-1')
             processed_prediction_data_x = gasf.transform(processed_prediction_data_x.values.T)
             processed_prediction_data_x = processed_prediction_data_x.reshape(processed_prediction_data_x.shape[0], -1)
             processed_prediction_data_x = pd.DataFrame(processed_prediction_data_x.T, columns=columns)
 
-        if self.transformation['name'] == 'gadf':
+        elif transform == 'gadf':
             columns = processed_prediction_data_x.columns
             gadf = GADF(image_size=self.transformation['image_size'], overlapping=False, scale='-1')
             processed_prediction_data_x = gadf.transform(processed_prediction_data_x.values.T)
             processed_prediction_data_x = processed_prediction_data_x.reshape(processed_prediction_data_x.shape[0], -1)
             processed_prediction_data_x = pd.DataFrame(processed_prediction_data_x.T, columns=columns)
 
-        if self.transformation['name'] == 'mtf':
+        elif transform == 'mtf':
             columns = processed_prediction_data_x.columns
             mtf = MTF(image_size=self.transformation['image_size'], n_bins=7, quantiles='empirical', overlapping=False)
             processed_prediction_data_x = mtf.transform(processed_prediction_data_x.values.T)
             processed_prediction_data_x = processed_prediction_data_x.reshape(processed_prediction_data_x.shape[0], -1)
             processed_prediction_data_x = pd.DataFrame(processed_prediction_data_x.T, columns=columns)
+
+        elif transform == 'value':
+            pass
+        else:
+            raise NotImplementedError('Unknown transformation: ', transform)
 
         return processed_prediction_data_x
 
@@ -466,7 +487,7 @@ def single_financial_feature_factory(feature_config):
         feature_config['resample_minutes'],
         feature_config['start_market_minute'],
         feature_config['is_target'],
-        mcal.get_calendar(feature_config['exchange']),
+        mcal.get_calendar(feature_config[KEY_EXCHANGE]),
         feature_config['local'])
 
 

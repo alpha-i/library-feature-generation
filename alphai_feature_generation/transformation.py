@@ -10,7 +10,8 @@ import pandas_market_calendars as mcal
 
 from alphai_feature_generation.feature import (FinancialFeature,
                                                get_feature_names,
-                                               get_feature_max_ndays)
+                                               get_feature_max_ndays,
+                                               KEY_EXCHANGE)
 from alphai_feature_generation.utils import get_minutes_in_one_trading_day
 
 TOTAL_TICKS_FINANCIAL_FEATURES = ['open_value', 'high_value', 'low_value', 'close_value', 'volume_value']
@@ -18,7 +19,6 @@ TOTAL_TICKS_M1_FINANCIAL_FEATURES = ['open_log-return', 'high_log-return', 'low_
                                      'volume_log-return']
 
 HARDCODED_FEATURE_FOR_EXTRACT_Y = 'close'
-EXCHANGE = 'exchange_name'
 
 logging.getLogger(__name__).addHandler(logging.NullHandler())
 
@@ -50,8 +50,8 @@ class FinancialDataTransformation(DataTransformation):
             int target_delta_ndays: target time horizon in number of days
             int target_market_minute: number of minutes after market open for the target timestamp
         """
-        self.exchange_calendar = mcal.get_calendar(configuration[EXCHANGE])
-        self.minutes_in_trading_days = get_minutes_in_one_trading_day(configuration[EXCHANGE])
+        self.exchange_calendar = mcal.get_calendar(configuration[KEY_EXCHANGE])
+        self.minutes_in_trading_days = get_minutes_in_one_trading_day(configuration[KEY_EXCHANGE])
         self.features_ndays = configuration['features_ndays']
         self.features_resample_minutes = configuration['features_resample_minutes']
         self.features_start_market_minute = configuration['features_start_market_minute']
@@ -72,7 +72,7 @@ class FinancialDataTransformation(DataTransformation):
         self._assert_input(configuration)
 
     def _assert_input(self, configuration):
-        assert isinstance(configuration[EXCHANGE], str)
+        assert isinstance(configuration[KEY_EXCHANGE], str)
         assert isinstance(configuration['features_ndays'], int) and configuration['features_ndays'] >= 0
         assert isinstance(configuration['features_resample_minutes'], int) \
                and configuration['features_resample_minutes'] >= 0
@@ -154,7 +154,7 @@ class FinancialDataTransformation(DataTransformation):
                 n_classification_bins,
                 single_feature_dict.get('length', self.get_total_ticks_x()),
                 self.features_ndays,
-                single_feature_dict.get('resolution', self.features_resample_minutes),
+                single_feature_dict.get('resolution', 0),
                 self.features_start_market_minute,
                 single_feature_dict.get('is_target', False),
                 self.exchange_calendar,
