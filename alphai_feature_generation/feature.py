@@ -83,7 +83,7 @@ class FinancialFeature(object):
     def full_name(self):
         full_name = '{}_{}'.format(self.name, self.transformation['name'])
         if self.resample_minutes > 0:
-            resolution = str(self.resample_minutes)
+            resolution = '_' + str(self.resample_minutes) + 'T'
             full_name = full_name + resolution
 
         return full_name
@@ -121,22 +121,19 @@ class FinancialFeature(object):
         :param pd.Dataframe prediction_data_x: X data for model prediction task
         :return pd.Dataframe: processed_prediction_data_x
         """
-        if not self.local:
-            assert isinstance(prediction_data_x, dict)
-            processed_prediction_data_x = deepcopy(prediction_data_x[self.name])
 
-            if self.resample_minutes > 0:  # Custom resampling interval for this feature
-                resample_rule = str(self.resample_minutes) + 'T'
-                if self.name == 'volume':
-                    sampling_function = 'sum'
-                else:
-                    sampling_function = 'last'
-                processed_prediction_data_x = getattr(
-                    processed_prediction_data_x.resample(resample_rule, label='right', closed='right'),
-                    sampling_function)()
-        else:
-            assert isinstance(prediction_data_x, pd.DataFrame)
-            processed_prediction_data_x = deepcopy(prediction_data_x)
+        assert isinstance(prediction_data_x, pd.DataFrame)
+        processed_prediction_data_x = deepcopy(prediction_data_x)
+
+        if not self.local and self.resample_minutes > 0:  # Custom resampling interval for this feature
+            resample_rule = str(self.resample_minutes) + 'T'
+            if self.name == 'volume':
+                sampling_function = 'sum'
+            else:
+                sampling_function = 'last'
+            processed_prediction_data_x = getattr(
+                processed_prediction_data_x.resample(resample_rule, label='right', closed='right'),
+                sampling_function)()
 
         transform = self.transformation['name']
 

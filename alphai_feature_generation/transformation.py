@@ -305,6 +305,8 @@ class FinancialDataTransformation(DataTransformation):
         n_samples = len(simulated_market_dates)
         data_schedule = self._extract_schedule_from_data(raw_data_dict)
 
+        self.apply_global_transformations(raw_data_dict)
+
         data_x_list = []
         data_y_list = []
         rejected_x_list = []
@@ -545,9 +547,10 @@ class FinancialDataTransformation(DataTransformation):
                                                                                prediction_timestamp,
                                                                                universe,
                                                                                target_timestamp,
-                                                                               )
+                                                                             )
 
         return feature_x_dict, feature_y_dict, prediction_timestamp
+
 
     def _get_target_timestamp(self, target_market_open):
         """
@@ -592,7 +595,7 @@ class FinancialDataTransformation(DataTransformation):
 
         return pd.to_datetime(market_close).iloc[0]
 
-    def add_transformation(self, raw_data_dict):
+    def apply_global_transformations(self, raw_data_dict):
         """
         add new features to data dictionary
         :param raw_data_dict: dictionary of dataframes
@@ -601,7 +604,8 @@ class FinancialDataTransformation(DataTransformation):
 
         for feature in self.features:
             if not feature.local and feature.full_name not in raw_data_dict.keys():
-                raw_data_dict[feature.full_name] = feature.process_prediction_data_x(raw_data_dict)
+                raw_dataframe = raw_data_dict[feature.name]
+                raw_data_dict[feature.full_name] = feature.process_prediction_data_x(raw_dataframe)
 
         return raw_data_dict
 
