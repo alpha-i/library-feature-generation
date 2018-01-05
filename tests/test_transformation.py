@@ -6,6 +6,7 @@ import pandas as pd
 from alphai_feature_generation.transformation import (
     FinancialDataTransformation,
 )
+from alphai_feature_generation.feature import KEY_EXCHANGE
 from tests.helpers import (
     sample_hourly_ohlcv_data_dict,
     sample_fin_data_transf_feature_factory_list_nobins,
@@ -33,7 +34,7 @@ class TestFinancialDataTransformation(TestCase):
             'features_ndays': 2,
             'features_resample_minutes': 60,
             'features_start_market_minute': 1,
-            'exchange': 'NYSE',
+            KEY_EXCHANGE: 'NYSE',
             'prediction_frequency_ndays': 1,
             'prediction_market_minute': 30,
             'target_delta_ndays': 5,
@@ -53,7 +54,7 @@ class TestFinancialDataTransformation(TestCase):
             'features_ndays': 2,
             'features_resample_minutes': 60,
             'features_start_market_minute': 1,
-            'exchange': 'NYSE',
+            KEY_EXCHANGE: 'NYSE',
             'prediction_frequency_ndays': 1,
             'prediction_market_minute': 30,
             'target_delta_ndays': 5,
@@ -96,7 +97,7 @@ class TestFinancialDataTransformation(TestCase):
             target_timestamp,
         )
 
-        expected_n_time_dict = {'open_value_60': 15, 'high_log-return_60': 14, 'close_log-return_60': 14}
+        expected_n_time_dict = {'open_value': 15, 'high_log-return': 14, 'close_log-return': 14}
         expected_n_symbols = 4
         expected_n_features = 3
 
@@ -116,7 +117,7 @@ class TestFinancialDataTransformation(TestCase):
             prediction_timestamp,
         )
 
-        expected_n_time_dict = {'open_value_60': 15, 'high_log-return_60': 14, 'close_log-return_60': 14}
+        expected_n_time_dict = {'open_value': 15, 'high_log-return': 14, 'close_log-return': 14}
         expected_n_symbols = 5
         expected_n_features = 3
 
@@ -127,7 +128,7 @@ class TestFinancialDataTransformation(TestCase):
 
     def test_create_data(self):
         expected_n_samples = 30
-        expected_n_time_dict = {'open_value_60': 15, 'high_log-return_60': 15, 'close_log-return_60': 15}
+        expected_n_time_dict = {'open_value': 15, 'high_log-return': 15, 'close_log-return': 15}
         expected_n_symbols = 4
         expected_n_features = 3
         expected_n_bins = 5
@@ -162,7 +163,7 @@ class TestFinancialDataTransformation(TestCase):
                           'features_ndays': 2,
                           'features_resample_minutes': 60,
                           'features_start_market_minute': 1,
-                          'exchange': 'NYSE',
+                          KEY_EXCHANGE: 'NYSE',
                           'prediction_frequency_ndays': 1,
                           'prediction_market_minute': 30,
                           'target_delta_ndays': 5,
