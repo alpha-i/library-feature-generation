@@ -115,10 +115,10 @@ class FinancialDataTransformation(DataTransformation):
         :return bool: False if the dimensions are not those expected
         """
         correct_dimensions = True
+        total_ticks = self.get_total_ticks_x()
 
         for feature_full_name, feature_array in feature_x_dict.items():
-            if feature_array.shape[0] != self.get_total_ticks_x():
-                correct_dimensions = False
+            correct_dimensions = feature_array.shape[0] == total_ticks
 
         return correct_dimensions
 
@@ -133,8 +133,7 @@ class FinancialDataTransformation(DataTransformation):
 
         if feature_y_dict is not None:
             for feature_full_name, feature_array in feature_y_dict.items():
-                if feature_array.shape != expected_shape:
-                    correct_dimensions = False
+                correct_dimensions = feature_array.shape == expected_shape
 
         return correct_dimensions
 
@@ -146,9 +145,8 @@ class FinancialDataTransformation(DataTransformation):
         """
         assert isinstance(feature_config_list, list)
 
-        feature_list = []
-        for single_feature_dict in feature_config_list:
-            feature_list.append(FinancialFeature(
+        return [
+            FinancialFeature(
                 single_feature_dict['name'],
                 single_feature_dict['transformation'],
                 single_feature_dict['normalization'],
@@ -162,11 +160,9 @@ class FinancialDataTransformation(DataTransformation):
                 single_feature_dict.get('local', False),
                 self.classify_per_series,
                 self.normalise_per_series
-            ))
+        ) for single_feature_dict in feature_config_list]
 
-        return feature_list
-
-    def _get_market_open_list(self, raw_data_dict):
+    def _extract_schedule_from_data(self, raw_data_dict):
         """
         Return a list of market open timestamps from input data_dict
         :param dict raw_data_dict: dictionary of dataframes containing features data.
@@ -176,14 +172,16 @@ class FinancialDataTransformation(DataTransformation):
         raw_data_start_date = raw_data_dict[features_keys[0]].index[0].date()
         raw_data_end_date = raw_data_dict[features_keys[0]].index[-1].date()
 
-        return self.exchange_calendar.schedule(str(raw_data_start_date), str(raw_data_end_date)).market_open
+        return self.exchange_calendar.schedule(str(raw_data_start_date), str(raw_data_end_date))
 
     def get_target_feature(self):
         """
         Return the target feature in self.features
         :return FinancialFeature: target feature
         """
-        return [feature for feature in self.features if feature.is_target][0]
+        for feature in self.features:
+            if feature.is_target:
+                return feature
 
     def collect_prediction_from_features(self, raw_data_dict, prediction_timestamp, universe=None,
                                          target_timestamp=None):
@@ -242,11 +240,11 @@ class FinancialDataTransformation(DataTransformation):
         :return (dict, dict): feature_x_dict, feature_y_dict
         """
 
-        simulated_market_dates = self.get_training_market_dates(raw_data_dict)
-        train_x, train_y, _, _ = self._create_data(raw_data_dict,
-                                                   simulated_market_dates,
-                                                   historical_universes,
-                                                   True)
+        market_schedule = self._extract_schedule_for_training(raw_data_dict)
+        normalise = True
+
+        train_x, train_y, _, _ = self._create_data(raw_data_dict, market_schedule, historical_universes, normalise)
+
         if self.clean_nan_from_dict:
             train_x, train_y = remove_nans_from_dict(train_x, train_y)
 
@@ -258,18 +256,22 @@ class FinancialDataTransformation(DataTransformation):
         :param raw_data_dict:
         :return: tuple: predict, symbol_list, prediction_timestamp, target_timestamp
         """
-        simulated_market_dates = self.get_predict_market_dates(raw_data_dict)
-        predict_x, _, symbols, predict_timestamp = self._create_data(raw_data_dict, simulated_market_dates)
+        market_schedule = self._extract_schedule_for_prediction(raw_data_dict)
+
+        predict_x, _, symbols, predict_timestamp = self._create_data(raw_data_dict, market_schedule)
 
         if self.clean_nan_from_dict:
             predict_x = remove_nans_from_dict(predict_x)
             logging.warning("May need to update symbols when removing nans from dict")
 
-        target_timestamp = self._get_valid_market_target_from_predict_timestamp(predict_timestamp)
+        prediction_day = predict_timestamp.date()
+        schedule = self.exchange_calendar.schedule(prediction_day, prediction_day + timedelta(days=10))
+
+        target_timestamp = self._get_valid_target_timestamp_in_schedule(schedule, predict_timestamp)
 
         return predict_x, symbols, predict_timestamp, target_timestamp
 
-    def _get_valid_market_target_from_predict_timestamp(self, predict_timestamp):
+    def _get_valid_target_timestamp_in_schedule(self, schedule, predict_timestamp):
         """
         Return valid market time for target time given timestamp and delta_n_days
 
@@ -278,17 +280,13 @@ class FinancialDataTransformation(DataTransformation):
         :return target_timestamp:
         :rtype target_timestamp: pd.Timestamp
         """
-        prediction_day = predict_timestamp.date()
-        next_month_schedule = self.exchange_calendar.schedule(prediction_day,
-                                                              prediction_day + timedelta(days=30))
-        target_timestamp = self._extract_target_market_open(next_month_schedule, predict_timestamp)
 
-        if self.predict_the_market_close:
-            target_timestamp = target_timestamp['market_close']
-        else:
-            target_timestamp = target_timestamp['market_open'] + timedelta(minutes=self.target_market_minute)
+        target_market_schedule = self._extract_target_market_day(schedule, predict_timestamp)
 
-        if self.exchange_calendar.open_at_time(next_month_schedule, target_timestamp, include_close=True):
+        target_market_open = target_market_schedule.market_open
+        target_timestamp = self._get_target_timestamp(target_market_open)
+
+        if self.exchange_calendar.open_at_time(schedule, target_timestamp, include_close=True):
             return target_timestamp
         else:
             raise ValueError("Target timestamp {} not in market time".format(target_timestamp))
@@ -304,7 +302,7 @@ class FinancialDataTransformation(DataTransformation):
         """
 
         n_samples = len(simulated_market_dates)
-        market_open_list = self._get_market_open_list(raw_data_dict)
+        data_schedule = self._extract_schedule_from_data(raw_data_dict)
 
         data_x_list = []
         data_y_list = []
@@ -313,22 +311,23 @@ class FinancialDataTransformation(DataTransformation):
 
         prediction_timestamp_list = []
 
-        target_market_schedule = None
+        target_market_open = None
 
         if len(simulated_market_dates) == 0:
             logging.error("Empty Market dates")
 
             raise ValueError("Empty Market dates")
 
-        for prediction_market_open in simulated_market_dates:
+        for prediction_market_open in simulated_market_dates.market_open:
 
-            target_market_schedule = self._extract_target_market_open(market_open_list, prediction_market_open)
+            target_market_schedule = self._extract_target_market_day(data_schedule, prediction_market_open)
+            target_market_open = target_market_schedule.market_open if target_market_schedule is not None else None
 
             try:
                 feature_x_dict, feature_y_dict, prediction_timestamp = self.build_features(raw_data_dict,
                                                                                            historical_universes,
                                                                                            prediction_market_open,
-                                                                                           target_market_schedule)
+                                                                                           target_market_open)
                 prediction_timestamp_list.append(prediction_timestamp)
             except DateNotInUniverseError as e:
                 logging.error(e)
@@ -365,7 +364,7 @@ class FinancialDataTransformation(DataTransformation):
         y_dict = None
         y_list = None
 
-        if target_market_schedule:
+        if target_market_open:
             action = 'training'
             logging.info("{} out of {} samples were found to be valid".format(n_valid_samples, n_samples))
             classify_y = self.configuration["n_classification_bins"]
@@ -379,7 +378,7 @@ class FinancialDataTransformation(DataTransformation):
 
         return x_dict, y_dict, x_symbols, prediction_timestamp
 
-    def _extract_target_market_open(self, market_schedule, prediction_timestamp):
+    def _extract_target_market_day(self, market_schedule, prediction_timestamp):
         """
         Extract the target market open day using prediction day and target delta
 
@@ -531,27 +530,12 @@ class FinancialDataTransformation(DataTransformation):
         :return:
         """
 
-        def _get_closing_time_for_day(the_day):
-            market_close = self.exchange_calendar.schedule(the_day, the_day)['market_close']
-
-            return pd.to_datetime(market_close).iloc[0]
-
         if universe is not None:
             prediction_date = prediction_market_open.date()
             universe = _get_universe_from_date(prediction_date, universe)
 
-        prediction_timestamp = prediction_market_open + timedelta(minutes=self.prediction_market_minute)
-
-        if target_market_open:
-            target_timestamp = target_market_open + timedelta(minutes=self.target_market_minute)
-        else:
-            target_timestamp = None
-
-        if self.predict_the_market_close:
-            prediction_timestamp = _get_closing_time_for_day(prediction_timestamp.date())
-
-            if target_market_open:
-                target_timestamp = _get_closing_time_for_day(target_market_open.date())
+        prediction_timestamp = self._get_prediction_timestamp(prediction_market_open)
+        target_timestamp = self._get_target_timestamp(target_market_open)
 
         if target_timestamp and prediction_timestamp > target_timestamp:
             raise ValueError('Target timestamp should be later than prediction_timestamp')
@@ -563,6 +547,49 @@ class FinancialDataTransformation(DataTransformation):
                                                                                )
 
         return feature_x_dict, feature_y_dict, prediction_timestamp
+
+    def _get_target_timestamp(self, target_market_open):
+        """
+        Calculate the target timestamp for if given a valid target open day
+
+        :param target_market_open:
+        :type target_market_open: pd.Timestamp
+
+        :return target_timestamp:
+        :rtype pd.Timestamp
+        """
+        if target_market_open:
+            target_timestamp = target_market_open + timedelta(minutes=self.target_market_minute)
+
+            if self.predict_the_market_close:
+                target_timestamp = self._get_closing_time_for_day(target_market_open.date())
+
+            return target_timestamp
+        else:
+            return None
+
+    def _get_prediction_timestamp(self, prediction_market_open):
+        """
+        Calculate the prediction timestamp for the given opening day
+
+        :param prediction_market_open:
+        :return:
+        """
+        if self.predict_the_market_close:
+            return self._get_closing_time_for_day(prediction_market_open)
+        else:
+            return prediction_market_open + timedelta(minutes=self.prediction_market_minute)
+
+    def _get_closing_time_for_day(self, the_day):
+        """
+        Get the closing time for the day supplied
+
+        :param the_day:
+        :return:
+        """
+        market_close = self.exchange_calendar.schedule(the_day, the_day)['market_close']
+
+        return pd.to_datetime(market_close).iloc[0]
 
     def add_transformation(self, raw_data_dict):
         """
@@ -645,15 +672,25 @@ class FinancialDataTransformation(DataTransformation):
 
         return means, cov_matrix
 
-    def get_predict_market_dates(self, raw_data_dict):
-        return [self._get_market_open_list(raw_data_dict)[-1]]
+    def _extract_schedule_for_prediction(self, raw_data_dict):
+        """
+        Return market schedule dataframe with only one index
+        :param raw_data_dict:
+        :return:
 
-    def get_training_market_dates(self, raw_data_dict):
-        """ Returns all dates on which we have both x and y data"""
+        """
+        full_schedule = self._extract_schedule_from_data(raw_data_dict)
+        return full_schedule.drop(labels=full_schedule[0:-1].index, axis=0)
+
+    def _extract_schedule_for_training(self, raw_data_dict):
+        """
+        Returns a market_schedule dataframe containing
+        all dates on which we have both x and y data
+        """
 
         max_feature_ndays = get_feature_max_ndays(self.features)
 
-        return self._get_market_open_list(raw_data_dict)[max_feature_ndays:-self.target_delta_ndays]
+        return self._extract_schedule_from_data(raw_data_dict)[max_feature_ndays:-self.target_delta_ndays]
 
 
 def _get_universe_from_date(date, historical_universes):

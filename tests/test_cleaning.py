@@ -1,11 +1,11 @@
-import pytest
-from copy import deepcopy
 import string
-
-import pandas as pd
-import numpy as np
-from numpy.testing import assert_almost_equal
+from copy import deepcopy
 from datetime import datetime
+
+import numpy as np
+import pandas as pd
+import pytest
+from numpy.testing import assert_almost_equal
 
 from alphai_feature_generation.cleaning import (
     select_between_timestamps_data_frame,
@@ -112,23 +112,6 @@ def test_resample_data_frame_functions():
     assert_almost_equal(resample_data_frame(data_frame, resample_rule, sampling_function)['col'], [0, 3, 6, 8])
 
 
-def test_resample_data_dict_wrong_resample_rule_type():
-    with pytest.raises(ValueError):
-        resample_data_dict(sample_data_dict, 15)
-        resample_data_dict(sample_data_dict, '15')
-
-
-def test_resample_data_dict_wrong_sampling_function_type():
-    with pytest.raises(AssertionError):
-        resample_data_dict(sample_data_dict, '15T', 12)
-        resample_data_dict(sample_data_dict, '15T', ['mean', 'median'])
-
-
-def test_resample_data_dict_wrong_sampling_function():
-    with pytest.raises(AssertionError):
-        resample_data_dict(sample_data_dict, '15T', 'wrong')
-
-
 def test_resample_data_dict_mean_for_all():
     resample_rules = ['1T', '2T', '5T', '10T', '60T', '1H']
     expected_lengths = [103609, 51841, 20737, 10369, 1729, 1729]
@@ -184,7 +167,7 @@ def test_fill_gaps_data_frame():
 
     fill_gaps_data_frame(sample_data_frame, fill_limit, dropna=True).equals(
         sample_data_frame.fillna(method='ffill', limit=3)
-                         .dropna(axis=1, how='any'))
+            .dropna(axis=1, how='any'))
 
 
 def test_fill_gaps_data_dict():
@@ -202,7 +185,7 @@ def test_fill_gaps_data_dict():
 
 
 def make_simple_df():
-    df = pd.DataFrame(np.array([np.stack(np.linspace(i, 10*i, 10)) for i in range(10, 20)]).transpose())
+    df = pd.DataFrame(np.array([np.stack(np.linspace(i, 10 * i, 10)) for i in range(10, 20)]).transpose())
     df.iloc[0:5, 0] = np.nan
     df.iloc[6, 1] = np.nan
     df.iloc[8, 1] = np.nan

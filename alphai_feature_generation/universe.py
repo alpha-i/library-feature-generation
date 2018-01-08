@@ -22,7 +22,7 @@ METHOD_FIXED_HISTORICAL = 'fixed_historical'
 HISTORICAL_UNIVERSE_COLUMNS = ('start_date', 'end_date', 'assets')
 UPDATE_FREQUENCIES = ('daily', 'weekly', 'monthly', 'yearly')
 FREQUENCY_RRULE_MAP = {'daily': rrule.DAILY, 'weekly': rrule.WEEKLY, 'monthly': rrule.MONTHLY, 'yearly': rrule.YEARLY}
-OHLCV = 'open high low close volume'.split()
+OHLCV = ('open', 'high', 'low', 'close', 'volume')
 
 
 class AbstractUniverseProvider(metaclass=ABCMeta):
@@ -33,6 +33,7 @@ class AbstractUniverseProvider(metaclass=ABCMeta):
         :param data_dict: dict of dataframes
         :return: Dataframe with three columns ['start_date', 'end_date', 'assets']
         """
+        raise NotImplementedError
 
 
 class VolumeUniverseProvider(AbstractUniverseProvider):

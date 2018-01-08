@@ -1,9 +1,7 @@
-import numpy as np
 import logging
+
+import numpy as np
 from scipy.special import erfinv
-
-
-logging.getLogger(__name__).addHandler(logging.NullHandler())
 
 
 class BinDistribution:

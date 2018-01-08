@@ -5,7 +5,8 @@ import logging
 import numpy as np
 import pandas as pd
 
-logging.getLogger(__name__).addHandler(logging.NullHandler())
+
+DEFAULT_RESAMPLING_FUNCTION = 'mean'
 
 
 def select_between_timestamps(data, start_timestamp=None, end_timestamp=None):
@@ -24,7 +25,7 @@ def select_between_timestamps(data, start_timestamp=None, end_timestamp=None):
         raise NameError('Input data type not recognised')
 
 
-def select_between_timestamps_data_frame(data_frame, start_timestamp=None, end_timestamp=None):
+def select_between_timestamps_data_frame(data_frame, start_timestamp, end_timestamp):
     """
     Select a subset of the input dataframe according to specified start/end timestamps
     :param data_frame: Dataframe with time as index
@@ -34,17 +35,13 @@ def select_between_timestamps_data_frame(data_frame, start_timestamp=None, end_t
     """
     assert start_timestamp is not None or end_timestamp is not None
     data_frame_timezone = data_frame.index.tz
-    for ts in [start_timestamp, end_timestamp]:
-        if ts is not None:
-            if ts.tz is None:
-                assert data_frame_timezone is None
-            else:
-                assert ts == ts.tz_convert(data_frame_timezone)
-    time_conditions = []
-    if start_timestamp is not None:
-        time_conditions.append(data_frame.index >= start_timestamp)
-    if end_timestamp is not None:
-        time_conditions.append(data_frame.index <= end_timestamp)
+    for ts in (start_timestamp, end_timestamp):
+        if ts.tz is None:
+            assert data_frame_timezone is None
+        else:
+            assert ts == ts.tz_convert(data_frame_timezone)
+
+    time_conditions = [data_frame.index >= start_timestamp, data_frame.index <= end_timestamp]
 
     return data_frame[np.all(time_conditions, axis=0)]
 
@@ -63,7 +60,7 @@ def select_between_timestamps_data_dict(data_dict, start_timestamp=None, end_tim
     return selected_data_dict
 
 
-def resample(data, resample_rule, sampling_functions='mean'):
+def resample(data, resample_rule, sampling_functions=None):
     """
     Resample input dataframe or dictionary according to input rules and drop nans horizontally.
     :param data: dataframe or data dictionary
@@ -72,12 +69,14 @@ def resample(data, resample_rule, sampling_functions='mean'):
                                ['mean', 'median', 'sum'].
     :return: resampled data.
     """
+    if not sampling_functions:
+        sampling_functions = {}
+
     if isinstance(data, pd.DataFrame):
         return resample_data_frame(data, resample_rule, sampling_functions)
     elif isinstance(data, dict):
         return resample_data_dict(data, resample_rule, sampling_functions)
-    else:
-        raise NameError('Input data type not recognised')
+    raise NameError('Input data type not recognised')
 
 
 def resample_data_frame(data_frame, resample_rule, sampling_function='mean'):
@@ -87,6 +86,7 @@ def resample_data_frame(data_frame, resample_rule, sampling_function='mean'):
     :param resample_rule: string specifying the pandas resampling rule
     :param sampling_function: string specifying the sampling function in
            ['mean', 'median', 'sum', 'first', 'last', 'min', 'max']
+    :type sampling_function: str
     :return: resampled dataframe.
     """
     assert sampling_function in ['mean', 'median', 'sum', 'first', 'last', 'min', 'max']
@@ -95,25 +95,25 @@ def resample_data_frame(data_frame, resample_rule, sampling_function='mean'):
     return data_frame.dropna(axis=[0, 1], how='all')
 
 
-def resample_data_dict(data_dict, resample_rule, sampling_function_mapping='mean'):
+def resample_data_dict(data_dict, resample_rule, sampling_function_mapping=None):
     """
     Resample dictionary of dataframes data according to input rules and drop nans horizontally.
+
     :param data_dict: a dictionary with (timestamp, symbol)-dataframes as values
     :param resample_rule: string specifying the pandas resampling rule
     :param sampling_function_mapping: dictionary of strings (or string) specifying the sampling function in
-           ['mean', 'median', 'sum', 'first', 'last', 'min', 'max'] for each key in data_dict. If a string
-           is passed, it will be used for all keys in data_dict.
+           ['mean', 'median', 'sum', 'first', 'last', 'min', 'max'] for each key in data_dict
+    :type sampling_function_mapping: dict
     :return: dictionary of resampled dataframes.
     """
-    assert isinstance(sampling_function_mapping, (dict, str))
-    if isinstance(sampling_function_mapping, dict):
-        assert set(data_dict).issubset(set(sampling_function_mapping))
-    else:
-        sampling_function_mapping = {key: sampling_function_mapping for key in data_dict.keys()}
+    if not sampling_function_mapping:
+        sampling_function_mapping = {}
+
     resampled_data_dict = {}
     for key, data_frame in data_dict.items():
-        resampled_data_dict[key] = resample_data_frame(data_frame, resample_rule,
-                                                       sampling_function_mapping[key])
+        resampled_data_dict[key] = resample_data_frame(
+            data_frame, resample_rule, sampling_function=sampling_function_mapping.get(key, DEFAULT_RESAMPLING_FUNCTION)
+        )
     return resampled_data_dict
 
 
@@ -121,15 +121,18 @@ def resample_ohlcv(ohlcv_data, resample_rule):
     """
     Resample ['open', 'high', 'low', 'close', 'volume'] history data according to input rule
     and drop nans horizontally.
+
     :param ohlcv_data: Dictionary of dataframes with time as index and OHLCV as keys
     :param resample_rule: string specifying the pandas resampling rule
     :return: dictionary of resampled dataframes.
     """
-    sampling_function_mapping = {'open': 'first',
-                                 'high': 'max',
-                                 'low': 'min',
-                                 'close': 'last',
-                                 'volume': 'sum'}
+    sampling_function_mapping = {
+        'open': 'first',
+        'high': 'max',
+        'low': 'min',
+        'close': 'last',
+        'volume': 'sum'
+    }
     return resample_data_dict(ohlcv_data, resample_rule, sampling_function_mapping)
 
 
