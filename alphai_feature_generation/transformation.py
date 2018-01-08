@@ -9,10 +9,8 @@ import numpy as np
 import pandas as pd
 import pandas_market_calendars as mcal
 
-from alphai_feature_generation.feature import (FinancialFeature,
-                                               get_feature_names,
-                                               get_feature_max_ndays,
-                                               KEY_EXCHANGE)
+from alphai_feature_generation.feature.factory import FinancialFeatureFactory, FeatureList, KEY_EXCHANGE
+
 from alphai_feature_generation.utils import get_minutes_in_one_trading_day
 
 TOTAL_TICKS_FINANCIAL_FEATURES = ['open_value', 'high_value', 'low_value', 'close_value', 'volume_value']
@@ -154,22 +152,29 @@ class FinancialDataTransformation(DataTransformation):
         """
         assert isinstance(feature_config_list, list)
 
-        return [
-            FinancialFeature(
-                single_feature_dict['name'],
-                single_feature_dict['transformation'],
-                single_feature_dict['normalization'],
-                n_classification_bins,
-                single_feature_dict.get('length', self.get_total_ticks_x()),
-                self.features_ndays,
-                single_feature_dict.get('resolution', 0),
-                self.features_start_market_minute,
-                single_feature_dict.get('is_target', False),
-                self.exchange_calendar,
-                single_feature_dict.get('local', False),
-                self.classify_per_series,
-                self.normalise_per_series
-            ) for single_feature_dict in feature_config_list]
+        update_dict = {
+            'nbins': n_classification_bins,
+            'ndays': self.features_ndays,
+            'start_market_minute': self.features_start_market_minute,
+            KEY_EXCHANGE: self.exchange_calendar.name,
+            'classify_per_series': self.classify_per_series,
+            'normalise_per_series': self.normalise_per_series
+        }
+
+        for feature in feature_config_list:
+            specific_update = {
+                'length': feature.get('length', self.get_total_ticks_x()),
+                'resample_minutes': feature.get('resolution', 0),
+                'is_target': feature.get('is_target', False),
+                'local': feature.get('local', False)
+            }
+
+            feature.update(update_dict)
+            feature.update(specific_update)
+
+        factory = FinancialFeatureFactory()
+
+        return factory.factory(feature_config_list)
 
     def _extract_schedule_from_data(self, raw_data_dict):
         """
@@ -177,7 +182,7 @@ class FinancialDataTransformation(DataTransformation):
         :param dict raw_data_dict: dictionary of dataframes containing features data.
         :return pd.Series: list of market open timestamps.
         """
-        features_keys = get_feature_names(self.features)
+        features_keys = self.features.get_names()
         raw_data_start_date = raw_data_dict[features_keys[0]].index[0].date()
         raw_data_end_date = raw_data_dict[features_keys[0]].index[-1].date()
 
@@ -449,11 +454,11 @@ class FinancialDataTransformation(DataTransformation):
             if do_normalisation_fitting:
                 fit_function = partial(self.fit_normalisation, symbols, x_list)
                 fitted_features = pool.map(fit_function, self.features)
-                self.features = fitted_features
+                self.features = FeatureList(fitted_features)
 
             apply_function = partial(self.apply_normalisation, x_list)
             applied_features = pool.map(apply_function, self.features)
-            self.features = applied_features
+            self.features = FeatureList(applied_features)
 
         return x_list
 
@@ -704,7 +709,7 @@ class FinancialDataTransformation(DataTransformation):
         all dates on which we have both x and y data
         """
 
-        max_feature_ndays = get_feature_max_ndays(self.features)
+        max_feature_ndays = self.features.get_max_ndays()
 
         return self._extract_schedule_from_data(raw_data_dict)[max_feature_ndays:-self.target_delta_ndays]
 
