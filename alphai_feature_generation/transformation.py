@@ -116,7 +116,7 @@ class FinancialDataTransformation(DataTransformation):
         :return bool: False if the dimensions are not those expected
         """
         correct_dimensions = True
-        total_ticks = self.get_total_ticks_x()
+        total_ticks = self.features[0].length
 
         for feature_full_name, feature_array in feature_x_dict.items():
             correct_dimensions = feature_array.shape[0] == total_ticks
@@ -407,7 +407,7 @@ class FinancialDataTransformation(DataTransformation):
         """
 
         x_sample = list(xdict.values())[0]
-        x_expected_shape = self.get_total_ticks_x()
+        x_expected_shape = self.features[0].length
         logging.info("Last rejected xdict: {}".format(x_sample.shape))
         logging.info("x_expected_shape: {}".format(x_expected_shape))
 
