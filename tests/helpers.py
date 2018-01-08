@@ -7,7 +7,7 @@ import numpy as np
 import pandas as pd
 import pandas_market_calendars as mcal
 
-from alphai_feature_generation.feature import FinancialFeature
+from alphai_feature_generation.feature import FinancialFeature, KEY_EXCHANGE
 
 COLUMNS_OHLCV = 'open high low close volume'.split()
 
@@ -95,7 +95,7 @@ sample_fin_feature_factory_list = [
         'resample_minutes': 60,
         'start_market_minute': 1,
         'is_target': False,
-        'exchange': 'NYSE',
+        KEY_EXCHANGE: 'NYSE',
         'local': True,
         'length': 10
     },
@@ -108,7 +108,7 @@ sample_fin_feature_factory_list = [
         'resample_minutes': 60,
         'start_market_minute': 1,
         'is_target': False,
-        'exchange': 'NYSE',
+        KEY_EXCHANGE: 'NYSE',
         'local': True,
         'length': 10
     },
@@ -121,7 +121,7 @@ sample_fin_feature_factory_list = [
         'resample_minutes': 60,
         'start_market_minute': 1,
         'is_target': True,
-        'exchange': 'NYSE',
+        KEY_EXCHANGE: 'NYSE',
         'local': True,
         'length': 10
     },

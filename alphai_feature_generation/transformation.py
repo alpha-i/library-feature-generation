@@ -10,7 +10,8 @@ import pandas_market_calendars as mcal
 
 from alphai_feature_generation.feature import (FinancialFeature,
                                                get_feature_names,
-                                               get_feature_max_ndays)
+                                               get_feature_max_ndays,
+                                               KEY_EXCHANGE)
 from alphai_feature_generation.utils import get_minutes_in_one_trading_day
 
 TOTAL_TICKS_FINANCIAL_FEATURES = ['open_value', 'high_value', 'low_value', 'close_value', 'volume_value']
@@ -49,8 +50,8 @@ class FinancialDataTransformation(DataTransformation):
             int target_delta_ndays: target time horizon in number of days
             int target_market_minute: number of minutes after market open for the target timestamp
         """
-        self.exchange_calendar = mcal.get_calendar(configuration['exchange'])
-        self.minutes_in_trading_days = get_minutes_in_one_trading_day(configuration['exchange'])
+        self.exchange_calendar = mcal.get_calendar(configuration[KEY_EXCHANGE])
+        self.minutes_in_trading_days = get_minutes_in_one_trading_day(configuration[KEY_EXCHANGE])
         self.features_ndays = configuration['features_ndays']
         self.features_resample_minutes = configuration['features_resample_minutes']
         self.features_start_market_minute = configuration['features_start_market_minute']
@@ -71,7 +72,7 @@ class FinancialDataTransformation(DataTransformation):
         self._assert_input(configuration)
 
     def _assert_input(self, configuration):
-        assert isinstance(configuration['exchange'], str)
+        assert isinstance(configuration[KEY_EXCHANGE], str)
         assert isinstance(configuration['features_ndays'], int) and configuration['features_ndays'] >= 0
         assert isinstance(configuration['features_resample_minutes'], int) \
                and configuration['features_resample_minutes'] >= 0
@@ -115,7 +116,7 @@ class FinancialDataTransformation(DataTransformation):
         :return bool: False if the dimensions are not those expected
         """
         correct_dimensions = True
-        total_ticks = self.get_total_ticks_x()
+        total_ticks = self.features[0].length
 
         for feature_full_name, feature_array in feature_x_dict.items():
             correct_dimensions = feature_array.shape[0] == total_ticks
@@ -151,11 +152,11 @@ class FinancialDataTransformation(DataTransformation):
                 single_feature_dict['transformation'],
                 single_feature_dict['normalization'],
                 n_classification_bins,
-                self.get_total_ticks_x(),
+                single_feature_dict.get('length', self.get_total_ticks_x()),
                 self.features_ndays,
-                self.features_resample_minutes,
+                single_feature_dict.get('resolution', 0),
                 self.features_start_market_minute,
-                single_feature_dict['is_target'],
+                single_feature_dict.get('is_target', False),
                 self.exchange_calendar,
                 single_feature_dict.get('local', False),
                 self.classify_per_series,
@@ -304,6 +305,8 @@ class FinancialDataTransformation(DataTransformation):
         n_samples = len(simulated_market_dates)
         data_schedule = self._extract_schedule_from_data(raw_data_dict)
 
+        self.apply_global_transformations(raw_data_dict)
+
         data_x_list = []
         data_y_list = []
         rejected_x_list = []
@@ -404,7 +407,7 @@ class FinancialDataTransformation(DataTransformation):
         """
 
         x_sample = list(xdict.values())[0]
-        x_expected_shape = self.get_total_ticks_x()
+        x_expected_shape = self.features[0].length
         logging.info("Last rejected xdict: {}".format(x_sample.shape))
         logging.info("x_expected_shape: {}".format(x_expected_shape))
 
@@ -544,9 +547,10 @@ class FinancialDataTransformation(DataTransformation):
                                                                                prediction_timestamp,
                                                                                universe,
                                                                                target_timestamp,
-                                                                               )
+                                                                             )
 
         return feature_x_dict, feature_y_dict, prediction_timestamp
+
 
     def _get_target_timestamp(self, target_market_open):
         """
@@ -591,7 +595,7 @@ class FinancialDataTransformation(DataTransformation):
 
         return pd.to_datetime(market_close).iloc[0]
 
-    def add_transformation(self, raw_data_dict):
+    def apply_global_transformations(self, raw_data_dict):
         """
         add new features to data dictionary
         :param raw_data_dict: dictionary of dataframes
@@ -600,7 +604,8 @@ class FinancialDataTransformation(DataTransformation):
 
         for feature in self.features:
             if not feature.local and feature.full_name not in raw_data_dict.keys():
-                raw_data_dict[feature.full_name] = feature.process_prediction_data_x(raw_data_dict)
+                raw_dataframe = raw_data_dict[feature.name]
+                raw_data_dict[feature.full_name] = feature.process_prediction_data_x(raw_dataframe)
 
         return raw_data_dict
 
