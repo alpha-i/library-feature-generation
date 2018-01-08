@@ -20,8 +20,6 @@ TOTAL_TICKS_M1_FINANCIAL_FEATURES = ['open_log-return', 'high_log-return', 'low_
 
 HARDCODED_FEATURE_FOR_EXTRACT_Y = 'close'
 
-PROCESS_POOL_LIMIT = multiprocessing.cpu_count() - 1
-
 logging.getLogger(__name__).addHandler(logging.NullHandler())
 
 
@@ -432,15 +430,14 @@ class FinancialDataTransformation(DataTransformation):
 
         symbols = get_unique_symbols(x_list)
 
-        pool = multiprocessing.Pool(processes=PROCESS_POOL_LIMIT)
         if do_normalisation_fitting:
             fit_function = partial(self.fit_normalisation, symbols, x_list)
-            fitted_features = pool.map(fit_function, self.features)
-            self.features = fitted_features
+            fitted_features = map(fit_function, self.features)
+            self.features = list(fitted_features)
 
         apply_function = partial(self.apply_normalisation, x_list)
-        applied_features = pool.map(apply_function, self.features)
-        self.features = applied_features
+        applied_features = map(apply_function, self.features)
+        self.features = list(applied_features)
 
         return x_list
 
