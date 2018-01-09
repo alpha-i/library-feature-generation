@@ -80,6 +80,10 @@ class TestFinancialDataTransformation(TestCase):
     def test_financial_transformation_with_bins(self):
         pass
 
+    @pytest.mark.skip(reason='The test for prediction at market close must be implemented')
+    def test_create_data_with_prediction_at_market_close(self):
+        pass
+
     def test_get_total_ticks_x(self):
         assert self.transformation_without_bins.get_total_ticks_x() == 15
 

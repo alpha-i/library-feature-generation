@@ -12,6 +12,7 @@ from alphai_finance.data.cleaning import (
     slice_data_dict
 )
 
+from alphai_feature_generation.helpers import CalendarUtilities
 from alphai_feature_generation.utils import get_minutes_in_one_trading_day
 
 METHOD_FIXED = 'fixed'
@@ -52,7 +53,7 @@ class VolumeUniverseProvider(AbstractUniverseProvider):
         self._exchange = configuration['exchange']
         self._dropna = configuration['dropna']
 
-        self._nminutes_window = self._ndays_window * get_minutes_in_one_trading_day(self._exchange)
+        self._nminutes_window = self._ndays_window * CalendarUtilities.get_minutes_in_one_trading_day(self._exchange)
         self._rrule = FREQUENCY_RRULE_MAP[self._update_frequency]
 
     def _get_universe_at(self, date, data_dict):

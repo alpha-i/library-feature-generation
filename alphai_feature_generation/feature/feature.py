@@ -12,7 +12,7 @@ from alphai_feature_generation import (FINANCIAL_FEATURE_NORMALIZATIONS,
 from alphai_feature_generation.classifier import BinDistribution, classify_labels, declassify_labels
 from alphai_feature_generation.feature.resampling import ResamplingStrategy
 from alphai_feature_generation.feature.transform import Transformation
-from alphai_feature_generation.utils import get_minutes_in_one_trading_day
+from alphai_feature_generation.helpers import CalendarUtilities
 
 KEY_EXCHANGE = 'exchange_name'
 
@@ -45,7 +45,7 @@ class FinancialFeature(object):
         self.start_market_minute = start_market_minute
         self.is_target = is_target
         self.exchange_calendar = exchange_calendar
-        self.minutes_in_trading_day = get_minutes_in_one_trading_day(exchange_calendar.name)
+        self.minutes_in_trading_day = CalendarUtilities.get_minutes_in_one_trading_day(exchange_calendar.name)
         self.n_series = None
         self.local = local
         self.length = length
