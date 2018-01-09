@@ -5,7 +5,7 @@ from tests.helpers import sample_fin_feature_factory_list, sample_fin_feature_li
 
 
 def test_financial_features_factory_successful_call():
-    feature_list = FinancialFeatureFactory.factory(sample_fin_feature_factory_list)
+    feature_list = FinancialFeatureFactory.create_from_list(sample_fin_feature_factory_list)
 
     for feature in feature_list:
         expected_feature = _get_feature_by_name(feature.name, sample_fin_feature_list)
@@ -36,7 +36,7 @@ def test_single_financial_features_factory_wrong_keys():
 def test_financial_features_factory_wrong_input_type():
     feature_list = {}
     with pytest.raises(AssertionError):
-        FinancialFeatureFactory.factory(feature_list)
+        FinancialFeatureFactory.create_from_list(feature_list)
 
 
 def _get_feature_by_name(name, feature_list):

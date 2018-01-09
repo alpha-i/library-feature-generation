@@ -7,7 +7,7 @@ from alphai_feature_generation.feature.feature import KEY_EXCHANGE
 class FinancialFeatureFactory:
 
     @staticmethod
-    def factory(feature_config_list):
+    def create_from_list(feature_config_list):
         """
         Build list of financial features from list of complete feature-config dictionaries.
         :param list feature_config_list: list of dictionaries containing feature details.

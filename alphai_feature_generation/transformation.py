@@ -179,7 +179,7 @@ class FinancialDataTransformation(DataTransformation):
 
         factory = FinancialFeatureFactory()
 
-        return factory.factory(feature_config_list)
+        return factory.create_from_list(feature_config_list)
 
     def _extract_schedule_from_data(self, raw_data_dict):
         """
