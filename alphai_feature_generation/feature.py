@@ -13,6 +13,7 @@ from alphai_feature_generation import (FINANCIAL_FEATURE_TRANSFORMATIONS, FINANC
                                        MARKET_DAYS_SEARCH_MULTIPLIER, MIN_MARKET_DAYS_SEARCH)
 from alphai_feature_generation.classifier import BinDistribution, classify_labels, declassify_labels
 from alphai_feature_generation.utils import get_minutes_in_one_trading_day
+from alphai_feature_generation.cleaning import resample_data_frame
 
 KEY_EXCHANGE = 'exchange_name'
 
@@ -131,9 +132,8 @@ class FinancialFeature(object):
                 sampling_function = 'sum'
             else:
                 sampling_function = 'last'
-            processed_prediction_data_x = getattr(
-                processed_prediction_data_x.resample(resample_rule, label='right', closed='right'),
-                sampling_function)()
+
+            processed_prediction_data_x = resample_data_frame(processed_prediction_data_x, resample_rule, sampling_function=sampling_function)
 
         transform = self.transformation['name']
 
