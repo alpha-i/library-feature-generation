@@ -1,6 +1,9 @@
-pandas
+pandas < 0.22
 scikit-learn
 numpy
 scipy
-pandas_market_calendars
+pandas_market_calendars>=0.12
 tables
+pyts
+future
+python-dateutil

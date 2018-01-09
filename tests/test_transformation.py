@@ -6,6 +6,7 @@ import pandas as pd
 from alphai_feature_generation.transformation import (
     FinancialDataTransformation,
 )
+from alphai_feature_generation.feature import KEY_EXCHANGE
 from tests.helpers import (
     sample_hourly_ohlcv_data_dict,
     sample_fin_data_transf_feature_factory_list_nobins,
@@ -33,15 +34,17 @@ class TestFinancialDataTransformation(TestCase):
             'features_ndays': 2,
             'features_resample_minutes': 60,
             'features_start_market_minute': 1,
-            'exchange_name': 'NYSE',
+            KEY_EXCHANGE: 'NYSE',
             'prediction_frequency_ndays': 1,
             'prediction_market_minute': 30,
             'target_delta_ndays': 5,
             'target_market_minute': 30,
             'n_classification_bins': 5,
             'nassets': 5,
+            'local': False,
             'classify_per_series': False,
-            'normalise_per_series': False
+            'normalise_per_series': False,
+            'fill_limit': 0
         }
 
         self.fin_data_transf_nobins = FinancialDataTransformation(configuration_nobins)
@@ -51,27 +54,31 @@ class TestFinancialDataTransformation(TestCase):
             'features_ndays': 2,
             'features_resample_minutes': 60,
             'features_start_market_minute': 1,
-            'exchange_name': 'NYSE',
+            KEY_EXCHANGE: 'NYSE',
             'prediction_frequency_ndays': 1,
             'prediction_market_minute': 30,
             'target_delta_ndays': 5,
             'target_market_minute': 30,
             'n_classification_bins': 5,
             'nassets': 5,
+            'local': False,
             'classify_per_series': False,
-            'normalise_per_series': False
+            'normalise_per_series': False,
+            'fill_limit': 0
         }
         self.fin_data_transf_bins = FinancialDataTransformation(configuration_bins)
 
     def test_get_total_ticks_x(self):
         assert self.fin_data_transf_nobins.get_total_ticks_x() == 15
 
-    def test_get_market_open_list(self):
-        market_open_list = self.fin_data_transf_nobins._get_market_open_list(sample_hourly_ohlcv_data_dict)
-        assert isinstance(market_open_list, pd.Series)
-        assert len(market_open_list) == 37
-        assert market_open_list[0] == pd.Timestamp('2015-01-14 14:30:00+0000', tz='UTC')
-        assert market_open_list[-1] == pd.Timestamp('2015-03-09 13:30:00+0000', tz='UTC')
+    def test_extract_schedule_from_data(self):
+
+        data_schedule = self.fin_data_transf_nobins._extract_schedule_from_data(sample_hourly_ohlcv_data_dict)
+
+        assert isinstance(data_schedule, pd.DataFrame)
+        assert len(data_schedule) == 37
+        assert data_schedule.iloc[0].market_open == pd.Timestamp('2015-01-14 14:30:00+0000', tz='UTC')
+        assert data_schedule.iloc[-1].market_open == pd.Timestamp('2015-03-09 13:30:00+0000', tz='UTC')
 
     def test_get_target_feature(self):
         target_feature = self.fin_data_transf_nobins.get_target_feature()
@@ -83,14 +90,14 @@ class TestFinancialDataTransformation(TestCase):
         prediction_timestamp = sample_hourly_ohlcv_data_dict['open'].index[98]
         universe = sample_hourly_ohlcv_data_dict['open'].columns[:-1]
         target_timestamp = sample_hourly_ohlcv_data_dict['open'].index[133]
-        feature_x_dict, feature_y_dict = self.fin_data_transf_nobins.get_prediction_data_all_features(
+        feature_x_dict, feature_y_dict = self.fin_data_transf_nobins.collect_prediction_from_features(
             raw_data_dict,
             prediction_timestamp,
             universe,
             target_timestamp,
         )
 
-        expected_n_time_dict = {'open_value': 15, 'high_log-return': 15, 'close_log-return': 15}
+        expected_n_time_dict = {'open_value': 15, 'high_log-return': 14, 'close_log-return': 14}
         expected_n_symbols = 4
         expected_n_features = 3
 
@@ -105,12 +112,12 @@ class TestFinancialDataTransformation(TestCase):
     def test_get_prediction_data_all_features_no_target(self):
         raw_data_dict = sample_hourly_ohlcv_data_dict
         prediction_timestamp = sample_hourly_ohlcv_data_dict['open'].index[98]
-        feature_x_dict, feature_y_dict = self.fin_data_transf_nobins.get_prediction_data_all_features(
+        feature_x_dict, feature_y_dict = self.fin_data_transf_nobins.collect_prediction_from_features(
             raw_data_dict,
             prediction_timestamp,
         )
 
-        expected_n_time_dict = {'open_value': 15, 'high_log-return': 15, 'close_log-return': 15}
+        expected_n_time_dict = {'open_value': 15, 'high_log-return': 14, 'close_log-return': 14}
         expected_n_symbols = 5
         expected_n_features = 3
 
@@ -152,11 +159,21 @@ class TestFinancialDataTransformation(TestCase):
 
     def load_default_config(self, expected_n_symbols):
 
-        default_config = {'feature_config_list': sample_fin_data_transf_feature_factory_list_bins, 'features_ndays': 2,
-                          'features_resample_minutes': 60, 'features_start_market_minute': 1, 'exchange_name': 'NYSE',
-                          'prediction_frequency_ndays': 1, 'prediction_market_minute': 30, 'target_delta_ndays': 5,
-                          'target_market_minute': 30, 'n_classification_bins': 5, 'nassets': expected_n_symbols,
-                          'classify_per_series': False, 'normalise_per_series': False}
+        default_config = {'feature_config_list': sample_fin_data_transf_feature_factory_list_bins,
+                          'features_ndays': 2,
+                          'features_resample_minutes': 60,
+                          'features_start_market_minute': 1,
+                          KEY_EXCHANGE: 'NYSE',
+                          'prediction_frequency_ndays': 1,
+                          'prediction_market_minute': 30,
+                          'target_delta_ndays': 5,
+                          'target_market_minute': 30,
+                          'n_classification_bins': 5,
+                          'nassets': expected_n_symbols,
+                          'local': False,
+                          'classify_per_series': False,
+                          'normalise_per_series': False,
+                          'fill_limit': 0}
 
         return default_config
 
@@ -186,4 +203,4 @@ def mock_ml_model_multi_pass(predict_x, n_passes, nbins):
                 predict_y[i, j, i % nbins] = 1
         return predict_y
     else:
-        raise NotImplementedError("Only classification currently supported")
+        raise ValueError("Only classification currently supported")

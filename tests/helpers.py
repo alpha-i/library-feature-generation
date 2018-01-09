@@ -7,7 +7,7 @@ import numpy as np
 import pandas as pd
 import pandas_market_calendars as mcal
 
-from alphai_feature_generation.feature import FinancialFeature
+from alphai_feature_generation.feature import FinancialFeature, KEY_EXCHANGE
 
 COLUMNS_OHLCV = 'open high low close volume'.split()
 
@@ -95,7 +95,9 @@ sample_fin_feature_factory_list = [
         'resample_minutes': 60,
         'start_market_minute': 1,
         'is_target': False,
-        'exchange_name': 'NYSE',
+        KEY_EXCHANGE: 'NYSE',
+        'local': True,
+        'length': 10
     },
     {
         'name': 'close',
@@ -106,7 +108,9 @@ sample_fin_feature_factory_list = [
         'resample_minutes': 60,
         'start_market_minute': 1,
         'is_target': False,
-        'exchange_name': 'NYSE',
+        KEY_EXCHANGE: 'NYSE',
+        'local': True,
+        'length': 10
     },
     {
         'name': 'high',
@@ -117,7 +121,9 @@ sample_fin_feature_factory_list = [
         'resample_minutes': 60,
         'start_market_minute': 1,
         'is_target': True,
-        'exchange_name': 'NYSE',
+        KEY_EXCHANGE: 'NYSE',
+        'local': True,
+        'length': 10
     },
 ]
 
@@ -128,6 +134,7 @@ sample_fin_data_transf_feature_factory_list_nobins = [
         'normalization': None,
         'nbins': None,
         'is_target': False,
+        'local': True
     },
     {
         'name': 'close',
@@ -135,6 +142,7 @@ sample_fin_data_transf_feature_factory_list_nobins = [
         'normalization': None,
         'nbins': None,
         'is_target': False,
+        'local': True
     },
     {
         'name': 'high',
@@ -142,6 +150,7 @@ sample_fin_data_transf_feature_factory_list_nobins = [
         'normalization': 'standard',
         'nbins': 5,
         'is_target': True,
+        'local': True
     },
 ]
 
@@ -152,6 +161,7 @@ sample_fin_data_transf_feature_factory_list_bins = [
         'normalization': None,
         'nbins': None,
         'is_target': False,
+        'local': True
     },
     {
         'name': 'close',
@@ -159,6 +169,7 @@ sample_fin_data_transf_feature_factory_list_bins = [
         'normalization': None,
         'nbins': None,
         'is_target': False,
+        'local': False
     },
     {
         'name': 'high',
@@ -166,6 +177,7 @@ sample_fin_data_transf_feature_factory_list_bins = [
         'normalization': 'standard',
         'nbins': 5,
         'is_target': True,
+        'local': False
     },
 ]
 
@@ -181,7 +193,9 @@ sample_fin_feature_list = [
         is_target=False,
         exchange_calendar=sample_market_calendar,
         classify_per_series=False,
-        normalise_per_series=False
+        normalise_per_series=False,
+        local=True,
+        length=10
     ),
     FinancialFeature(
         name='close',
@@ -194,7 +208,9 @@ sample_fin_feature_list = [
         is_target=False,
         exchange_calendar=sample_market_calendar,
         classify_per_series=False,
-        normalise_per_series=False
+        normalise_per_series=False,
+        local=True,
+        length=10
     ),
     FinancialFeature(
         name='high',
@@ -207,7 +223,9 @@ sample_fin_feature_list = [
         is_target=True,
         exchange_calendar=sample_market_calendar,
         classify_per_series=False,
-        normalise_per_series=False
+        normalise_per_series=False,
+        local=True,
+        length=10
     ),
 ]
 

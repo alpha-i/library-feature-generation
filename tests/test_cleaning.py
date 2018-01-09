@@ -1,11 +1,11 @@
-import pytest
-from copy import deepcopy
 import string
-
-import pandas as pd
-import numpy as np
-from numpy.testing import assert_almost_equal
+from copy import deepcopy
 from datetime import datetime
+
+import numpy as np
+import pandas as pd
+import pytest
+from numpy.testing import assert_almost_equal
 
 from alphai_feature_generation.cleaning import (
     select_between_timestamps_data_frame,
@@ -28,6 +28,7 @@ from alphai_feature_generation.cleaning import (
     select_columns_data_dict,
     find_duplicated_symbols_data_frame,
     remove_duplicated_symbols_ohlcv,
+    swap_keys_and_columns,
 )
 from tests.helpers import (
     COLUMNS_OHLCV,
@@ -35,6 +36,7 @@ from tests.helpers import (
     sample_data_frame,
     sample_market_calendar,
     sample_hourly_ohlcv_data_dict,
+    tmp_symbols,
 )
 
 
@@ -75,29 +77,39 @@ def test_resample_data_frame_wrong_sampling_function():
         resample_data_frame(sample_data_frame, '15T', 'wrong')
 
 
-def test_resample_data_frame():
+def test_resample_data_frame_rules():
     resample_rules = ['1T', '2T', '5T', '10T', '60T', '1H']
-    expected_lengths = [782, 392, 158, 80, 16, 16]
+    expected_lengths = [782, 392, 158, 80, 14, 14]
     for resample_rule, expected_length in zip(resample_rules, expected_lengths):
         resampled_data_frame = resample_data_frame(sample_data_frame, resample_rule)
         assert len(resampled_data_frame) == expected_length
 
 
-def test_resample_data_dict_wrong_resample_rule_type():
-    with pytest.raises(ValueError):
-        resample_data_dict(sample_data_dict, 15)
-        resample_data_dict(sample_data_dict, '15')
+def test_resample_data_frame_functions():
+    index = pd.date_range('1/1/2000', periods=9, freq='T')
+    data_frame = pd.DataFrame(list(range(9)), index=index, columns=['col'])
+    resample_rule = '3T'
 
+    sampling_function = 'mean'
+    assert_almost_equal(resample_data_frame(data_frame, resample_rule, sampling_function)['col'], [0.,  2.,  5.,  7.5])
 
-def test_resample_data_dict_wrong_sampling_function_type():
-    with pytest.raises(AssertionError):
-        resample_data_dict(sample_data_dict, '15T', 12)
-        resample_data_dict(sample_data_dict, '15T', ['mean', 'median'])
+    sampling_function = 'median'
+    assert_almost_equal(resample_data_frame(data_frame, resample_rule, sampling_function)['col'], [0.,  2.,  5.,  7.5])
 
+    sampling_function = 'sum'
+    assert_almost_equal(resample_data_frame(data_frame, resample_rule, sampling_function)['col'], [0,  6, 15, 15])
 
-def test_resample_data_dict_wrong_sampling_function():
-    with pytest.raises(AssertionError):
-        resample_data_dict(sample_data_dict, '15T', 'wrong')
+    sampling_function = 'first'
+    assert_almost_equal(resample_data_frame(data_frame, resample_rule, sampling_function)['col'], [0, 1, 4, 7])
+
+    sampling_function = 'last'
+    assert_almost_equal(resample_data_frame(data_frame, resample_rule, sampling_function)['col'], [0, 3, 6, 8])
+
+    sampling_function = 'min'
+    assert_almost_equal(resample_data_frame(data_frame, resample_rule, sampling_function)['col'], [0, 1, 4, 7])
+
+    sampling_function = 'max'
+    assert_almost_equal(resample_data_frame(data_frame, resample_rule, sampling_function)['col'], [0, 3, 6, 8])
 
 
 def test_resample_data_dict_mean_for_all():
@@ -151,12 +163,11 @@ def test_select_below_ceiling_data_dict():
 def test_fill_gaps_data_frame():
     fill_limit = 3
     fill_gaps_data_frame(sample_data_frame, fill_limit, dropna=False).equals(
-        sample_data_frame.fillna(method='ffill', limit=3).fillna(method='backfill', limit=3))
+        sample_data_frame.fillna(method='ffill', limit=3))
 
     fill_gaps_data_frame(sample_data_frame, fill_limit, dropna=True).equals(
         sample_data_frame.fillna(method='ffill', limit=3)
-                         .fillna(method='backfill', limit=3)
-                         .dropna(axis=1, how='any'))
+            .dropna(axis=1, how='any'))
 
 
 def test_fill_gaps_data_dict():
@@ -168,15 +179,13 @@ def test_fill_gaps_data_dict():
 
     for key in tmp_key_list:
         filled_gaps_drop_false_data_dict[key].equals(
-            sample_data_frame.fillna(method='ffill', limit=3).fillna(method='backfill', limit=3))
+            sample_data_frame.fillna(method='ffill', limit=3))
         filled_gaps_drop_true_data_dict[key].equals(
-            sample_data_frame.fillna(method='ffill', limit=3)
-                             .fillna(method='backfill', limit=3)
-                             .dropna(axis=1, how='any'))
+            sample_data_frame.fillna(method='ffill', limit=3).dropna(axis=1, how='any'))
 
 
 def make_simple_df():
-    df = pd.DataFrame(np.array([np.stack(np.linspace(i, 10*i, 10)) for i in range(10, 20)]).transpose())
+    df = pd.DataFrame(np.array([np.stack(np.linspace(i, 10 * i, 10)) for i in range(10, 20)]).transpose())
     df.iloc[0:5, 0] = np.nan
     df.iloc[6, 1] = np.nan
     df.iloc[8, 1] = np.nan
@@ -197,11 +206,11 @@ def test_interpolate_gaps_data_frame():
     df = make_simple_df()
 
     interpolated_df = interpolate_gaps_data_frame(df, limit, dropna=False)
-    expected_df = pd.DataFrame([[np.nan, 11.0, 12.0, 13.0, 28.0, 15.0, 16.0, 17.0, 54.0, np.nan],
-                                [np.nan, 22.0, 24.0, 26.0, 28.0, 30.0, 32.0, 34.0, 54.0, np.nan],
-                                [60.0, 33.0, 36.0, 39.0, 42.0, 45.0, 48.0, 51.0, 54.0, np.nan],
-                                [60.0, 44.0, 48.0, 52.0, 56.0, 60.0, 64.0, 68.0, 72.0, np.nan],
-                                [60.0, 55.0, 60.0, np.nan, 70.0, 75.0, 80.0, 85.0, 90.0, np.nan],
+    expected_df = pd.DataFrame([[np.nan, 11.0, 12.0, 13.0, np.nan, 15.0, 16.0, 17.0, np.nan, np.nan],
+                                [np.nan, 22.0, 24.0, 26.0, 28.0, 30.0, 32.0, 34.0, np.nan, np.nan],
+                                [np.nan, 33.0, 36.0, 39.0, 42.0, 45.0, 48.0, 51.0, 54.0, np.nan],
+                                [np.nan, 44.0, 48.0, 52.0, 56.0, 60.0, 64.0, 68.0, 72.0, np.nan],
+                                [np.nan, 55.0, 60.0, np.nan, 70.0, 75.0, 80.0, 85.0, 90.0, np.nan],
                                 [60.0, 66.0, 72.0, 78.0, 84.0, 90.0, 80.0, 102.0, 108.0, np.nan],
                                 [70.0, 77.0, 84.0, 91.0, 98.0, 105.0, 80.0, 119.0, 126.0, np.nan],
                                 [80.0, 88.0, 96.0, 104.0, 112.0, 120.0, 80.0, 136.0, 144.0, np.nan],
@@ -210,16 +219,16 @@ def test_interpolate_gaps_data_frame():
     assert interpolated_df.equals(expected_df)
 
     interpolated_df = interpolate_gaps_data_frame(df, limit, dropna=True)
-    expected_df = pd.DataFrame([[11.0, 12.0, 28.0, 15.0, 17.0, 54.0],
-                                [22.0, 24.0, 28.0, 30.0, 34.0, 54.0],
-                                [33.0, 36.0, 42.0, 45.0, 51.0, 54.0],
-                                [44.0, 48.0, 56.0, 60.0, 68.0, 72.0],
-                                [55.0, 60.0, 70.0, 75.0, 85.0, 90.0],
-                                [66.0, 72.0, 84.0, 90.0, 102.0, 108.0],
-                                [77.0, 84.0, 98.0, 105.0, 119.0, 126.0],
-                                [88.0, 96.0, 112.0, 120.0, 136.0, 144.0],
-                                [99.0, 96.0, 126.0, 135.0, 153.0, 144.0],
-                                [110.0, 96.0, 140.0, 135.0, 170.0, 144.0]], columns=[1, 2, 4, 5, 7, 8])
+    expected_df = pd.DataFrame([[11.0, 12.0, 15.0, 17.0],
+                                [22.0, 24.0, 30.0, 34.0],
+                                [33.0, 36.0, 45.0, 51.0],
+                                [44.0, 48.0, 60.0, 68.0],
+                                [55.0, 60.0, 75.0, 85.0],
+                                [66.0, 72.0, 90.0, 102.0],
+                                [77.0, 84.0, 105.0, 119.0],
+                                [88.0, 96.0, 120.0, 136.0],
+                                [99.0, 96.0, 135.0, 153.0],
+                                [110.0, 96.0, 135.0, 170.0]], columns=[1, 2, 5, 7])
     assert interpolated_df.equals(expected_df)
 
 
@@ -368,7 +377,7 @@ def test_find_duplicated_symbols_data_frame():
     mu = np.array([20., 20., 20., 100., 100., 100])
     data_frame = make_correlated_data_frame(mu, 100)
     duplicated_symbols = find_duplicated_symbols_data_frame(data_frame)
-    assert duplicated_symbols == [('A', 'C'), ('D', 'E', 'F')]
+    assert duplicated_symbols == [('A', 'C'), ('D', 'E'), ('D', 'F'), ('E', 'F')]
 
 
 def test_remove_duplicated_symbols_ohlcv():
@@ -387,3 +396,10 @@ def test_remove_duplicated_symbols_ohlcv():
 
     for key in cleaned_ohlcv_data.keys():
         assert cleaned_ohlcv_data[key].equals(ohlcv_data[key].drop(expected_dropped_symbols, axis=1))
+
+
+def test_swap_keys_and_columns():
+    swapped_data_dict = swap_keys_and_columns(sample_data_dict)
+    assert set(swapped_data_dict.keys()) == set(tmp_symbols)
+    for key in swapped_data_dict.keys():
+        assert set(swapped_data_dict[key].columns) == set(['dummy_key'])

@@ -1,8 +1,8 @@
 from sklearn.preprocessing import RobustScaler, MinMaxScaler, StandardScaler
 
-FINANCIAL_FEATURE_TRANSFORMATIONS = ['value', 'log-return', 'stochastic_k', 'ewma', 'KER']
-FINANCIAL_FEATURE_NORMALIZATIONS = [None, 'robust', 'min_max', 'standard', 'gaussian']
-FINANCIAL_FEATURE_KEYS = [
+FINANCIAL_FEATURE_TRANSFORMATIONS = ('value', 'log-return', 'stochastic_k', 'ewma', 'ker', 'gasf', 'gadf', 'mtf')
+FINANCIAL_FEATURE_NORMALIZATIONS = (None, 'robust', 'min_max', 'standard', 'gaussian')
+FINANCIAL_FEATURE_KEYS = (
     'transformation',
     'normalization',
     'nbins',
@@ -10,7 +10,7 @@ FINANCIAL_FEATURE_KEYS = [
     'resample_minutes',
     'start_market_minute',
     'is_target',
-]
+)
 NORMALIZATION_TYPE_MAP = {
     None: type(None),
     'robust': RobustScaler,
@@ -18,7 +18,6 @@ NORMALIZATION_TYPE_MAP = {
     'standard': StandardScaler
 }
 
-DATA_TRANFORMATION_KEYS = ['features_dict']
-MINUTES_IN_TRADING_DAY = 390
+DATA_TRANFORMATION_KEYS = ('features_dict', )
 MARKET_DAYS_SEARCH_MULTIPLIER = 2
 MIN_MARKET_DAYS_SEARCH = 10

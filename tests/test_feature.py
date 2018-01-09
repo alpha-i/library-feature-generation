@@ -38,10 +38,12 @@ class TestFinancialFeature(TestCase):
             normalization=None,
             nbins=5,
             ndays=2,
-            resample_minutes=60,
+            resample_minutes=0,
             start_market_minute=30,
             is_target=True,
             exchange_calendar=sample_market_calendar,
+            local=False,
+            length=15
         )
         self.feature_2 = FinancialFeature(
             name='close',
@@ -49,10 +51,12 @@ class TestFinancialFeature(TestCase):
             normalization=None,
             nbins=10,
             ndays=5,
-            resample_minutes=60,
+            resample_minutes=0,
             start_market_minute=90,
             is_target=True,
             exchange_calendar=sample_market_calendar,
+            local=False,
+            length=35
         )
         self.feature_3 = FinancialFeature(
             name='high',
@@ -60,10 +64,12 @@ class TestFinancialFeature(TestCase):
             normalization='standard',
             nbins=None,
             ndays=10,
-            resample_minutes=60,
+            resample_minutes=0,
             start_market_minute=150,
             is_target=True,
             exchange_calendar=sample_market_calendar,
+            local=False,
+            length=69
         )
         self.feature_4 = FinancialFeature(
             name='high',
@@ -71,10 +77,12 @@ class TestFinancialFeature(TestCase):
             normalization=None,
             nbins=10,
             ndays=10,
-            resample_minutes=60,
+            resample_minutes=0,
             start_market_minute=150,
             is_target=True,
             exchange_calendar=sample_market_calendar,
+            local=False,
+            length=10
         )
         self.feature_5 = FinancialFeature(
             name='high',
@@ -82,21 +90,25 @@ class TestFinancialFeature(TestCase):
             normalization=None,
             nbins=10,
             ndays=10,
-            resample_minutes=60,
+            resample_minutes=0,
             start_market_minute=150,
             is_target=True,
             exchange_calendar=sample_market_calendar,
+            local=False,
+            length=10
         )
         self.feature_6 = FinancialFeature(
             name='high',
-            transformation={'name': 'KER', 'lag': 20},
+            transformation={'name': 'ker', 'lag': 20},
             normalization=None,
             nbins=10,
             ndays=10,
-            resample_minutes=60,
+            resample_minutes=0,
             start_market_minute=150,
             is_target=True,
             exchange_calendar=sample_market_calendar,
+            local=False,
+            length=10
         )
         self.feature_7 = FinancialFeature(
             name='high',
@@ -104,35 +116,80 @@ class TestFinancialFeature(TestCase):
             normalization='standard',
             nbins=10,
             ndays=10,
-            resample_minutes=60,
+            resample_minutes=0,
             start_market_minute=150,
             is_target=True,
             exchange_calendar=sample_market_calendar,
+            local=False,
+            length=69
+        )
+        self.feature_8 = FinancialFeature(
+            name='close',
+            transformation={'name': 'gasf', 'image_size': 24},
+            normalization='standard',
+            nbins=10,
+            ndays=10,
+            resample_minutes=0,
+            start_market_minute=150,
+            is_target=True,
+            exchange_calendar=sample_market_calendar,
+            local=True,
+            length=10
+        )
+        self.feature_9 = FinancialFeature(
+            name='close',
+            transformation={'name': 'gadf', 'image_size': 24},
+            normalization='standard',
+            nbins=10,
+            ndays=10,
+            resample_minutes=0,
+            start_market_minute=150,
+            is_target=True,
+            exchange_calendar=sample_market_calendar,
+            local=True,
+            length=10
+        )
+        self.feature_10 = FinancialFeature(
+            name='close',
+            transformation={'name': 'mtf', 'image_size': 24},
+            normalization='standard',
+            nbins=10,
+            ndays=10,
+            resample_minutes=0,
+            start_market_minute=150,
+            is_target=True,
+            exchange_calendar=sample_market_calendar,
+            local=True,
+            length=10
         )
 
     def test_process_prediction_data_x_1(self):
         data_dict_x = sample_hourly_ohlcv_data_dict
-        processed_prediction_data_x = self.feature_1.process_prediction_data_x(data_dict_x)
+        raw_dataframe = data_dict_x[self.feature_1.name]
+        processed_prediction_data_x = self.feature_1.process_prediction_data_x(raw_dataframe)
         assert processed_prediction_data_x.equals(data_dict_x[self.feature_1.name])
 
     def test_process_prediction_data_x_2(self):
         data_dict_x = sample_hourly_ohlcv_data_dict
-        processed_prediction_data_x = self.feature_2.process_prediction_data_x(data_dict_x)
+        raw_dataframe = data_dict_x[self.feature_2.name]
+        processed_prediction_data_x = self.feature_2.process_prediction_data_x(raw_dataframe)
         expected_log_returns = np.log(data_dict_x[self.feature_2.name].pct_change() + 1). \
-            replace([np.inf, -np.inf], np.nan).dropna()
+            replace([np.inf, -np.inf], np.nan)
         assert_almost_equal(processed_prediction_data_x, expected_log_returns.values, ASSERT_NDECIMALS)
 
     def test_process_prediction_data_x_3(self):
         data_dict_x = sample_hourly_ohlcv_data_dict
-        processed_prediction_data_x = self.feature_3.process_prediction_data_x(data_dict_x)
+        raw_dataframe = data_dict_x[self.feature_3.name]
+        processed_prediction_data_x = self.feature_3.process_prediction_data_x(raw_dataframe)
         expected_normalized_log_returns = \
-            (np.log(data_dict_x[self.feature_3.name].pct_change() + 1).replace([np.inf, -np.inf], np.nan).dropna()
+            (np.log(data_dict_x[self.feature_3.name].pct_change() + 1).replace([np.inf, -np.inf], np.nan)
              ).values
         assert_almost_equal(processed_prediction_data_x, expected_normalized_log_returns, ASSERT_NDECIMALS)
 
     def test_process_prediction_data_x_4(self):
         data_dict_x = sample_hourly_ohlcv_data_dict
-        processed_prediction_data_x = self.feature_4.process_prediction_data_x(data_dict_x)
+        raw_dataframe = data_dict_x[self.feature_4.name]
+        processed_prediction_data_x = self.feature_4.process_prediction_data_x(raw_dataframe)
 
         columns = data_dict_x[self.feature_4.name].columns
 
@@ -146,7 +203,8 @@ class TestFinancialFeature(TestCase):
 
     def test_process_prediction_data_x_5(self):
         data_dict_x = sample_hourly_ohlcv_data_dict
-        processed_prediction_data_x = self.feature_5.process_prediction_data_x(data_dict_x)
+        raw_dataframe = data_dict_x[self.feature_5.name]
+        processed_prediction_data_x = self.feature_5.process_prediction_data_x(raw_dataframe)
 
         expected_result = data_dict_x[self.feature_5.name].ewm(halflife=self.feature_5.transformation['halflife']
                                                                ).mean()
@@ -154,7 +212,8 @@ class TestFinancialFeature(TestCase):
 
     def test_process_prediction_data_x_6(self):
         data_dict_x = sample_hourly_ohlcv_data_dict
-        processed_prediction_data_x = self.feature_6.process_prediction_data_x(data_dict_x)
+        raw_dataframe = data_dict_x[self.feature_6.name]
+        processed_prediction_data_x = self.feature_6.process_prediction_data_x(raw_dataframe)
 
         direction = data_dict_x[self.feature_6.name].diff(self.feature_6.transformation['lag']).abs()
         volatility = data_dict_x[self.feature_6.name].diff().abs().rolling(window=self.feature_6.transformation['lag']
@@ -168,12 +227,34 @@ class TestFinancialFeature(TestCase):
 
         assert_almost_equal(processed_prediction_data_x.values, expected_result.values, ASSERT_NDECIMALS)
 
+    def test_process_prediction_data_x_8(self):
+        data_frame_x = sample_hourly_ohlcv_data_dict[self.feature_8.name]
+        processed_prediction_data_x = self.feature_8.process_prediction_data_x(data_frame_x)
+
+        assert processed_prediction_data_x.shape == (self.feature_8.transformation['image_size']**2,
+                                                     data_frame_x.shape[1])
+
+    def test_process_prediction_data_x_9(self):
+        data_frame_x = sample_hourly_ohlcv_data_dict[self.feature_9.name]
+        processed_prediction_data_x = self.feature_9.process_prediction_data_x(data_frame_x)
+
+        assert processed_prediction_data_x.shape == (self.feature_9.transformation['image_size']**2,
+                                                     data_frame_x.shape[1])
+
+    def test_process_prediction_data_x_10(self):
+        data_frame_x = sample_hourly_ohlcv_data_dict[self.feature_10.name]
+        processed_prediction_data_x = self.feature_10.process_prediction_data_x(data_frame_x)
+
+        assert processed_prediction_data_x.shape == (self.feature_10.transformation['image_size']**2,
+                                                     data_frame_x.shape[1])
+
     def test_process_prediction_data_y_1(self):
         data_frame = sample_hourly_ohlcv_data_dict[self.feature_1.name]
         data_frame_x = data_frame.iloc[:-1]
         prediction_reference_data = data_frame_x.iloc[-1]
         data_frame_y = data_frame.iloc[-1]
-        self.feature_1.process_prediction_data_x(sample_hourly_ohlcv_data_dict)
+
+        self.feature_1.process_prediction_data_x(data_frame_x)
         processed_prediction_data_y = \
             self.feature_1.process_prediction_data_y(data_frame_y, prediction_reference_data)
         assert processed_prediction_data_y.equals(data_frame_y)
@@ -184,28 +265,18 @@ class TestFinancialFeature(TestCase):
         data_frame_x = data_frame.iloc[:-1]
         prediction_reference_data = data_frame_x.iloc[-1]
         data_frame_y = data_frame.iloc[-1]
-        self.feature_2.process_prediction_data_x(sample_hourly_ohlcv_data_dict)
+        self.feature_2.process_prediction_data_x(data_frame_x)
         processed_prediction_data_y = \
             self.feature_2.process_prediction_data_y(data_frame_y, prediction_reference_data)
         expected_log_returns = np.log(data_frame_y / prediction_reference_data)
         assert_almost_equal(processed_prediction_data_y, expected_log_returns.values, ASSERT_NDECIMALS)
-
-    def test_process_prediction_data_y_3(self):
-        data_frame = sample_hourly_ohlcv_data_dict[self.feature_3.name]
-        data_frame_x = data_frame.iloc[:-1]
-        prediction_reference_data = data_frame_x.iloc[-1]
-        data_frame_y = data_frame.iloc[-1]
-        self.feature_3.process_prediction_data_x(sample_hourly_ohlcv_data_dict)
-
-        self.assertRaises(NotImplementedError, self.feature_3.process_prediction_data_y,
-                          data_frame_y, prediction_reference_data)
 
     def test_process_prediction_data_y_7(self):
         data_frame = sample_hourly_ohlcv_data_dict[self.feature_7.name]
         data_frame_x = data_frame.iloc[:-1]
         prediction_reference_data = data_frame_x.iloc[-1]
         data_frame_y = data_frame.iloc[-1]
-        self.feature_7.process_prediction_data_x(sample_hourly_ohlcv_data_dict)
+        self.feature_7.process_prediction_data_x(data_frame_x)
 
         processed_prediction_data_y = \
             self.feature_7.process_prediction_data_y(data_frame_y, prediction_reference_data)
@@ -245,9 +316,10 @@ class TestFinancialFeature(TestCase):
         selected_prediction_data = \
             self.feature_1._select_prediction_data_x(data_frame, prediction_timestamp)
 
-        start_timestamp_x_1 = self.feature_1._get_start_timestamp_x(prediction_timestamp)
-        expected_data_frame = data_frame[(data_frame.index >= start_timestamp_x_1) &
-                                         (data_frame.index <= prediction_timestamp)]
+        last_index = np.argwhere(data_frame.index <= prediction_timestamp)[-1][0] + 1
+        first_index = last_index - self.feature_1.length
+        expected_data_frame = data_frame.iloc[first_index:last_index]
+
         assert selected_prediction_data.equals(expected_data_frame)
 
     @staticmethod
@@ -260,8 +332,9 @@ class TestFinancialFeature(TestCase):
         prediction_timestamp = market_open_list[20] + timedelta(minutes=30)
         target_timestamp = market_open_list[21] + timedelta(minutes=90)
 
-        prediction_data_x, prediction_data_y = \
-            feature.get_prediction_data(data_frame, prediction_timestamp, target_timestamp)
+        prediction_data_x = feature.get_prediction_features(data_frame, prediction_timestamp)
+
+        prediction_data_y = feature.get_prediction_targets(data_frame, prediction_timestamp, target_timestamp)
 
         assert isinstance(prediction_data_x, pd.DataFrame) and isinstance(prediction_data_y, pd.Series)
         assert len(prediction_data_x) == expected_length

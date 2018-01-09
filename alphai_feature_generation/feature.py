@@ -1,24 +1,26 @@
+import logging
 from copy import deepcopy
 from datetime import timedelta
-import logging
 
 import numpy as np
 import pandas as pd
 import pandas_market_calendars as mcal
-from sklearn.preprocessing import RobustScaler, MinMaxScaler, StandardScaler
+from pyts.transformation import GASF, GADF, MTF
 from sklearn.preprocessing import QuantileTransformer
+from sklearn.preprocessing import RobustScaler, MinMaxScaler, StandardScaler
 
-from alphai_feature_generation import FINANCIAL_FEATURE_TRANSFORMATIONS, FINANCIAL_FEATURE_NORMALIZATIONS, \
-    MINUTES_IN_TRADING_DAY, MARKET_DAYS_SEARCH_MULTIPLIER, MIN_MARKET_DAYS_SEARCH
-
+from alphai_feature_generation import (FINANCIAL_FEATURE_TRANSFORMATIONS, FINANCIAL_FEATURE_NORMALIZATIONS,
+                                       MARKET_DAYS_SEARCH_MULTIPLIER, MIN_MARKET_DAYS_SEARCH)
 from alphai_feature_generation.classifier import BinDistribution, classify_labels, declassify_labels
+from alphai_feature_generation.utils import get_minutes_in_one_trading_day
+from alphai_feature_generation.cleaning import resample_data_frame
 
-logging.getLogger(__name__).addHandler(logging.NullHandler())
+KEY_EXCHANGE = 'exchange_name'
 
 
 class FinancialFeature(object):
-    def __init__(self, name, transformation, normalization, nbins, ndays, resample_minutes, start_market_minute,
-                 is_target, exchange_calendar, classify_per_series=False, normalise_per_series=False):
+    def __init__(self, name, transformation, normalization, nbins, length, ndays, resample_minutes, start_market_minute,
+                 is_target, exchange_calendar, local, classify_per_series=False, normalise_per_series=False):
         """
         Object containing all the information to manipulate the data relative to a financial feature.
         :param str name: Name of the feature
@@ -26,6 +28,7 @@ class FinancialFeature(object):
             FINANCIAL_FEATURE_TRANSFORMATIONS
         :param str/None normalization: type of normalization. Can be None.
         :param int/None nbins: number of bins to be used for target classification. Can be None.
+        :param int length: expected number of elements in the feature
         :param int ndays: number of trading days worth of data the feature should use.
         :param int resample_minutes: resampling frequency in number of minutes.
         :param int start_market_minute: number of minutes after market open the data collection should start from.
@@ -34,8 +37,6 @@ class FinancialFeature(object):
         """
         # FIXME the get_default_flags args are temporary. We need to load a get_default_flags config in the unit tests.
 
-        self._assert_input(name, transformation, normalization, nbins, ndays, resample_minutes, start_market_minute,
-                           is_target)
         self.name = name
         self.transformation = transformation
         self.normalization = normalization
@@ -45,9 +46,16 @@ class FinancialFeature(object):
         self.start_market_minute = start_market_minute
         self.is_target = is_target
         self.exchange_calendar = exchange_calendar
+        self.minutes_in_trading_day = get_minutes_in_one_trading_day(exchange_calendar.name)
         self.n_series = None
+        self.local = local
+        self.length = length
 
         self.bin_distribution = None
+
+        self._assert_input(name, transformation, normalization, nbins, length, ndays, resample_minutes,
+                           start_market_minute, is_target, local)
+
         if self.nbins:
             self.bin_distribution_dict = {}
         else:
@@ -67,18 +75,23 @@ class FinancialFeature(object):
             elif self.normalization == 'gaussian':
                 self.scaler = QuantileTransformer(output_distribution='normal')
             else:
-                raise NotImplementedError('Requested normalisation not supported: {}'.format(self.normalization))
+                raise ValueError('Requested normalisation not supported: {}'.format(self.normalization))
         else:
             self.scaler = None
             self.scaler_dict = None
 
     @property
     def full_name(self):
-        return '{}_{}'.format(self.name, self.transformation['name'])
+        full_name = '{}_{}'.format(self.name, self.transformation['name'])
+        if self.resample_minutes > 0:
+            resolution = '_' + str(self.resample_minutes) + 'T'
+            full_name = full_name + resolution
 
-    @staticmethod
-    def _assert_input(name, transformation, normalization, nbins, ndays, resample_minutes, start_market_minute,
-                      is_target):
+        return full_name
+
+    def _assert_input(self, name, transformation, normalization, nbins, length, ndays, resample_minutes,
+                      start_market_minute, is_target, local):
+
         assert isinstance(name, str)
         assert isinstance(transformation, dict)
         assert 'name' in transformation, 'The transformation dict does not contain the key "name"'
@@ -88,12 +101,20 @@ class FinancialFeature(object):
         assert isinstance(ndays, int) and ndays >= 0
         assert isinstance(resample_minutes, int) and resample_minutes >= 0
         assert isinstance(start_market_minute, int)
-        assert start_market_minute < MINUTES_IN_TRADING_DAY
+        assert start_market_minute < self.minutes_in_trading_day
+        assert (isinstance(length, int) and length > 0)
         assert isinstance(is_target, bool)
+        assert isinstance(local, bool)
         if transformation['name'] == 'ewma':
             assert 'halflife' in transformation
         if transformation['name'] == 'KER':
             assert 'lag' in transformation
+        if transformation['name'] == 'GASF':
+            assert 'image_size' in transformation
+        if transformation['name'] == 'GADF':
+            assert 'image_size' in transformation
+        if transformation['name'] == 'MTF':
+            assert 'image_size' in transformation
 
     def process_prediction_data_x(self, prediction_data_x):
         """
@@ -101,17 +122,30 @@ class FinancialFeature(object):
         :param pd.Dataframe prediction_data_x: X data for model prediction task
         :return pd.Dataframe: processed_prediction_data_x
         """
-        assert isinstance(prediction_data_x, dict)
-        processed_prediction_data_x = deepcopy(prediction_data_x[self.name])
 
-        if self.transformation['name'] == 'log-return':
+        assert isinstance(prediction_data_x, pd.DataFrame)
+        processed_prediction_data_x = deepcopy(prediction_data_x)
+
+        if not self.local and self.resample_minutes > 0:  # Custom resampling interval for this feature
+            resample_rule = str(self.resample_minutes) + 'T'
+            if self.name == 'volume':
+                sampling_function = 'sum'
+            else:
+                sampling_function = 'last'
+
+            processed_prediction_data_x = resample_data_frame(processed_prediction_data_x, resample_rule, sampling_function=sampling_function)
+
+        transform = self.transformation['name']
+
+        if transform == 'log-return':
             processed_prediction_data_x = np.log(processed_prediction_data_x.pct_change() + 1). \
                 replace([np.inf, -np.inf], np.nan)
 
             # Remove the zeros / nans associated with log return
-            processed_prediction_data_x = processed_prediction_data_x.iloc[1:]
+            if self.local:
+                processed_prediction_data_x = processed_prediction_data_x.iloc[1:]
 
-        if self.transformation['name'] == 'stochastic_k':
+        elif transform == 'stochastic_k':
             columns = processed_prediction_data_x.columns
             processed_prediction_data_x \
                 = ((processed_prediction_data_x.iloc[-1] - processed_prediction_data_x.min()) /
@@ -120,11 +154,11 @@ class FinancialFeature(object):
             processed_prediction_data_x = np.expand_dims(processed_prediction_data_x, axis=0)
             processed_prediction_data_x = pd.DataFrame(processed_prediction_data_x, columns=columns)
 
-        if self.transformation['name'] == 'ewma':
+        elif transform == 'ewma':
             processed_prediction_data_x = \
                 processed_prediction_data_x.ewm(halflife=self.transformation['halflife']).mean()
 
-        if self.transformation['name'] == 'KER':
+        elif transform == 'ker':
             direction = processed_prediction_data_x.diff(self.transformation['lag']).abs()
             volatility = processed_prediction_data_x.diff().abs().rolling(window=self.transformation['lag']).sum()
 
@@ -136,6 +170,32 @@ class FinancialFeature(object):
             processed_prediction_data_x = direction / volatility
             processed_prediction_data_x.dropna(axis=0, inplace=True)
 
+        elif transform == 'gasf':
+            columns = processed_prediction_data_x.columns
+            gasf = GASF(image_size=self.transformation['image_size'], overlapping=False, scale='-1')
+            processed_prediction_data_x = gasf.transform(processed_prediction_data_x.values.T)
+            processed_prediction_data_x = processed_prediction_data_x.reshape(processed_prediction_data_x.shape[0], -1)
+            processed_prediction_data_x = pd.DataFrame(processed_prediction_data_x.T, columns=columns)
+
+        elif transform == 'gadf':
+            columns = processed_prediction_data_x.columns
+            gadf = GADF(image_size=self.transformation['image_size'], overlapping=False, scale='-1')
+            processed_prediction_data_x = gadf.transform(processed_prediction_data_x.values.T)
+            processed_prediction_data_x = processed_prediction_data_x.reshape(processed_prediction_data_x.shape[0], -1)
+            processed_prediction_data_x = pd.DataFrame(processed_prediction_data_x.T, columns=columns)
+
+        elif transform == 'mtf':
+            columns = processed_prediction_data_x.columns
+            mtf = MTF(image_size=self.transformation['image_size'], n_bins=7, quantiles='empirical', overlapping=False)
+            processed_prediction_data_x = mtf.transform(processed_prediction_data_x.values.T)
+            processed_prediction_data_x = processed_prediction_data_x.reshape(processed_prediction_data_x.shape[0], -1)
+            processed_prediction_data_x = pd.DataFrame(processed_prediction_data_x.T, columns=columns)
+
+        elif transform == 'value':
+            pass
+        else:
+            raise NotImplementedError('Unknown transformation: ', transform)
+
         return processed_prediction_data_x
 
     def fit_normalisation(self, symbol_data, symbol=None):
@@ -146,12 +206,14 @@ class FinancialFeature(object):
         :return:
         """
 
+        symbol_data.flatten()
+        symbol_data = symbol_data[np.isfinite(symbol_data)]
+        symbol_data = symbol_data.reshape(-1, 1)  # Reshape for scikitlearn
+
         if symbol:
             self.scaler_dict[symbol] = deepcopy(self.scaler)
-            symbol_data = symbol_data.reshape(-1, 1)  # Reshape for scikitlearn
             self.scaler_dict[symbol].fit(symbol_data)
         else:
-            symbol_data = symbol_data.reshape(-1, 1)  # Reshape for scikitlearn
             self.scaler.fit(symbol_data)
 
     def apply_normalisation(self, dataframe):
@@ -216,10 +278,6 @@ class FinancialFeature(object):
             processed_prediction_data_y = np.log(prediction_data_y / prediction_reference_data). \
                 replace([np.inf, -np.inf], np.nan)
 
-        if self.scaler:
-            if self.nbins is None:
-                raise NotImplementedError('y scaling is not required for classifiers, but is required for regression')
-
         return processed_prediction_data_y
 
     def _get_safe_schedule_start_date(self, prediction_timestamp):
@@ -262,32 +320,62 @@ class FinancialFeature(object):
         :param Timestamp prediction_timestamp: Timestamp when the prediction is made
         :return pd.Dataframe: selected x-data (unprocessed)
         """
-        prediction_index_selection_x = self._index_selection_x(data_frame.index, prediction_timestamp)
-        return data_frame[prediction_index_selection_x]
 
-    def get_prediction_data(self, data_frame, prediction_timestamp, target_timestamp=None):
-        """
-        Calculate x and y data for prediction. y-data will be None if target_timestamp is None.
-        :param pd.Dataframe data_frame: raw data (unselected, unprocessed).
-        :param Timestamp prediction_timestamp: Timestamp when the prediction is made
-        :param Timestamp target_timestamp: Timestamp the prediction is for.
-        :return (pd.Dataframe, pd.Dataframe): prediction_data_x, prediction_data_y (selected and processed)
-        """
-        prediction_data_x = self._select_prediction_data_x(data_frame, prediction_timestamp)
-        # prediction_data_x = self.process_prediction_data_x(data_frame)
+        try:
+            end_point = data_frame.index.get_loc(prediction_timestamp, method='pad')
+            end_index = end_point + 1  # +1 because iloc is not inclusive of end index
+            start_index = end_point - self.length + 1
+        except:
+            logging.warning('Prediction timestamp {} not within range of dataframe'.format(prediction_timestamp))
+            start_index = 0
+            end_index = -1
 
-        prediction_data_y = None
-        if self.is_target and target_timestamp is not None:
-            prediction_data_y = self.process_prediction_data_y(
+        return data_frame.iloc[start_index:end_index, :]
+
+    def get_prediction_targets(self, data_frame, prediction_timestamp, target_timestamp=None):
+        """
+        Compute targets from dataframe only if the current feature is target
+
+        :param data_frame: Time indexed data
+        :type data_frame: pd.DataFrame
+        :param prediction_timestamp: the time of prediction
+        :type prediction_timestamp: pd.Timestamp
+        :param target_timestamp: the time predicted
+        :type target_timestamp: pd.Timestamp
+        :rtype pd.DataFrame
+        """
+        prediction_target = None
+
+        if self.is_target and target_timestamp:
+            prediction_target = self.process_prediction_data_y(
                 data_frame.loc[target_timestamp],
                 data_frame.loc[prediction_timestamp],
             )
 
-        return prediction_data_x, prediction_data_y
+        return prediction_target
+
+    def get_prediction_features(self, data_frame, prediction_timestamp):
+        """
+        Compute features from dataframe
+
+        :param data_frame: Time indexed data
+        :type data_frame: pd.DataFrame
+        :param prediction_timestamp: the time of prediction
+        :type prediction_timestamp: pd.Timestamp
+        :rtype: pd.DataFrame
+        """
+        prediction_features = self._select_prediction_data_x(data_frame, prediction_timestamp)
+
+        if self.local:
+            prediction_features = self.process_prediction_data_x(prediction_features)
+
+        return prediction_features
 
     def fit_classification(self, symbol, symbol_data):
         """  Fill dict with classifiers
 
+        :param symbol:
+        :rtype symbol: str
         :param symbol_data:
         :return:
         """
@@ -311,7 +399,9 @@ class FinancialFeature(object):
 
             if symbol in self.bin_distribution_dict:
                 symbol_binning = self.bin_distribution_dict[symbol]
-                hot_dataframe[symbol] = np.squeeze(classify_labels(symbol_binning.bin_edges, data_y))
+                one_hot_labels = classify_labels(symbol_binning.bin_edges, data_y)
+                if one_hot_labels.shape[-1] > 1:
+                    hot_dataframe[symbol] = np.squeeze(one_hot_labels)
             else:
                 logging.warning("Symbol lacks clasification bins: {}".format(symbol))
                 dataframe.drop(symbol, axis=1, inplace=True)
@@ -389,11 +479,13 @@ def single_financial_feature_factory(feature_config):
         feature_config['transformation'],
         feature_config['normalization'],
         feature_config['nbins'],
+        feature_config['length'],
         feature_config['ndays'],
         feature_config['resample_minutes'],
         feature_config['start_market_minute'],
         feature_config['is_target'],
-        mcal.get_calendar(feature_config['exchange_name']))
+        mcal.get_calendar(feature_config[KEY_EXCHANGE]),
+        feature_config['local'])
 
 
 def financial_features_factory(feature_config_list):
