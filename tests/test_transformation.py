@@ -142,6 +142,26 @@ class TestFinancialDataTransformation(TestCase):
             assert feature_x_dict[key].shape == (expected_n_time_dict[key], expected_n_symbols)
         assert feature_y_dict is None
 
+    def test_make_normalised_x_list(self):
+
+        symbols = {'AAPL'}
+        dummy_dataframe = pd.DataFrame([3.0, 3.0, 3.0], columns=symbols)
+        normalised_dataframe = pd.DataFrame([0.0, 0.0, 0.0], columns=symbols)
+        dummy_dict = {'open_value': dummy_dataframe,
+                      'high_log-return': dummy_dataframe}
+        normalised_dict = {'open_value': normalised_dataframe,
+                      'high_log-return': dummy_dataframe}
+
+        x_list = [dummy_dict]
+        norm_x_list = [normalised_dict]
+        feature = self.transformation_with_bins.features[0]
+
+        self.transformation_with_bins.fit_normalisation(symbols, x_list, feature)
+        _ = self.transformation_with_bins._make_normalised_x_list(x_list, do_normalisation_fitting=True)
+
+        self.assertAlmostEqual(x_list, norm_x_list)
+
+
     def test_create_data(self):
         expected_n_samples = 30
         expected_n_time_dict = {'open_value': 15, 'high_log-return': 15, 'close_log-return': 15}
