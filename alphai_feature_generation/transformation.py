@@ -1,4 +1,5 @@
 import logging
+import itertools
 import multiprocessing
 
 from abc import ABCMeta, abstractmethod
@@ -461,22 +462,30 @@ class FinancialDataTransformation(DataTransformation):
                 fitted_features = pool.map(fit_function, self.features)
                 self.features = FeatureList(fitted_features)
 
-            apply_function = partial(self.apply_normalisation, x_list)
-            applied_features = pool.map(apply_function, self.features)
-            self.features = FeatureList(applied_features)
+        for feature in self.features:
+            x_list = self.apply_normalisation(x_list, feature)
 
         return x_list
 
     def apply_normalisation(self, x_list, feature):
+
         if feature.scaler:
+            normalise_function = partial(self.normalise_dict, feature)
             logging.info("Applying normalisation to: {}".format(feature.full_name))
-            for x_dict in x_list:
-                if feature.full_name in x_dict:
-                    x_dict[feature.full_name] = feature.apply_normalisation(x_dict[feature.full_name])
-                else:
-                    logging.info("Failed to find {} in dict: {}".format(feature.full_name, list(x_dict.keys())))
-                    logging.info("x_list: {}".format(x_list))
-        return feature
+
+            with ensure_closing_pool() as pool:
+                list_of_x_dicts = pool.map(normalise_function, x_list)
+
+            return list_of_x_dicts
+        else:
+            return x_list
+
+    def normalise_dict(self, target_feature, x_dict):
+        if target_feature.full_name in x_dict:
+            x_dict[target_feature.full_name] = target_feature.apply_normalisation(x_dict[target_feature.full_name])
+        else:
+            logging.info("Failed to find {} in dict: {}".format(target_feature.full_name, list(x_dict.keys())))
+        return x_dict
 
     def fit_normalisation(self, symbols, x_list, feature):
         if feature.scaler:
