@@ -1,6 +1,7 @@
 import logging
 import multiprocessing
 from abc import ABCMeta, abstractmethod
+from contextlib import contextmanager
 from datetime import timedelta
 from functools import partial
 
@@ -20,7 +21,14 @@ TOTAL_TICKS_M1_FINANCIAL_FEATURES = ['open_log-return', 'high_log-return', 'low_
 
 HARDCODED_FEATURE_FOR_EXTRACT_Y = 'close'
 
-logging.getLogger(__name__).addHandler(logging.NullHandler())
+
+@contextmanager
+def ensure_closing_pool():
+    pool = multiprocessing.Pool(processes=multiprocessing.cpu_count() - 1)
+    yield pool
+    pool.terminate()
+    pool.join()
+    del pool
 
 
 class DateNotInUniverseError(Exception):
@@ -161,7 +169,7 @@ class FinancialDataTransformation(DataTransformation):
                 single_feature_dict.get('local', False),
                 self.classify_per_series,
                 self.normalise_per_series
-        ) for single_feature_dict in feature_config_list]
+            ) for single_feature_dict in feature_config_list]
 
     def _extract_schedule_from_data(self, raw_data_dict):
         """
@@ -194,37 +202,17 @@ class FinancialDataTransformation(DataTransformation):
         :param Timestamp/None target_timestamp: Timestamp the prediction is for.
         :return (dict, dict): feature_x_dict, feature_y_dict
         """
-        feature_x_dict, feature_y_dict = {}, {}
+        feature_x_dict = {}
+        feature_y_dict = {}
 
-        for feature in self.features:
+        with ensure_closing_pool() as pool:
+            part = partial(self.process_predictions, prediction_timestamp, raw_data_dict, target_timestamp, universe)
+            processed_predictions = pool.map(part, self.features)
 
-            if universe is None:
-                universe = raw_data_dict[feature.name].columns
-
-            feature_name = feature.full_name if feature.full_name in raw_data_dict.keys() else feature.name
-
-            feature_x = feature.get_prediction_features(
-                raw_data_dict[feature_name].loc[:, universe],
-                prediction_timestamp
-            )
-
-            if feature_x is not None:
-                feature_x_dict[feature.full_name] = feature_x
-
-            # currently target is hardcoded to be log-return calculated on the close (Chris B)
-            # TODO separate feature and target calculation
-
-            if feature.is_target:
-                feature_y = feature.get_prediction_targets(
-                    raw_data_dict[HARDCODED_FEATURE_FOR_EXTRACT_Y].loc[:, universe],
-                    prediction_timestamp,
-                    target_timestamp
-                )
-
-                if feature_y is not None:
-                    transposed_y = feature_y.to_frame().transpose()
-                    transposed_y.set_index(pd.DatetimeIndex([target_timestamp]), inplace=True)
-                    feature_y_dict[feature.full_name] = transposed_y
+        for prediction in processed_predictions:
+            feature_x_dict[prediction[0]] = prediction[1]
+            if prediction[2] is not None:
+                feature_y_dict[prediction[0]] = prediction[2]
 
         if len(feature_y_dict) > 0:
             assert len(feature_y_dict) == 1, 'Only one target is allowed'
@@ -232,6 +220,33 @@ class FinancialDataTransformation(DataTransformation):
             feature_y_dict = None
 
         return feature_x_dict, feature_y_dict
+
+    def process_predictions(self, prediction_timestamp, raw_data_dict, target_timestamp, universe, feature):
+        # TODO separate feature and target calculation
+
+        if universe is None:
+            universe = raw_data_dict[feature.name].columns
+        feature_name = feature.full_name if feature.full_name in raw_data_dict.keys() else feature.name
+        feature_x = feature.get_prediction_features(
+            raw_data_dict[feature_name].loc[:, universe],
+            prediction_timestamp
+        )
+
+        feature_y = None
+        if feature.is_target:
+            feature_y = feature.get_prediction_targets(
+                # currently target is hardcoded to be log-return calculated on the close (Chris B)
+                raw_data_dict[HARDCODED_FEATURE_FOR_EXTRACT_Y].loc[:, universe],
+                prediction_timestamp,
+                target_timestamp
+            )
+
+            if feature_y is not None:
+                transposed_y = feature_y.to_frame().transpose()
+                transposed_y.set_index(pd.DatetimeIndex([target_timestamp]), inplace=True)
+                feature_y = transposed_y
+
+        return feature.full_name, feature_x, feature_y
 
     def create_train_data(self, raw_data_dict, historical_universes):
         """
@@ -430,14 +445,15 @@ class FinancialDataTransformation(DataTransformation):
 
         symbols = get_unique_symbols(x_list)
 
-        if do_normalisation_fitting:
-            fit_function = partial(self.fit_normalisation, symbols, x_list)
-            fitted_features = map(fit_function, self.features)
-            self.features = list(fitted_features)
+        with ensure_closing_pool() as pool:
+            if do_normalisation_fitting:
+                fit_function = partial(self.fit_normalisation, symbols, x_list)
+                fitted_features = pool.map(fit_function, self.features)
+                self.features = fitted_features
 
-        apply_function = partial(self.apply_normalisation, x_list)
-        applied_features = map(apply_function, self.features)
-        self.features = list(applied_features)
+            apply_function = partial(self.apply_normalisation, x_list)
+            applied_features = pool.map(apply_function, self.features)
+            self.features = applied_features
 
         return x_list
 
@@ -542,14 +558,10 @@ class FinancialDataTransformation(DataTransformation):
         if target_timestamp and prediction_timestamp > target_timestamp:
             raise ValueError('Target timestamp should be later than prediction_timestamp')
 
-        feature_x_dict, feature_y_dict = self.collect_prediction_from_features(raw_data_dict,
-                                                                               prediction_timestamp,
-                                                                               universe,
-                                                                               target_timestamp,
-                                                                             )
+        feature_x_dict, feature_y_dict = self.collect_prediction_from_features(
+            raw_data_dict, prediction_timestamp, universe, target_timestamp)
 
         return feature_x_dict, feature_y_dict, prediction_timestamp
-
 
     def _get_target_timestamp(self, target_market_open):
         """
