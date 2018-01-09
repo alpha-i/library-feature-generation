@@ -2,6 +2,7 @@ from unittest import TestCase
 
 import numpy as np
 import pandas as pd
+import pytest
 
 from alphai_feature_generation.transformation import (
     FinancialDataTransformation,
@@ -25,10 +26,8 @@ ASSERT_NDECIMALS = 5
 
 
 class TestFinancialDataTransformation(TestCase):
+
     def setUp(self):
-
-        # FIXME we need to find a tests case for classify_per_series: False and normalise_per_series: False
-
         configuration_nobins = {
             'feature_config_list': sample_fin_data_transf_feature_factory_list_nobins,
             'features_ndays': 2,
@@ -47,7 +46,7 @@ class TestFinancialDataTransformation(TestCase):
             'fill_limit': 0
         }
 
-        self.fin_data_transf_nobins = FinancialDataTransformation(configuration_nobins)
+        self.transformation_without_bins = FinancialDataTransformation(configuration_nobins)
 
         configuration_bins = {
             'feature_config_list': sample_fin_data_transf_feature_factory_list_bins,
@@ -66,14 +65,31 @@ class TestFinancialDataTransformation(TestCase):
             'normalise_per_series': False,
             'fill_limit': 0
         }
-        self.fin_data_transf_bins = FinancialDataTransformation(configuration_bins)
+
+        self.transformation_with_bins = FinancialDataTransformation(configuration_bins)
+
+    @pytest.mark.skip(reason='the test for classify_per_series=False must be implemented')
+    def test_classify_per_series_false(self):
+        pass
+
+    @pytest.mark.skip(reason='The test for normalise_per_series=False must be implemented')
+    def test_normalise_per_series_false(self):
+        pass
+
+    @pytest.mark.skip(reason='The test for transformation with bins must be implemented')
+    def test_financial_transformation_with_bins(self):
+        pass
+
+    @pytest.mark.skip(reason='The test for prediction at market close must be implemented')
+    def test_create_data_with_prediction_at_market_close(self):
+        pass
 
     def test_get_total_ticks_x(self):
-        assert self.fin_data_transf_nobins.get_total_ticks_x() == 15
+        assert self.transformation_without_bins.get_total_ticks_x() == 15
 
     def test_extract_schedule_from_data(self):
 
-        data_schedule = self.fin_data_transf_nobins._extract_schedule_from_data(sample_hourly_ohlcv_data_dict)
+        data_schedule = self.transformation_without_bins._extract_schedule_from_data(sample_hourly_ohlcv_data_dict)
 
         assert isinstance(data_schedule, pd.DataFrame)
         assert len(data_schedule) == 37
@@ -81,8 +97,8 @@ class TestFinancialDataTransformation(TestCase):
         assert data_schedule.iloc[-1].market_open == pd.Timestamp('2015-03-09 13:30:00+0000', tz='UTC')
 
     def test_get_target_feature(self):
-        target_feature = self.fin_data_transf_nobins.get_target_feature()
-        expected_target_feature = [feature for feature in self.fin_data_transf_nobins.features if feature.is_target][0]
+        target_feature = self.transformation_without_bins.get_target_feature()
+        expected_target_feature = [feature for feature in self.transformation_without_bins.features if feature.is_target][0]
         assert target_feature == expected_target_feature
 
     def test_get_prediction_data_all_features_target(self):
@@ -90,7 +106,7 @@ class TestFinancialDataTransformation(TestCase):
         prediction_timestamp = sample_hourly_ohlcv_data_dict['open'].index[98]
         universe = sample_hourly_ohlcv_data_dict['open'].columns[:-1]
         target_timestamp = sample_hourly_ohlcv_data_dict['open'].index[133]
-        feature_x_dict, feature_y_dict = self.fin_data_transf_nobins.collect_prediction_from_features(
+        feature_x_dict, feature_y_dict = self.transformation_without_bins.collect_prediction_from_features(
             raw_data_dict,
             prediction_timestamp,
             universe,
@@ -112,7 +128,7 @@ class TestFinancialDataTransformation(TestCase):
     def test_get_prediction_data_all_features_no_target(self):
         raw_data_dict = sample_hourly_ohlcv_data_dict
         prediction_timestamp = sample_hourly_ohlcv_data_dict['open'].index[98]
-        feature_x_dict, feature_y_dict = self.fin_data_transf_nobins.collect_prediction_from_features(
+        feature_x_dict, feature_y_dict = self.transformation_without_bins.collect_prediction_from_features(
             raw_data_dict,
             prediction_timestamp,
         )
@@ -141,16 +157,6 @@ class TestFinancialDataTransformation(TestCase):
 
         assert len(train_x.keys()) == expected_n_features
 
-        for key in train_x.keys():
-            assert train_x[key].shape == (expected_n_samples, expected_n_time_dict[key], expected_n_symbols)
-
-        for key in train_y.keys():
-            assert train_y[key].shape == (expected_n_samples, expected_n_bins, expected_n_symbols)
-
-        train_x, train_y = fintransform.create_train_data(sample_hourly_ohlcv_data_dict,
-                                                          sample_historical_universes)
-
-        assert len(train_x.keys()) == expected_n_features
         for key in train_x.keys():
             assert train_x[key].shape == (expected_n_samples, expected_n_time_dict[key], expected_n_symbols)
 
