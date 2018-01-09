@@ -152,15 +152,13 @@ class TestFinancialDataTransformation(TestCase):
         normalised_dict = {'open_value': normalised_dataframe,
                       'high_log-return': dummy_dataframe}
 
-        x_list = [dummy_dict]
-        norm_x_list = [normalised_dict]
+        starting_x_list = [dummy_dict]
+        expected_x_list = [normalised_dict]
         feature = self.transformation_with_bins.features[0]
 
-        self.transformation_with_bins.fit_normalisation(symbols, x_list, feature)
-        _ = self.transformation_with_bins._make_normalised_x_list(x_list, do_normalisation_fitting=True)
-
-        self.assertAlmostEqual(x_list, norm_x_list)
-
+        self.transformation_with_bins.fit_normalisation(symbols, starting_x_list, feature)
+        normalised_x_list = self.transformation_with_bins._make_normalised_x_list(starting_x_list, do_normalisation_fitting=True)
+        assert normalised_x_list[0]['open_value']['AAPL'].equals(expected_x_list[0]['open_value']['AAPL'])
 
     def test_create_data(self):
         expected_n_samples = 30
