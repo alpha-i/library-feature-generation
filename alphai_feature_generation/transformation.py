@@ -1,17 +1,19 @@
 import logging
 import multiprocessing
+
 from abc import ABCMeta, abstractmethod
 from contextlib import contextmanager
 from datetime import timedelta
 from functools import partial
+
 
 import numpy as np
 import pandas as pd
 import pandas_market_calendars as mcal
 
 from alphai_feature_generation.feature.factory import FinancialFeatureFactory, FeatureList, KEY_EXCHANGE
+from alphai_feature_generation.helpers import CalendarUtilities
 
-from alphai_feature_generation.utils import get_minutes_in_one_trading_day
 
 TOTAL_TICKS_FINANCIAL_FEATURES = ['open_value', 'high_value', 'low_value', 'close_value', 'volume_value']
 TOTAL_TICKS_M1_FINANCIAL_FEATURES = ['open_log-return', 'high_log-return', 'low_log-return', 'close_log-return',
@@ -57,7 +59,7 @@ class FinancialDataTransformation(DataTransformation):
             int target_market_minute: number of minutes after market open for the target timestamp
         """
         self.exchange_calendar = mcal.get_calendar(configuration[KEY_EXCHANGE])
-        self.minutes_in_trading_days = get_minutes_in_one_trading_day(configuration[KEY_EXCHANGE])
+        self.minutes_in_trading_days = CalendarUtilities.get_minutes_in_one_trading_day(configuration[KEY_EXCHANGE])
         self.features_ndays = configuration['features_ndays']
         self.features_resample_minutes = configuration['features_resample_minutes']
         self.features_start_market_minute = configuration['features_start_market_minute']
@@ -66,18 +68,21 @@ class FinancialDataTransformation(DataTransformation):
         self.target_market_minute = configuration['target_market_minute']
         self.classify_per_series = configuration['classify_per_series']
         self.normalise_per_series = configuration['normalise_per_series']
-        self.feature_length = self.get_feature_length()
-        self.features = self._financial_features_factory(configuration['feature_config_list'],
-                                                         configuration['n_classification_bins'])
+        self.n_classification_bins = configuration['n_classification_bins']
         self.n_series = configuration['nassets']
         self.fill_limit = configuration['fill_limit']
         self.predict_the_market_close = configuration.get('predict_the_market_close', False)
         self.clean_nan_from_dict = configuration.get('clean_nan_from_dict', False)
 
-        self.configuration = configuration
-        self._assert_input(configuration)
+        self.feature_length = self.get_feature_length()
+        self.features = self._financial_features_factory(configuration['feature_config_list'])
 
-    def _assert_input(self, configuration):
+        self.configuration = configuration
+        self._assert_input()
+
+    def _assert_input(self):
+        configuration = self.configuration
+
         assert isinstance(configuration[KEY_EXCHANGE], str)
         assert isinstance(configuration['features_ndays'], int) and configuration['features_ndays'] >= 0
         assert isinstance(configuration['features_resample_minutes'], int) \
@@ -144,7 +149,7 @@ class FinancialDataTransformation(DataTransformation):
 
         return correct_dimensions
 
-    def _financial_features_factory(self, feature_config_list, n_classification_bins):
+    def _financial_features_factory(self, feature_config_list):
         """
         Build list of financial features from list of incomplete feature-config dictionaries (class-specific).
         :param list feature_config_list: list of dictionaries containing feature details.
@@ -153,7 +158,7 @@ class FinancialDataTransformation(DataTransformation):
         assert isinstance(feature_config_list, list)
 
         update_dict = {
-            'nbins': n_classification_bins,
+            'nbins': self.n_classification_bins,
             'ndays': self.features_ndays,
             'start_market_minute': self.features_start_market_minute,
             KEY_EXCHANGE: self.exchange_calendar.name,
@@ -390,7 +395,7 @@ class FinancialDataTransformation(DataTransformation):
         if target_market_open:
             action = 'training'
             logging.info("{} out of {} samples were found to be valid".format(n_valid_samples, n_samples))
-            classify_y = self.configuration["n_classification_bins"]
+            classify_y = self.n_classification_bins
             y_list = self._make_classified_y_list(data_y_list) if classify_y else data_y_list
             y_dict, _ = self.stack_samples_for_each_feature(y_list)
 
@@ -579,12 +584,11 @@ class FinancialDataTransformation(DataTransformation):
         :rtype pd.Timestamp
         """
         if target_market_open:
-            target_timestamp = target_market_open + timedelta(minutes=self.target_market_minute)
 
             if self.predict_the_market_close:
-                target_timestamp = self._get_closing_time_for_day(target_market_open.date())
-
-            return target_timestamp
+                return CalendarUtilities.closing_time_for_day(self.exchange_calendar, target_market_open.date())
+            else:
+                return target_market_open + timedelta(minutes=self.target_market_minute)
         else:
             return None
 
@@ -596,20 +600,9 @@ class FinancialDataTransformation(DataTransformation):
         :return:
         """
         if self.predict_the_market_close:
-            return self._get_closing_time_for_day(prediction_market_open)
+            return CalendarUtilities.closing_time_for_day(self.exchange_calendar, prediction_market_open)
         else:
             return prediction_market_open + timedelta(minutes=self.prediction_market_minute)
-
-    def _get_closing_time_for_day(self, the_day):
-        """
-        Get the closing time for the day supplied
-
-        :param the_day:
-        :return:
-        """
-        market_close = self.exchange_calendar.schedule(the_day, the_day)['market_close']
-
-        return pd.to_datetime(market_close).iloc[0]
 
     def apply_global_transformations(self, raw_data_dict):
         """
