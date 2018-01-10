@@ -13,7 +13,6 @@ from alphai_finance.data.cleaning import (
 )
 
 from alphai_feature_generation.helpers import CalendarUtilities
-from alphai_feature_generation.utils import get_minutes_in_one_trading_day
 
 METHOD_FIXED = 'fixed'
 METHOD_ANNUAL = 'annual'
