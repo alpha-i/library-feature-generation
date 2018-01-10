@@ -6,18 +6,11 @@ import pandas as pd
 import pytest
 from numpy.testing import assert_almost_equal, assert_array_equal
 
-from alphai_feature_generation.feature import (
-    FinancialFeature,
-    financial_features_factory,
-    single_financial_feature_factory,
-    get_feature_names,
-    get_feature_max_ndays
-)
+from alphai_feature_generation.feature import FinancialFeature
+
 from tests.helpers import (
     sample_market_calendar,
     sample_hourly_ohlcv_data_dict,
-    sample_fin_feature_factory_list,
-    sample_fin_feature_list,
     TEST_ARRAY
 )
 
@@ -206,7 +199,7 @@ class TestFinancialFeature(TestCase):
         raw_dataframe = data_dict_x[self.feature_5.name]
         processed_prediction_data_x = self.feature_5.process_prediction_data_x(raw_dataframe)
 
-        expected_result = data_dict_x[self.feature_5.name].ewm(halflife=self.feature_5.transformation['halflife']
+        expected_result = data_dict_x[self.feature_5.name].ewm(halflife=self.feature_5.transformation.halflife
                                                                ).mean()
         assert_almost_equal(processed_prediction_data_x.values, expected_result.values, ASSERT_NDECIMALS)
 
@@ -215,9 +208,9 @@ class TestFinancialFeature(TestCase):
         raw_dataframe = data_dict_x[self.feature_6.name]
         processed_prediction_data_x = self.feature_6.process_prediction_data_x(raw_dataframe)
 
-        direction = data_dict_x[self.feature_6.name].diff(self.feature_6.transformation['lag']).abs()
-        volatility = data_dict_x[self.feature_6.name].diff().abs().rolling(window=self.feature_6.transformation['lag']
-                                                                           ).sum()
+        transformation = self.feature_6.transformation
+        direction = data_dict_x[self.feature_6.name].diff(transformation.lag).abs()
+        volatility = data_dict_x[self.feature_6.name].diff().abs().rolling(window=transformation.lag).sum()
 
         direction.dropna(axis=0, inplace=True)
         volatility.dropna(axis=0, inplace=True)
@@ -231,21 +224,21 @@ class TestFinancialFeature(TestCase):
         data_frame_x = sample_hourly_ohlcv_data_dict[self.feature_8.name]
         processed_prediction_data_x = self.feature_8.process_prediction_data_x(data_frame_x)
 
-        assert processed_prediction_data_x.shape == (self.feature_8.transformation['image_size']**2,
+        assert processed_prediction_data_x.shape == (self.feature_8.transformation.image_size**2,
                                                      data_frame_x.shape[1])
 
     def test_process_prediction_data_x_9(self):
         data_frame_x = sample_hourly_ohlcv_data_dict[self.feature_9.name]
         processed_prediction_data_x = self.feature_9.process_prediction_data_x(data_frame_x)
 
-        assert processed_prediction_data_x.shape == (self.feature_9.transformation['image_size']**2,
+        assert processed_prediction_data_x.shape == (self.feature_9.transformation.image_size**2,
                                                      data_frame_x.shape[1])
 
     def test_process_prediction_data_x_10(self):
         data_frame_x = sample_hourly_ohlcv_data_dict[self.feature_10.name]
         processed_prediction_data_x = self.feature_10.process_prediction_data_x(data_frame_x)
 
-        assert processed_prediction_data_x.shape == (self.feature_10.transformation['image_size']**2,
+        assert processed_prediction_data_x.shape == (self.feature_10.transformation.image_size**2,
                                                      data_frame_x.shape[1])
 
     def test_process_prediction_data_y_1(self):
@@ -356,79 +349,3 @@ class TestFinancialFeature(TestCase):
                 predict_y = SAMPLE_PREDICT_LABELS
             with pytest.raises(NotImplementedError):
                 feature.declassify_single_predict_y(predict_y)
-
-
-def test_financial_features_factory_successful_call():
-    feature_list = financial_features_factory(sample_fin_feature_factory_list)
-
-    for feature in feature_list:
-        expected_feature = _get_feature_by_name(feature.name, sample_fin_feature_list)
-        assert feature.name == expected_feature.name
-        assert feature.transformation == expected_feature.transformation
-        assert feature.normalization == expected_feature.normalization
-        assert feature.nbins == expected_feature.nbins
-        assert feature.ndays == expected_feature.ndays
-        assert feature.resample_minutes == expected_feature.resample_minutes
-        assert feature.start_market_minute == expected_feature.start_market_minute
-        assert feature.is_target == expected_feature.is_target
-
-
-def test_single_financial_features_factory_wrong_keys():
-    feature_dict = {
-        'name': 'feature1',
-        'transformation': {'name': 'log-return'},
-        'normalization': None,
-        'nbins': 15,
-        'ndays': 5,
-        'wrong': 1,
-        'is_target': False,
-    }
-    with pytest.raises(KeyError):
-        single_financial_feature_factory(feature_dict)
-
-    feature_dict = {
-        'name': 'feature1',
-        'transformation': {'name': 'wrong'},
-        'normalization': 'robust',
-        'nbins': 15,
-        'ndays': 5,
-        'start_market_minute': 1,
-        'is_target': False,
-    }
-
-    with pytest.raises(AssertionError):
-        financial_features_factory(feature_dict)
-
-    feature_dict = {
-        'name': 'feature1',
-        'transformation': {'name': 'log-return'},
-        'normalization': 'wrong',
-        'nbins': 15,
-        'ndays': 5,
-        'start_market_minute': 1,
-        'is_target': False,
-    }
-
-    with pytest.raises(AssertionError):
-        financial_features_factory(feature_dict)
-
-
-def test_financial_features_factory_wrong_input_type():
-    feature_list = {}
-    with pytest.raises(AssertionError):
-        financial_features_factory(feature_list)
-
-
-def _get_feature_by_name(name, feature_list):
-    for feature in feature_list:
-        if feature.name == name:
-            return feature
-    raise ValueError
-
-
-def test_get_feature_names():
-    assert set(get_feature_names(sample_fin_feature_list)) == {'open', 'close', 'high'}
-
-
-def test_get_feature_max_ndays():
-    assert get_feature_max_ndays(sample_fin_feature_list) == 10
