@@ -8,6 +8,7 @@ import pandas as pd
 import pandas_market_calendars as mcal
 
 from alphai_feature_generation.feature import FinancialFeature, KEY_EXCHANGE
+from alphai_feature_generation.feature.factory import FeatureList
 
 COLUMNS_OHLCV = 'open high low close volume'.split()
 
@@ -181,7 +182,8 @@ sample_fin_data_transf_feature_factory_list_bins = [
     },
 ]
 
-sample_fin_feature_list = [
+sample_fin_feature_list = FeatureList(
+[
     FinancialFeature(
         name='open',
         transformation={'name': 'value'},
@@ -227,7 +229,7 @@ sample_fin_feature_list = [
         local=True,
         length=10
     ),
-]
+])
 
 sample_hourly_ohlcv_data_length = len(sample_hourly_ohlcv_data_dict['open'])
 sample_hourly_ohlcv_data_symbols = sample_hourly_ohlcv_data_dict['open'].columns
