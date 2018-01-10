@@ -3,6 +3,7 @@ import itertools
 import multiprocessing
 
 from abc import ABCMeta, abstractmethod
+from collections import OrderedDict
 from contextlib import contextmanager
 from datetime import timedelta
 from functools import partial
@@ -213,8 +214,8 @@ class FinancialDataTransformation(DataTransformation):
         :param Timestamp/None target_timestamp: Timestamp the prediction is for.
         :return (dict, dict): feature_x_dict, feature_y_dict
         """
-        feature_x_dict = {}
-        feature_y_dict = {}
+        feature_x_dict = OrderedDict()
+        feature_y_dict = OrderedDict()
 
         with ensure_closing_pool() as pool:
             part = partial(self.process_predictions, prediction_timestamp, raw_data_dict, target_timestamp, universe)
@@ -640,7 +641,7 @@ class FinancialDataTransformation(DataTransformation):
         feature_names = samples[0].keys()
         label_name = self.get_target_feature().full_name
 
-        stacked_samples = {}
+        stacked_samples = OrderedDict()
         valid_symbols = []
         total_samples = 0
         unusual_samples = 0

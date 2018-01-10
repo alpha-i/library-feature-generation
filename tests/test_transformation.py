@@ -174,6 +174,7 @@ class TestFinancialDataTransformation(TestCase):
                                                           sample_historical_universes)
 
         assert len(train_x.keys()) == expected_n_features
+        assert list(train_x.keys()) == ['open_value', 'close_log-return', 'high_log-return']
 
         for key in train_x.keys():
             assert train_x[key].shape == (expected_n_samples, expected_n_time_dict[key], expected_n_symbols)
