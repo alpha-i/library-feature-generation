@@ -181,6 +181,16 @@ class TestFinancialDataTransformation(TestCase):
         for key in train_y.keys():
             assert train_y[key].shape == (expected_n_samples, expected_n_bins, expected_n_symbols)
 
+        # Mimic the extraction of data in oracle.py
+        numpy_arrays = []
+        for key, value in train_x.items():
+            numpy_arrays.append(value)
+
+        train_x = np.stack(numpy_arrays, axis=0)
+        sample_data = train_x.flatten()[0:4]
+        expected_sample = [107.35616667, 498.748, 35.341, 288.86503167]
+        np.testing.assert_array_almost_equal(sample_data, expected_sample)
+
     def load_default_config(self, expected_n_symbols):
 
         default_config = {'feature_config_list': sample_fin_data_transf_feature_factory_list_bins,
