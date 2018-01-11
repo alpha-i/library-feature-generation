@@ -130,13 +130,14 @@ class FinancialDataTransformation(DataTransformation):
         :param dict feature_x_dict: batch of x-features
         :return bool: False if the dimensions are not those expected
         """
-        correct_dimensions = True
-        total_ticks = self.features[0].length
 
+        correct_dimensions_list = []
         for feature_full_name, feature_array in feature_x_dict.items():
-            correct_dimensions = feature_array.shape[0] == total_ticks
+            for feature in self.features:
+                if feature.full_name == feature_full_name:
+                    correct_dimensions_list.append(feature_array.shape[0] == feature.length)
 
-        return correct_dimensions
+        return all(correct_dimensions_list)
 
     def check_y_batch_dimensions(self, feature_y_dict):
         """
