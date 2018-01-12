@@ -27,10 +27,12 @@ HARDCODED_FEATURE_FOR_EXTRACT_Y = 'close'
 @contextmanager
 def ensure_closing_pool():
     pool = multiprocessing.Pool(processes=multiprocessing.cpu_count() - 1)
-    yield pool
-    pool.terminate()
-    pool.join()
-    del pool
+    try:
+        yield pool
+    finally:
+        pool.terminate()
+        pool.join()
+        del pool
 
 
 class DateNotInUniverseError(Exception):
