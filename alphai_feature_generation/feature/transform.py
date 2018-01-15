@@ -47,6 +47,26 @@ class TransformLogReturn(AbstractTransform):
         return np.log(prediction_reference_ratio).replace([np.inf, -np.inf], np.nan)
 
 
+class TransformVolatility(AbstractTransform):
+
+    def validate_config(self):
+        assert 'window' in self.config
+
+    def transform_x(self, feature, data):
+        data = np.log(data.pct_change() + 1).replace([np.inf, -np.inf], np.nan)
+        data = data.rolling(window=self.config['window'], center=False).std()
+
+        # Remove the zeros / nans associated with log return
+        if feature.local:
+            data = data.iloc[1:]
+
+        return data
+
+    @property
+    def window(self):
+        return self.config['window']
+
+
 class TransformStochasticK(AbstractTransform):
 
     def validate_config(self):
@@ -174,6 +194,7 @@ FEATURE_TRANSFORMATIONS_MAPPING = {
     'gasf': TransformGASF,
     'gadf': TransformGADF,
     'mtf': TransformMTF,
+    'volatility': TransformVolatility,
 }
 
 
