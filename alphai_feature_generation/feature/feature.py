@@ -127,11 +127,12 @@ class FinancialFeature(object):
         symbol_data = symbol_data[np.isfinite(symbol_data)]
         symbol_data = symbol_data.reshape(-1, 1)  # Reshape for scikitlearn
 
-        if symbol:
-            self.scaler_dict[symbol] = deepcopy(self.scaler)
-            self.scaler_dict[symbol].fit(symbol_data)
-        else:
-            self.scaler.fit(symbol_data)
+        if len(symbol_data) > 0:
+            if symbol:
+                self.scaler_dict[symbol] = deepcopy(self.scaler)
+                self.scaler_dict[symbol].fit(symbol_data)
+            else:
+                self.scaler.fit(symbol_data)
 
     def apply_normalisation(self, dataframe):
         """ Compute normalisation across the entire training set, or apply predetermined normalistion to prediction.
