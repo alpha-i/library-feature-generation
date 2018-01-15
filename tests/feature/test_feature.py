@@ -258,7 +258,7 @@ class TestFinancialFeature(TestCase):
         data_frame_x = sample_hourly_ohlcv_data_dict[self.feature_11.name]
         processed_prediction_data_x = self.feature_11.process_prediction_data_x(data_frame_x)
 
-        assert processed_prediction_data_x.shape == (258, 5)
+        assert processed_prediction_data_x.shape == (256, 5)
 
     def test_process_prediction_data_y_1(self):
         data_frame = sample_hourly_ohlcv_data_dict[self.feature_1.name]
