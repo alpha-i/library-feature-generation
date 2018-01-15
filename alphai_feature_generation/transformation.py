@@ -362,14 +362,12 @@ class FinancialDataTransformation(DataTransformation):
                                                                                            target_market_open)
                 prediction_timestamp_list.append(prediction_timestamp)
             except DateNotInUniverseError as e:
-                logging.error(e)
+                logging.warning(e)
                 continue
 
             except KeyError as e:
                 logging.error("Error while building features. {}. prediction_time: {}. target_time: {}".format(
-                    e,
-                    prediction_market_open,
-                    target_market_schedule
+                    e, prediction_market_open, target_market_schedule
                 ))
                 continue
             except Exception as e:
@@ -731,7 +729,7 @@ def _get_universe_from_date(date, historical_universes):
                                             (date < historical_universes.end_date)].index[0]
         return historical_universes.assets[universe_idx]
     except IndexError as e:
-        raise DateNotInUniverseError("Error getting universe from date. date {} not in universe".format(date))
+        raise DateNotInUniverseError("Date {} not in universe. Skip".format(date))
 
 
 def get_unique_symbols(data_list):
