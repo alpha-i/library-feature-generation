@@ -54,11 +54,11 @@ class TransformVolatility(AbstractTransform):
 
     def transform_x(self, feature, data):
         data = np.log(data.pct_change() + 1).replace([np.inf, -np.inf], np.nan)
-        data = data.rolling(window=self.config['window'], center=False).std()
+        data = data.rolling(window=self.config['window'], min_periods=3, center=False).std()
 
-        # Remove the zeros / nans associated with log return
+        # Remove the nans associated with min_periods
         if feature.local:
-            data = data.iloc[1:]
+            data = data.iloc[3:]
 
         return data
 
