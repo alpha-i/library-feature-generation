@@ -155,6 +155,19 @@ class TestFinancialFeature(TestCase):
             local=True,
             length=10
         )
+        self.feature_11 = FinancialFeature(
+            name='close',
+            transformation={'name': 'volatility', 'window': 10},
+            normalization='standard',
+            nbins=10,
+            ndays=10,
+            resample_minutes=0,
+            start_market_minute=150,
+            is_target=True,
+            exchange_calendar=sample_market_calendar,
+            local=True,
+            length=10
+        )
 
     def test_process_prediction_data_x_1(self):
         data_dict_x = sample_hourly_ohlcv_data_dict
@@ -240,6 +253,12 @@ class TestFinancialFeature(TestCase):
 
         assert processed_prediction_data_x.shape == (self.feature_10.transformation.image_size**2,
                                                      data_frame_x.shape[1])
+
+    def test_process_prediction_data_x_11(self):
+        data_frame_x = sample_hourly_ohlcv_data_dict[self.feature_11.name]
+        processed_prediction_data_x = self.feature_11.process_prediction_data_x(data_frame_x)
+
+        assert processed_prediction_data_x.shape == (256, 5)
 
     def test_process_prediction_data_y_1(self):
         data_frame = sample_hourly_ohlcv_data_dict[self.feature_1.name]
