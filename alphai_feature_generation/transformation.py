@@ -310,8 +310,8 @@ class FinancialDataTransformation(DataTransformation):
         :return: tuple: predict, symbol_list, prediction_timestamp, target_timestamp
         """
 
-        self.add_log_returns(raw_data_dict)
         self.filter_unwanted_keys(raw_data_dict)
+        self.add_log_returns(raw_data_dict)
         market_schedule = self._extract_schedule_for_prediction(raw_data_dict)
 
         predict_x, _, symbols, predict_timestamp = self._create_data(raw_data_dict, market_schedule)
