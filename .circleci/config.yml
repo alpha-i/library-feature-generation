@@ -45,7 +45,7 @@ jobs:
           name: run tests
           command: |
             . venv/bin/activate
-            PYTHONPATH=. pytest --cov=alphai_feature_generation --cov-report html:test-reports tests/
+            PYTHONPATH=. pytest -vv --cov=alphai_feature_generation --cov-report html:test-reports tests/
 
       - store_artifacts:
           path: test-reports
