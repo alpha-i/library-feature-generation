@@ -346,8 +346,8 @@ class FinancialFeature(object):
                 means[series_idx], variances[series_idx] = \
                     declassify_labels(series_bins, predict_y[:, series_idx, :])
         else:
-            means = np.mean(predict_y, axis=0)
-            variances = np.var(predict_y, axis=0)
+            means = np.mean(predict_y, axis=0, dtype=np.float32)
+            variances = np.var(predict_y, axis=0, dtype=np.float32)
 
         return means, variances
 
@@ -361,8 +361,8 @@ class FinancialFeature(object):
 
         n_symbols = len(symbols)
         print("new symbols:", n_symbols)
-        means = np.zeros(shape=(n_symbols,))
-        variances = np.zeros(shape=(n_symbols,))
+        means = np.zeros(shape=(n_symbols,), dtype=np.float32)
+        variances = np.zeros(shape=(n_symbols,), dtype=np.float32)
         assert predict_y.shape[1] == n_symbols, "Weird shape - predict y not equal to n symbols"
 
         for i, symbol in enumerate(symbols):
@@ -376,7 +376,7 @@ class FinancialFeature(object):
 
         variances[variances == 0] = 1.0  # FIXME Hack
 
-        diag_cov_matrix = np.diag(variances)
+        diag_cov_matrix = np.diag(variances, dtype=np.float32)
         return means, diag_cov_matrix
 
 

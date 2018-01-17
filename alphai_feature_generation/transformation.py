@@ -310,6 +310,7 @@ class FinancialDataTransformation(DataTransformation):
         :return: tuple: predict, symbol_list, prediction_timestamp, target_timestamp
         """
 
+        self.add_log_returns(raw_data_dict)
         self.filter_unwanted_keys(raw_data_dict)
         market_schedule = self._extract_schedule_for_prediction(raw_data_dict)
 
@@ -546,7 +547,7 @@ class FinancialDataTransformation(DataTransformation):
         for x_dict in x_list:
             if symbol in x_dict[feature_name].columns:
                 sample = x_dict[feature_name][symbol]
-                collated_data.extend(sample.dropna().values)
+                collated_data.extend(sample.values)
 
         return np.asarray(collated_data)
 

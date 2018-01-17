@@ -9,6 +9,7 @@ class BinDistribution:
     def __init__(self, data, n_bins, use_centred_bins=False):
 
         data = data.flatten()
+        data = data[np.isfinite(data)]
 
         self.n_bins = n_bins
         self.pdf_type = self.find_best_fit_pdf_type()
