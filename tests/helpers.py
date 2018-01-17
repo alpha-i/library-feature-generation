@@ -277,3 +277,6 @@ def create_temp_folder():
 
 def destroy_temp_folder():
     shutil.rmtree(TEST_TEMP_FOLDER)
+
+
+ASSERT_NDECIMALS = 5
