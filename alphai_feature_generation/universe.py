@@ -78,6 +78,7 @@ class VolumeUniverseProvider(AbstractUniverseProvider):
         end_date = relevant_dict['volume'].index[-1]
 
         rrule_dates = list(rrule.rrule(self._rrule, dtstart=start_date, until=end_date))
+        rrule_dates[-1] = end_date
 
         if len(rrule_dates) > 1:
             for idx, (period_start_date, period_end_date) in enumerate(zip(rrule_dates[:-1], rrule_dates[1:])):
