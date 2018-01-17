@@ -376,7 +376,7 @@ class FinancialFeature(object):
 
         variances[variances == 0] = 1.0  # FIXME Hack
 
-        diag_cov_matrix = np.diag(variances, dtype=np.float32)
+        diag_cov_matrix = np.diag(variances)
         return means, diag_cov_matrix
 
 
