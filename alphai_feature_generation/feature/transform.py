@@ -53,7 +53,7 @@ class TransformVolatility(AbstractTransform):
         assert 'window' in self.config
 
     def transform_x(self, feature, data):
-        data = np.log(data.pct_change() + 1).replace([np.inf, -np.inf], np.nan, dtype=np.float32)
+        data = np.log(data.pct_change() + 1, dtype=np.float32).replace([np.inf, -np.inf], np.nan)
         data = data.rolling(window=self.config['window'], min_periods=3, center=False).std()
 
         # Remove the nans associated with min_periods
