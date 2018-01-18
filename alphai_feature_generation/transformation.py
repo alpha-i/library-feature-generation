@@ -1,3 +1,4 @@
+import os
 import logging
 import multiprocessing
 from abc import ABCMeta, abstractmethod
@@ -11,7 +12,7 @@ import pandas as pd
 import pandas_market_calendars as mcal
 
 from alphai_feature_generation.feature.factory import FinancialFeatureFactory, FeatureList, KEY_EXCHANGE
-from alphai_feature_generation.helpers import CalendarUtilities
+from alphai_feature_generation.helpers import CalendarUtilities, logtime
 
 TOTAL_TICKS_FINANCIAL_FEATURES = ['open_value', 'high_value', 'low_value', 'close_value', 'volume_value']
 TOTAL_TICKS_M1_FINANCIAL_FEATURES = ['open_log-return', 'high_log-return', 'low_log-return', 'close_log-return',
@@ -217,7 +218,6 @@ class FinancialDataTransformation(DataTransformation):
         feature_y_dict = OrderedDict()
 
         # FIXME This parallelisation was creating a crash in the backtests. So switching off for now.
-        # with ensure_closing_pool() as pool:
         part = partial(self.process_predictions, prediction_timestamp, raw_data_dict, target_timestamp, universe)
         processed_predictions = map(part, self.features)
 
@@ -338,6 +338,7 @@ class FinancialDataTransformation(DataTransformation):
         else:
             raise ValueError("Target timestamp {} not in market time".format(target_timestamp))
 
+    @logtime
     def _create_data(self, raw_data_dict, simulated_market_dates,
                      historical_universes=None, do_normalisation_fitting=False):
         """
@@ -367,9 +368,11 @@ class FinancialDataTransformation(DataTransformation):
 
             raise ValueError("Empty Market dates")
 
+        managed_dict = multiprocessing.Manager().dict(raw_data_dict)
+
         with ensure_closing_pool() as pool:
-            fit_function = partial(self.build_features_function, raw_data_dict, historical_universes, data_schedule)
-            pooled_results = map(fit_function, list(simulated_market_dates.market_open))
+            fit_function = partial(self.build_features_function, managed_dict, historical_universes, data_schedule)
+            pooled_results = pool.map(fit_function, list(simulated_market_dates.market_open))
 
         for result in pooled_results:
             feature_x_dict, feature_y_dict, prediction_timestamp, target_market_open = result
@@ -411,6 +414,7 @@ class FinancialDataTransformation(DataTransformation):
         return x_dict, y_dict, x_symbols, prediction_timestamp
 
     def build_features_function(self, raw_data_dict, historical_universes, data_schedule, prediction_market_open):
+        logging.info('process id; {}'.format(os.getpid()))
         target_market_schedule = self._extract_target_market_day(data_schedule, prediction_market_open)
         target_market_open = target_market_schedule.market_open if target_market_schedule is not None else None
 
