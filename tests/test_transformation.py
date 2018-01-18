@@ -41,40 +41,36 @@ def load_preset_config(expected_n_symbols, iteration=0):
               'normalise_per_series': False,
               'fill_limit': 0}
 
-    if iteration == 0:
-        pass
-    elif iteration == 1:  # Test predict_the_market_close
-        config['predict_the_market_close'] = True
-    elif iteration == 2:  # Test classification and normalisation
-        config['classify_per_series'] = True
-        config['normalise_per_series'] = True
-    elif iteration == 3:  # Test length/resolution requests
-        config['feature_config_list'] = sample_fin_data_transf_feature_fixed_length
-    else:
+    specific_cases = [
+        {},
+        {'predict_the_market_close': True},
+        {'classify_per_series': True, 'normalise_per_series': True},
+        {'feature_config_list': sample_fin_data_transf_feature_fixed_length}
+    ]
+
+    try:
+        updated_config = specific_cases[iteration]
+        config.update(updated_config)
+    except KeyError:
         raise ValueError('Requested configuration not implemented')
 
     return config
 
 
 def load_expected_results(iteration):
-    if iteration == 0:
-        x_mean = 207.451975429
-        y_mean = 0.2
-    elif iteration == 1:  # Test predict_the_market_close
-        x_mean = 208.451291806
-        y_mean = 0.2
-    elif iteration == 2:  # Test classification and normalisation
-        x_mean = 207.451975429
-        y_mean = 0.2
-    elif iteration == 3:  # Test length/resolution requests
-        x_mean = 3.70074341542e-18
-        y_mean = 0.2
-    else:
+    return_value_list = [
+        {'x_mean': 207.451975429, 'y_mean': 0.2},
+        {'x_mean': 208.451291806, 'y_mean': 0.2},  # Test predict_the_market_close
+        {'x_mean': 207.451975429, 'y_mean': 0.2},  # Test classification and normalisation
+        {'x_mean': 3.70074341542e-18, 'y_mean': 0.2},  # Test length/resolution requests
+    ]
+
+    try:
+        return_value = return_value_list[iteration]
+        expected_sample = [107.35616667, 498.748, 35.341, 288.86503167]
+        return return_value['x_mean'], return_value['y_mean'], expected_sample
+    except KeyError:
         raise ValueError('Requested configuration not implemented')
-
-    expected_sample = [107.35616667, 498.748, 35.341, 288.86503167]
-
-    return x_mean, y_mean, expected_sample
 
 
 class TestFinancialDataTransformation(TestCase):
