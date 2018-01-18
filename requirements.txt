@@ -1,3 +1,5 @@
+--extra-index-url https://pypi.fury.io/reW6hdjFCrSbpo3ehrBu/alpha-i/
+
 pandas < 0.22
 scikit-learn
 numpy
