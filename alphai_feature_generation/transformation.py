@@ -1,21 +1,17 @@
 import logging
-import itertools
 import multiprocessing
-
 from abc import ABCMeta, abstractmethod
 from collections import OrderedDict
 from contextlib import contextmanager
 from datetime import timedelta
 from functools import partial
 
-
 import numpy as np
 import pandas as pd
 import pandas_market_calendars as mcal
 
 from alphai_feature_generation.feature.factory import FinancialFeatureFactory, FeatureList, KEY_EXCHANGE
-from alphai_feature_generation.helpers import CalendarUtilities
-
+from alphai_feature_generation.helpers import CalendarUtilities, logtime
 
 TOTAL_TICKS_FINANCIAL_FEATURES = ['open_value', 'high_value', 'low_value', 'close_value', 'volume_value']
 TOTAL_TICKS_M1_FINANCIAL_FEATURES = ['open_log-return', 'high_log-return', 'low_log-return', 'close_log-return',
@@ -221,7 +217,6 @@ class FinancialDataTransformation(DataTransformation):
         feature_y_dict = OrderedDict()
 
         # FIXME This parallelisation was creating a crash in the backtests. So switching off for now.
-        # with ensure_closing_pool() as pool:
         part = partial(self.process_predictions, prediction_timestamp, raw_data_dict, target_timestamp, universe)
         processed_predictions = map(part, self.features)
 
@@ -342,6 +337,7 @@ class FinancialDataTransformation(DataTransformation):
         else:
             raise ValueError("Target timestamp {} not in market time".format(target_timestamp))
 
+    @logtime
     def _create_data(self, raw_data_dict, simulated_market_dates,
                      historical_universes=None, do_normalisation_fitting=False):
         """
@@ -371,36 +367,22 @@ class FinancialDataTransformation(DataTransformation):
 
             raise ValueError("Empty Market dates")
 
-        for prediction_market_open in simulated_market_dates.market_open:
+        managed_dict = multiprocessing.Manager().dict(raw_data_dict)
 
-            target_market_schedule = self._extract_target_market_day(data_schedule, prediction_market_open)
-            target_market_open = target_market_schedule.market_open if target_market_schedule is not None else None
+        with ensure_closing_pool() as pool:
+            fit_function = partial(self.build_features_function, managed_dict, historical_universes, data_schedule)
+            pooled_results = pool.map(fit_function, list(simulated_market_dates.market_open))
 
-            try:
-                feature_x_dict, feature_y_dict, prediction_timestamp = self.build_features(raw_data_dict,
-                                                                                           historical_universes,
-                                                                                           prediction_market_open,
-                                                                                           target_market_open)
+        for result in pooled_results:
+            feature_x_dict, feature_y_dict, prediction_timestamp, target_market_open = result
+            if feature_x_dict is not None:
                 prediction_timestamp_list.append(prediction_timestamp)
-            except DateNotInUniverseError as e:
-                logging.warning(e)
-                continue
-
-            except KeyError as e:
-                logging.error("Error while building features. {}. prediction_time: {}. target_time: {}".format(
-                    e, prediction_market_open, target_market_schedule
-                ))
-                continue
-            except Exception as e:
-                logging.error('Failed to build a set of features', exc_info=e)
-                raise e
-
-            if self.check_x_batch_dimensions(feature_x_dict):
-                data_x_list.append(feature_x_dict)
-                data_y_list.append(feature_y_dict)
-            else:
-                rejected_x_list.append(feature_x_dict)
-                rejected_y_list.append(feature_y_dict)
+                if self.check_x_batch_dimensions(feature_x_dict):
+                    data_x_list.append(feature_x_dict)
+                    data_y_list.append(feature_y_dict)
+                else:
+                    rejected_x_list.append(feature_x_dict)
+                    rejected_y_list.append(feature_y_dict)
 
         n_valid_samples = len(data_x_list)
 
@@ -409,6 +391,7 @@ class FinancialDataTransformation(DataTransformation):
             if len(rejected_x_list) > 0:
                 self.print_diagnostics(rejected_x_list[-1], rejected_y_list[-1])
 
+        logging.info("Making normalised x list")
         data_x_list = self._make_normalised_x_list(data_x_list, do_normalisation_fitting)
 
         action = 'prediction'
@@ -428,6 +411,29 @@ class FinancialDataTransformation(DataTransformation):
         prediction_timestamp = prediction_timestamp_list[-1] if len(prediction_timestamp_list) > 0 else None
 
         return x_dict, y_dict, x_symbols, prediction_timestamp
+
+    def build_features_function(self, raw_data_dict, historical_universes, data_schedule, prediction_market_open):
+        target_market_schedule = self._extract_target_market_day(data_schedule, prediction_market_open)
+        target_market_open = target_market_schedule.market_open if target_market_schedule is not None else None
+
+        try:
+            feature_x_dict, feature_y_dict, prediction_timestamp = self.build_features(raw_data_dict,
+                                                                                       historical_universes,
+                                                                                       target_market_open,
+                                                                                       prediction_market_open)
+        except DateNotInUniverseError as e:
+            logging.warning(e)
+            return None, None, None, target_market_open
+
+        except KeyError as e:
+            logging.error("Error while building features. {}. prediction_time: {}".format(
+                e, prediction_market_open))
+            return None, None, None, target_market_open
+        except Exception as e:
+            logging.error('Failed to build a set of features', exc_info=e)
+            return None, None, None, target_market_open
+
+        return feature_x_dict, feature_y_dict, prediction_timestamp, target_market_open
 
     def _extract_target_market_day(self, market_schedule, prediction_timestamp):
         """
@@ -455,7 +461,8 @@ class FinancialDataTransformation(DataTransformation):
 
         base_key = 'close' if 'close' in data_dict else list(data_dict.keys())[0]
         close_data = data_dict[base_key]
-        data_dict['log-return'] = np.log(close_data.pct_change() + 1, dtype=np.float32).replace([np.inf, -np.inf], np.nan)
+        data_dict['log-return'] = np.log(close_data.pct_change() + 1, dtype=np.float32).replace([np.inf, -np.inf],
+                                                                                                np.nan)
 
         return data_dict
 
@@ -583,16 +590,20 @@ class FinancialDataTransformation(DataTransformation):
 
         # Applying
         logging.info("Applying y classification to: {}".format(target_name))
-        for y_dict in y_list:
-            if target_name in y_dict:
-                y_dict[target_name] = target_feature.apply_classification(y_dict[target_name])
-            else:
-                logging.info("Failed to find {} in dict: {}".format(target_name, list(y_dict.keys())))
-                logging.info("y_list: {}".format(y_list))
+        with ensure_closing_pool() as pool:
+            apply_classification = partial(self._apply_classification, target_feature, target_name)
+            applied_y_list = pool.map(apply_classification, y_list)
 
-        return y_list
+        return applied_y_list
 
-    def build_features(self, raw_data_dict, universe, prediction_market_open, target_market_open):
+    def _apply_classification(self, target_feature, target_name, y_dict):
+        if target_name in y_dict:
+            y_dict[target_name] = target_feature.apply_classification(y_dict[target_name])
+        else:
+            logging.info("Failed to find {} in dict: {}".format(target_name, list(y_dict.keys())))
+        return y_dict
+
+    def build_features(self, raw_data_dict, universe, target_market_open, prediction_market_open, ):
         """ Creates dictionaries of features and labels for a single window
 
         :param dict raw_data_dict: dictionary of dataframes containing features data.
