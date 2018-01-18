@@ -219,9 +219,10 @@ class FinancialDataTransformation(DataTransformation):
         feature_x_dict = OrderedDict()
         feature_y_dict = OrderedDict()
 
-        with ensure_closing_pool() as pool:
-            part = partial(self.process_predictions, prediction_timestamp, raw_data_dict, target_timestamp, universe)
-            processed_predictions = pool.map(part, self.features)
+        # FIXME This parallelisation was creating a crash in the backtests. So switching off for now.
+        # with ensure_closing_pool() as pool:
+        part = partial(self.process_predictions, prediction_timestamp, raw_data_dict, target_timestamp, universe)
+        processed_predictions = map(part, self.features)
 
         for prediction in processed_predictions:
             feature_x_dict[prediction[0]] = prediction[1]
