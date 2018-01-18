@@ -367,9 +367,9 @@ class FinancialDataTransformation(DataTransformation):
 
             raise ValueError("Empty Market dates")
 
-        # with ensure_closing_pool() as pool:
-        fit_function = partial(self.build_features_function, raw_data_dict, historical_universes, data_schedule)
-        pooled_results = map(fit_function, list(simulated_market_dates.market_open))
+        with ensure_closing_pool() as pool:
+            fit_function = partial(self.build_features_function, raw_data_dict, historical_universes, data_schedule)
+            pooled_results = map(fit_function, list(simulated_market_dates.market_open))
 
         for result in pooled_results:
             feature_x_dict, feature_y_dict, prediction_timestamp, target_market_open = result
@@ -411,12 +411,10 @@ class FinancialDataTransformation(DataTransformation):
         return x_dict, y_dict, x_symbols, prediction_timestamp
 
     def build_features_function(self, raw_data_dict, historical_universes, data_schedule, prediction_market_open):
-        logging.info("Getting the target market open.")
         target_market_schedule = self._extract_target_market_day(data_schedule, prediction_market_open)
         target_market_open = target_market_schedule.market_open if target_market_schedule is not None else None
 
         try:
-            logging.info("Building the features.")
             feature_x_dict, feature_y_dict, prediction_timestamp = self.build_features(raw_data_dict,
                                                                                        historical_universes,
                                                                                        target_market_open,
