@@ -33,7 +33,7 @@ class TransformLogReturn(AbstractTransform):
         return True
 
     def transform_x(self, feature, data):
-        data = np.log(data.pct_change() + 1).replace([np.inf, -np.inf], np.nan)
+        data = np.log(data.pct_change() + 1, dtype=np.float32).replace([np.inf, -np.inf], np.nan)
 
         # Remove the zeros / nans associated with log return
         if feature.local:
@@ -44,7 +44,7 @@ class TransformLogReturn(AbstractTransform):
     def transform_y(self, feature, data, reference_data):
 
         prediction_reference_ratio = data / reference_data
-        return np.log(prediction_reference_ratio).replace([np.inf, -np.inf], np.nan)
+        return np.log(prediction_reference_ratio, dtype=np.float32).replace([np.inf, -np.inf], np.nan)
 
 
 class TransformVolatility(AbstractTransform):
@@ -53,7 +53,7 @@ class TransformVolatility(AbstractTransform):
         assert 'window' in self.config
 
     def transform_x(self, feature, data):
-        data = np.log(data.pct_change() + 1).replace([np.inf, -np.inf], np.nan)
+        data = np.log(data.pct_change() + 1, dtype=np.float32).replace([np.inf, -np.inf], np.nan)
         data = data.rolling(window=self.config['window'], min_periods=3, center=False).std()
 
         # Remove the nans associated with min_periods

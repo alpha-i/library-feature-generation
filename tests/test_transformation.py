@@ -23,6 +23,8 @@ SAMPLE_PREDICT_LABELS = SAMPLE_TRAIN_LABELS[:, int(0.5 * SAMPLE_TRAIN_LABELS.sha
 SAMPLE_TRAIN_LABELS = {'open': SAMPLE_TRAIN_LABELS}
 SAMPLE_PREDICT_LABELS = {'open': SAMPLE_PREDICT_LABELS}
 
+REL_TOL = 1e-4
+
 
 def load_preset_config(expected_n_symbols, iteration=0):
     config = {'feature_config_list': sample_fin_data_transf_feature_factory_list_bins,
@@ -232,23 +234,23 @@ class TestFinancialDataTransformation(TestCase):
         assert len(predict_x.keys()) == expected_n_features
         assert list(predict_x.keys()) == ['open_value', 'close_log-return', 'high_log-return']
 
-        assert np.isclose(predict_x['open_value'][0, :, 0].mean(), 124.787)
-        assert np.isclose(predict_x['open_value'][0, :, 1].mean(), 570.950)
-        assert np.isclose(predict_x['open_value'][0, :, 2].mean(), 32.418)
-        assert np.isclose(predict_x['open_value'][0, :, 3].mean(), 384.03379)
-        assert np.isclose(predict_x['open_value'][0, :, 4].mean(), 15.9612)
+        assert np.isclose(predict_x['open_value'][0, :, 0].mean(), 124.787, rtol=REL_TOL)
+        assert np.isclose(predict_x['open_value'][0, :, 1].mean(), 570.950, rtol=REL_TOL)
+        assert np.isclose(predict_x['open_value'][0, :, 2].mean(), 32.418, rtol=REL_TOL)
+        assert np.isclose(predict_x['open_value'][0, :, 3].mean(), 384.03379, rtol=REL_TOL)
+        assert np.isclose(predict_x['open_value'][0, :, 4].mean(), 15.9612, rtol=REL_TOL)
 
-        assert np.isclose(predict_x['close_log-return'][0, :, 0].mean(), -0.00037412756518502636)
-        assert np.isclose(predict_x['close_log-return'][0, :, 1].mean(), -0.00071031231939734001)
-        assert np.isclose(predict_x['close_log-return'][0, :, 2].mean(), -0.0028026462004643749)
-        assert np.isclose(predict_x['close_log-return'][0, :, 3].mean(), -0.0011889590013153429)
-        assert np.isclose(predict_x['close_log-return'][0, :, 4].mean(), 0.0015928267596619391)
+        assert np.isclose(predict_x['close_log-return'][0, :, 0].mean(), -0.00037412756518502636, rtol=REL_TOL)
+        assert np.isclose(predict_x['close_log-return'][0, :, 1].mean(), -0.00071031231939734001, rtol=REL_TOL)
+        assert np.isclose(predict_x['close_log-return'][0, :, 2].mean(), -0.0028026462004643749, rtol=REL_TOL)
+        assert np.isclose(predict_x['close_log-return'][0, :, 3].mean(), -0.0011889590013153429, rtol=REL_TOL)
+        assert np.isclose(predict_x['close_log-return'][0, :, 4].mean(), 0.0015928267596619391, rtol=REL_TOL)
 
-        assert np.isclose(predict_x['high_log-return'][0, :, 0].mean(), -0.14222451613690593)
-        assert np.isclose(predict_x['high_log-return'][0, :, 1].mean(), -0.19212886645801133)
-        assert np.isclose(predict_x['high_log-return'][0, :, 2].mean(), -0.50004735819544888)
-        assert np.isclose(predict_x['high_log-return'][0, :, 3].mean(), -0.2603029872984271)
-        assert np.isclose(predict_x['high_log-return'][0, :, 4].mean(), 0.15312313803264102)
+        assert np.isclose(predict_x['high_log-return'][0, :, 0].mean(), -0.14222451613690593, rtol=REL_TOL)
+        assert np.isclose(predict_x['high_log-return'][0, :, 1].mean(), -0.19212886645801133, rtol=REL_TOL)
+        assert np.isclose(predict_x['high_log-return'][0, :, 2].mean(), -0.50004735819544888, rtol=REL_TOL)
+        assert np.isclose(predict_x['high_log-return'][0, :, 3].mean(), -0.2603029872984271, rtol=REL_TOL)
+        assert np.isclose(predict_x['high_log-return'][0, :, 4].mean(), 0.15312313803264102, rtol=REL_TOL)
 
         for key in predict_x.keys():
             assert predict_x[key].shape == (expected_n_samples, expected_n_time_dict[key], expected_n_symbols)
