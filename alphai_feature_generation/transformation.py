@@ -591,14 +591,19 @@ class FinancialDataTransformation(DataTransformation):
 
         # Applying
         logging.info("Applying y classification to: {}".format(target_name))
-        for y_dict in y_list:
-            if target_name in y_dict:
-                y_dict[target_name] = target_feature.apply_classification(y_dict[target_name])
-            else:
-                logging.info("Failed to find {} in dict: {}".format(target_name, list(y_dict.keys())))
-                logging.info("y_list: {}".format(y_list))
+        with ensure_closing_pool() as pool:
+            apply_classification = partial(self._apply_classification, target_feature, target_name)
+            applied_y_list = pool.map(apply_classification, y_list)
 
-        return y_list
+        return applied_y_list
+
+    def _apply_classification(self, target_feature, target_name, y_dict):
+        logging.info("Applying classification for y_dict: %s", y_dict)
+        if target_name in y_dict:
+            y_dict[target_name] = target_feature.apply_classification(y_dict[target_name])
+        else:
+            logging.info("Failed to find {} in dict: {}".format(target_name, list(y_dict.keys())))
+        return y_dict
 
     def build_features(self, raw_data_dict, universe, target_market_open, prediction_market_open, ):
         """ Creates dictionaries of features and labels for a single window
