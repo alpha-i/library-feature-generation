@@ -7,3 +7,4 @@ tables
 pyts
 future
 python-dateutil
+alphai_finance
