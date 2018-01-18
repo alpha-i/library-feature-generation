@@ -155,6 +155,33 @@ sample_fin_data_transf_feature_factory_list_nobins = [
     },
 ]
 
+sample_fin_data_transf_feature_fixed_length = [
+    {
+        'name': 'close',
+        'normalization': 'standard',
+        'resolution': 15,
+        'length': 2,
+        'transformation': {'name': 'log-return'},
+        'is_target': False,
+    },
+    {
+        'name': 'close',
+        'normalization': 'standard',
+        'resolution': 15,
+        'length': 2,
+        'transformation': {'name': 'ewma', 'halflife': 6},
+        'is_target': False,
+    },
+    {
+        'name': 'high',
+        'normalization': 'standard',
+        'resolution': 150,
+        'length': 2,
+        'transformation': {'name': 'log-return'},
+        'is_target': True
+    },
+]
+
 sample_fin_data_transf_feature_factory_list_bins = [
     {
         'name': 'open',
