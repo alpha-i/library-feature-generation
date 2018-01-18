@@ -272,8 +272,8 @@ class FinancialDataTransformation(DataTransformation):
         :return (dict, dict): feature_x_dict, feature_y_dict
         """
 
-        self.add_log_returns(raw_data_dict)
-        self.filter_unwanted_keys(raw_data_dict)
+        raw_data_dict = self.add_log_returns(raw_data_dict)
+        raw_data_dict = self.filter_unwanted_keys(raw_data_dict)
 
         raw_data_dict['close'] = raw_data_dict['close'].astype('float32', copy=False)
 
@@ -290,18 +290,13 @@ class FinancialDataTransformation(DataTransformation):
     def filter_unwanted_keys(self, data_dict):
         """
 
-        :param data_dict:
+        :param data_dict: Dictionary we wish to trim
         :return:
         """
 
-        wanted_keys = set()
-        for feature in self.features:
-            wanted_keys.add(feature.name)
+        wanted_keys = {feature.name for feature in self.features}
 
-        current_keys = list(data_dict.keys())
-        for key in current_keys:
-            if key not in wanted_keys:
-                data_dict.pop(key)
+        return {key: value for key, value in data_dict.items() if key in wanted_keys}
 
     def create_predict_data(self, raw_data_dict):
         """
@@ -310,9 +305,8 @@ class FinancialDataTransformation(DataTransformation):
         :return: tuple: predict, symbol_list, prediction_timestamp, target_timestamp
         """
 
-        self.add_log_returns(raw_data_dict)
-        self.filter_unwanted_keys(raw_data_dict)
-        self.add_log_returns(raw_data_dict)
+        raw_data_dict = self.add_log_returns(raw_data_dict)
+        raw_data_dict = self.filter_unwanted_keys(raw_data_dict)
         market_schedule = self._extract_schedule_for_prediction(raw_data_dict)
 
         predict_x, _, symbols, predict_timestamp = self._create_data(raw_data_dict, market_schedule)
@@ -455,13 +449,15 @@ class FinancialDataTransformation(DataTransformation):
     def add_log_returns(self, data_dict):
         """ If not already in dictionary, add raw log returns
 
-        :param data_dict:
-        :return:
+        :param data_dict: Original data dict
+        :return: Updated dict
         """
 
         base_key = 'close' if 'close' in data_dict else list(data_dict.keys())[0]
         close_data = data_dict[base_key]
         data_dict['log-return'] = np.log(close_data.pct_change() + 1, dtype=np.float32).replace([np.inf, -np.inf], np.nan)
+
+        return data_dict
 
     def print_diagnostics(self, xdict, ydict):
         """
