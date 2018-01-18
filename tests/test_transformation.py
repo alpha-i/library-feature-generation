@@ -4,14 +4,15 @@ import numpy as np
 import pandas as pd
 import pytest
 
+from alphai_feature_generation.feature import KEY_EXCHANGE
 from alphai_feature_generation.transformation import (
     FinancialDataTransformation,
 )
-from alphai_feature_generation.feature import KEY_EXCHANGE
 from tests.helpers import (
     sample_hourly_ohlcv_data_dict,
     sample_fin_data_transf_feature_factory_list_nobins,
     sample_fin_data_transf_feature_factory_list_bins,
+    sample_fin_data_transf_feature_fixed_length,
     sample_historical_universes,
     TEST_ARRAY,
 )
@@ -22,7 +23,56 @@ SAMPLE_PREDICT_LABELS = SAMPLE_TRAIN_LABELS[:, int(0.5 * SAMPLE_TRAIN_LABELS.sha
 SAMPLE_TRAIN_LABELS = {'open': SAMPLE_TRAIN_LABELS}
 SAMPLE_PREDICT_LABELS = {'open': SAMPLE_PREDICT_LABELS}
 
-ASSERT_NDECIMALS = 5
+REL_TOL = 1e-4
+
+
+def load_preset_config(expected_n_symbols, iteration=0):
+    config = {'feature_config_list': sample_fin_data_transf_feature_factory_list_bins,
+              'features_ndays': 2,
+              'features_resample_minutes': 60,
+              'features_start_market_minute': 1,
+              KEY_EXCHANGE: 'NYSE',
+              'prediction_frequency_ndays': 1,
+              'prediction_market_minute': 30,
+              'target_delta_ndays': 5,
+              'target_market_minute': 30,
+              'n_classification_bins': 5,
+              'nassets': expected_n_symbols,
+              'local': False,
+              'classify_per_series': False,
+              'normalise_per_series': False,
+              'fill_limit': 0}
+
+    specific_cases = [
+        {},
+        {'predict_the_market_close': True},
+        {'classify_per_series': True, 'normalise_per_series': True},
+        {'feature_config_list': sample_fin_data_transf_feature_fixed_length}
+    ]
+
+    try:
+        updated_config = specific_cases[iteration]
+        config.update(updated_config)
+    except KeyError:
+        raise ValueError('Requested configuration not implemented')
+
+    return config
+
+
+def load_expected_results(iteration):
+    return_value_list = [
+        {'x_mean': 207.451975429, 'y_mean': 0.2},
+        {'x_mean': 208.451291806, 'y_mean': 0.2},  # Test predict_the_market_close
+        {'x_mean': 207.451975429, 'y_mean': 0.2},  # Test classification and normalisation
+        {'x_mean': 3.70074341542e-18, 'y_mean': 0.2},  # Test length/resolution requests
+    ]
+
+    try:
+        return_value = return_value_list[iteration]
+        expected_sample = [107.35616667, 498.748, 35.341, 288.86503167]
+        return return_value['x_mean'], return_value['y_mean'], expected_sample
+    except KeyError:
+        raise ValueError('Requested configuration not implemented')
 
 
 class TestFinancialDataTransformation(TestCase):
@@ -84,6 +134,10 @@ class TestFinancialDataTransformation(TestCase):
     def test_create_data_with_prediction_at_market_close(self):
         pass
 
+    @pytest.mark.skip(reason='The test for prediction at market close must be implemented')
+    def test_check_x_batch_dimensions(self):
+        pass
+
     def test_get_total_ticks_x(self):
         assert self.transformation_without_bins.get_total_ticks_x() == 15
 
@@ -98,7 +152,8 @@ class TestFinancialDataTransformation(TestCase):
 
     def test_get_target_feature(self):
         target_feature = self.transformation_without_bins.get_target_feature()
-        expected_target_feature = [feature for feature in self.transformation_without_bins.features if feature.is_target][0]
+        expected_target_feature = [
+            feature for feature in self.transformation_without_bins.features if feature.is_target][0]
         assert target_feature == expected_target_feature
 
     def test_get_prediction_data_all_features_target(self):
@@ -150,67 +205,121 @@ class TestFinancialDataTransformation(TestCase):
         dummy_dict = {'open_value': dummy_dataframe,
                       'high_log-return': dummy_dataframe}
         normalised_dict = {'open_value': normalised_dataframe,
-                      'high_log-return': dummy_dataframe}
+                           'high_log-return': dummy_dataframe}
 
         starting_x_list = [dummy_dict]
         expected_x_list = [normalised_dict]
         feature = self.transformation_with_bins.features[0]
 
         self.transformation_with_bins.fit_normalisation(symbols, starting_x_list, feature)
-        normalised_x_list = self.transformation_with_bins._make_normalised_x_list(starting_x_list, do_normalisation_fitting=True)
+        normalised_x_list = self.transformation_with_bins._make_normalised_x_list(starting_x_list,
+                                                                                  do_normalisation_fitting=True)
         assert normalised_x_list[0]['open_value']['AAPL'].equals(expected_x_list[0]['open_value']['AAPL'])
 
-    def test_create_data(self):
-        expected_n_samples = 30
-        expected_n_time_dict = {'open_value': 15, 'high_log-return': 15, 'close_log-return': 15}
-        expected_n_symbols = 4
-        expected_n_features = 3
-        expected_n_bins = 5
+    def test_create_predict_data(self):
 
-        config = self.load_default_config(expected_n_symbols)
+        expected_n_samples = 1
+        expected_n_time_dict = {'open_value': 15, 'high_log-return': 15, 'close_log-return': 15}
+        expected_n_symbols = 5
+        expected_n_features = 3
+
+        config = load_preset_config(expected_n_symbols)
         fintransform = FinancialDataTransformation(config)
 
-        train_x, train_y = fintransform.create_train_data(sample_hourly_ohlcv_data_dict,
-                                                          sample_historical_universes)
+        # have to run train first so that the normalizers are fit
+        _, _ = fintransform.create_train_data(sample_hourly_ohlcv_data_dict, sample_historical_universes)
+        predict_x, symbols, predict_timestamp, target_timestamp = fintransform.create_predict_data(
+            sample_hourly_ohlcv_data_dict)
 
-        assert len(train_x.keys()) == expected_n_features
+        assert len(predict_x.keys()) == expected_n_features
+        assert list(predict_x.keys()) == ['open_value', 'close_log-return', 'high_log-return']
+
+        assert np.isclose(predict_x['open_value'][0, :, 0].mean(), 124.787, rtol=REL_TOL)
+        assert np.isclose(predict_x['open_value'][0, :, 1].mean(), 570.950, rtol=REL_TOL)
+        assert np.isclose(predict_x['open_value'][0, :, 2].mean(), 32.418, rtol=REL_TOL)
+        assert np.isclose(predict_x['open_value'][0, :, 3].mean(), 384.03379, rtol=REL_TOL)
+        assert np.isclose(predict_x['open_value'][0, :, 4].mean(), 15.9612, rtol=REL_TOL)
+
+        assert np.isclose(predict_x['close_log-return'][0, :, 0].mean(), -0.00037412756518502636, rtol=REL_TOL)
+        assert np.isclose(predict_x['close_log-return'][0, :, 1].mean(), -0.00071031231939734001, rtol=REL_TOL)
+        assert np.isclose(predict_x['close_log-return'][0, :, 2].mean(), -0.0028026462004643749, rtol=REL_TOL)
+        assert np.isclose(predict_x['close_log-return'][0, :, 3].mean(), -0.0011889590013153429, rtol=REL_TOL)
+        assert np.isclose(predict_x['close_log-return'][0, :, 4].mean(), 0.0015928267596619391, rtol=REL_TOL)
+
+        assert np.isclose(predict_x['high_log-return'][0, :, 0].mean(), -0.14222451613690593, rtol=REL_TOL)
+        assert np.isclose(predict_x['high_log-return'][0, :, 1].mean(), -0.19212886645801133, rtol=REL_TOL)
+        assert np.isclose(predict_x['high_log-return'][0, :, 2].mean(), -0.50004735819544888, rtol=REL_TOL)
+        assert np.isclose(predict_x['high_log-return'][0, :, 3].mean(), -0.2603029872984271, rtol=REL_TOL)
+        assert np.isclose(predict_x['high_log-return'][0, :, 4].mean(), 0.15312313803264102, rtol=REL_TOL)
+
+        for key in predict_x.keys():
+            assert predict_x[key].shape == (expected_n_samples, expected_n_time_dict[key], expected_n_symbols)
+
+        assert len(symbols) == expected_n_symbols
+        assert list(symbols) == ['AAPL', 'GOOG', 'INTC', 'AMZN', 'BAC']
+
+
+@pytest.mark.parametrize("index", [0, 1, 2, 3])
+def test_create_data(index):
+    expected_n_samples = 30
+    expected_n_time_dict = {'open_value': 15, 'high_log-return': 15, 'close_log-return': 15}
+    expected_n_symbols = 4
+    expected_n_features = 3
+    expected_n_bins = 5
+
+    config = load_preset_config(expected_n_symbols, index)
+    exp_x_mean, exp_y_mean, expected_sample = load_expected_results(index)
+
+    fintransform = FinancialDataTransformation(config)
+    train_x, train_y = fintransform.create_train_data(sample_hourly_ohlcv_data_dict,
+                                                      sample_historical_universes)
+
+    assert len(train_x.keys()) == expected_n_features
+    if index < 3:
         assert list(train_x.keys()) == ['open_value', 'close_log-return', 'high_log-return']
 
+        # Check shape of arrays
         for key in train_x.keys():
             assert train_x[key].shape == (expected_n_samples, expected_n_time_dict[key], expected_n_symbols)
 
         for key in train_y.keys():
             assert train_y[key].shape == (expected_n_samples, expected_n_bins, expected_n_symbols)
 
-        # Mimic the extraction of data in oracle.py
+    # Now check contents
+    if index == 3:
+        x_key = 'close_log-return_15T'
+        y_key = 'high_log-return_150T'
+    else:
+        x_key = 'open_value'
+        y_key = 'high_log-return'
+
+    assert np.isclose(train_x[x_key].flatten().mean(), exp_x_mean)
+    assert np.isclose(train_y[y_key].flatten().mean(), exp_y_mean)
+
+    if index == 0:  # Check feature ordering is preserved. This mimics the extraction of data in oracle.py
         numpy_arrays = []
         for key, value in train_x.items():
             numpy_arrays.append(value)
 
         train_x = np.stack(numpy_arrays, axis=0)
         sample_data = train_x.flatten()[0:4]
-        expected_sample = [107.35616667, 498.748, 35.341, 288.86503167]
+
         np.testing.assert_array_almost_equal(sample_data, expected_sample)
 
-    def load_default_config(self, expected_n_symbols):
+    def test_check_x_batch_dimensions(self):
 
-        default_config = {'feature_config_list': sample_fin_data_transf_feature_factory_list_bins,
-                          'features_ndays': 2,
-                          'features_resample_minutes': 60,
-                          'features_start_market_minute': 1,
-                          KEY_EXCHANGE: 'NYSE',
-                          'prediction_frequency_ndays': 1,
-                          'prediction_market_minute': 30,
-                          'target_delta_ndays': 5,
-                          'target_market_minute': 30,
-                          'n_classification_bins': 5,
-                          'nassets': expected_n_symbols,
-                          'local': False,
-                          'classify_per_series': False,
-                          'normalise_per_series': False,
-                          'fill_limit': 0}
+        expected_n_symbols = 4
 
-        return default_config
+        test_dict_1 = {'open_value': np.zeros(15), 'close_log-return': np.zeros(15), 'high_log-return': np.zeros(15)}
+        test_dict_2 = {'open_value': np.zeros(0), 'close_log-return': np.zeros(15), 'high_log-return': np.zeros(15)}
+        test_dict_3 = {'open_value': np.zeros(15), 'close_log-return': np.zeros(12), 'high_log-return': np.zeros(15)}
+
+        config = self.load_default_config(expected_n_symbols)
+        fintransform = FinancialDataTransformation(config)
+
+        assert fintransform.check_x_batch_dimensions(test_dict_1)
+        assert ~fintransform.check_x_batch_dimensions(test_dict_2)
+        assert ~fintransform.check_x_batch_dimensions(test_dict_3)
 
 
 def mock_ml_model_single_pass(predict_x):
