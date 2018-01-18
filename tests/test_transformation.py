@@ -256,6 +256,21 @@ class TestFinancialDataTransformation(TestCase):
 
         return default_config
 
+    def test_check_x_batch_dimensions(self):
+
+        expected_n_symbols = 4
+
+        test_dict_1 = {'open_value': np.zeros(15), 'close_log-return': np.zeros(15), 'high_log-return': np.zeros(15)}
+        test_dict_2 = {'open_value': np.zeros(0), 'close_log-return': np.zeros(15), 'high_log-return': np.zeros(15)}
+        test_dict_3 = {'open_value': np.zeros(15), 'close_log-return': np.zeros(12), 'high_log-return': np.zeros(15)}
+
+        config = self.load_default_config(expected_n_symbols)
+        fintransform = FinancialDataTransformation(config)
+
+        assert fintransform.check_x_batch_dimensions(test_dict_1)
+        assert ~fintransform.check_x_batch_dimensions(test_dict_2)
+        assert ~fintransform.check_x_batch_dimensions(test_dict_3)
+
 
 def mock_ml_model_single_pass(predict_x):
     mean_list = []
