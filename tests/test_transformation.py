@@ -84,6 +84,10 @@ class TestFinancialDataTransformation(TestCase):
     def test_create_data_with_prediction_at_market_close(self):
         pass
 
+    @pytest.mark.skip(reason='The test for prediction at market close must be implemented')
+    def test_check_x_batch_dimensions(self):
+        pass
+
     def test_get_total_ticks_x(self):
         assert self.transformation_without_bins.get_total_ticks_x() == 15
 
@@ -159,6 +163,48 @@ class TestFinancialDataTransformation(TestCase):
         self.transformation_with_bins.fit_normalisation(symbols, starting_x_list, feature)
         normalised_x_list = self.transformation_with_bins._make_normalised_x_list(starting_x_list, do_normalisation_fitting=True)
         assert normalised_x_list[0]['open_value']['AAPL'].equals(expected_x_list[0]['open_value']['AAPL'])
+
+    def test_create_predict_data(self):
+
+        expected_n_samples = 1
+        expected_n_time_dict = {'open_value': 15, 'high_log-return': 15, 'close_log-return': 15}
+        expected_n_symbols = 5
+        expected_n_features = 3
+
+        config = self.load_default_config(expected_n_symbols)
+        fintransform = FinancialDataTransformation(config)
+
+        # have to run train first so that the normalizers are fit
+        _, _ = fintransform.create_train_data(sample_hourly_ohlcv_data_dict, sample_historical_universes)
+        predict_x, symbols, predict_timestamp, target_timestamp = fintransform.create_predict_data(sample_hourly_ohlcv_data_dict)
+
+        assert len(predict_x.keys()) == expected_n_features
+        assert list(predict_x.keys()) == ['open_value', 'close_log-return', 'high_log-return']
+
+        assert np.isclose(predict_x['open_value'][0, :, 0].mean(), 124.787)
+        assert np.isclose(predict_x['open_value'][0, :, 1].mean(), 570.950)
+        assert np.isclose(predict_x['open_value'][0, :, 2].mean(), 32.418)
+        assert np.isclose(predict_x['open_value'][0, :, 3].mean(), 384.03379)
+        assert np.isclose(predict_x['open_value'][0, :, 4].mean(), 15.9612)
+
+        assert np.isclose(predict_x['close_log-return'][0, :, 0].mean(), -0.00037412756518502636)
+        assert np.isclose(predict_x['close_log-return'][0, :, 1].mean(), -0.00071031231939734001)
+        assert np.isclose(predict_x['close_log-return'][0, :, 2].mean(), -0.0028026462004643749)
+        assert np.isclose(predict_x['close_log-return'][0, :, 3].mean(), -0.0011889590013153429)
+        assert np.isclose(predict_x['close_log-return'][0, :, 4].mean(), 0.0015928267596619391)
+
+        assert np.isclose(predict_x['high_log-return'][0, :, 0].mean(), -0.14222451613690593)
+        assert np.isclose(predict_x['high_log-return'][0, :, 1].mean(), -0.19212886645801133)
+        assert np.isclose(predict_x['high_log-return'][0, :, 2].mean(), -0.50004735819544888)
+        assert np.isclose(predict_x['high_log-return'][0, :, 3].mean(), -0.2603029872984271)
+        assert np.isclose(predict_x['high_log-return'][0, :, 4].mean(), 0.15312313803264102)
+
+        for key in predict_x.keys():
+            assert predict_x[key].shape == (expected_n_samples, expected_n_time_dict[key], expected_n_symbols)
+
+        assert len(symbols) == expected_n_symbols
+        assert list(symbols) == ['AAPL', 'GOOG', 'INTC', 'AMZN', 'BAC']
+
 
     def test_create_data(self):
         expected_n_samples = 30
