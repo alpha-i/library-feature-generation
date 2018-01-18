@@ -1,4 +1,3 @@
-import os
 import logging
 import multiprocessing
 from abc import ABCMeta, abstractmethod
@@ -414,7 +413,6 @@ class FinancialDataTransformation(DataTransformation):
         return x_dict, y_dict, x_symbols, prediction_timestamp
 
     def build_features_function(self, raw_data_dict, historical_universes, data_schedule, prediction_market_open):
-        logging.info('process id; {}'.format(os.getpid()))
         target_market_schedule = self._extract_target_market_day(data_schedule, prediction_market_open)
         target_market_open = target_market_schedule.market_open if target_market_schedule is not None else None
 
@@ -463,7 +461,8 @@ class FinancialDataTransformation(DataTransformation):
 
         base_key = 'close' if 'close' in data_dict else list(data_dict.keys())[0]
         close_data = data_dict[base_key]
-        data_dict['log-return'] = np.log(close_data.pct_change() + 1, dtype=np.float32).replace([np.inf, -np.inf], np.nan)
+        data_dict['log-return'] = np.log(close_data.pct_change() + 1, dtype=np.float32).replace([np.inf, -np.inf],
+                                                                                                np.nan)
 
         return data_dict
 
@@ -598,7 +597,6 @@ class FinancialDataTransformation(DataTransformation):
         return applied_y_list
 
     def _apply_classification(self, target_feature, target_name, y_dict):
-        logging.info("Applying classification for y_dict: %s", y_dict)
         if target_name in y_dict:
             y_dict[target_name] = target_feature.apply_classification(y_dict[target_name])
         else:
