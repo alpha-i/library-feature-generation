@@ -3,7 +3,7 @@ from setuptools import find_packages
 
 setup(
     name='alphai_feature_generation',
-    version='1.3.0',
+    version='1.3.1',
     description='Alpha-I Feature Generation',
     author='Christopher Bonnett',
     author_email='christopher.bonnett@alpha-i.co',
