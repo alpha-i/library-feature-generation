@@ -1,4 +1,5 @@
 from unittest import TestCase
+import pandas as pd
 
 import numpy as np
 from alphai_feature_generation.feature import FinancialFeature
@@ -71,6 +72,23 @@ class TestFeature(TestCase):
             normalise_per_series=True
         )
 
+        transform_config_2 = {'name': 'value'}
+
+        self.feature5 = FinancialFeature(
+            name='close',
+            transformation=transform_config_2,
+            normalization='min_max',
+            nbins=5,
+            ndays=5,
+            resample_minutes=0,
+            start_market_minute=90,
+            is_target=True,
+            exchange_calendar=sample_market_calendar,
+            local=False,
+            length=35,
+            normalise_per_series=True
+        )
+
     def test_fit_normalisation(self):
 
         symbol_data1 = np.random.randn(10000)
@@ -117,3 +135,24 @@ class TestFeature(TestCase):
 
         self.feature4.apply_normalisation(data)
         np.testing.assert_allclose(np.median(data, axis=0), np.asarray([0.,  0.,  0.,  0.,  0.]), atol=1e-3)
+
+    def test_apply_classification(self):
+        symbols = ['SYM1', 'SYM2', 'SYM3']
+        feature = self.feature5
+        dataframe = pd.DataFrame([[5, 5, 5]], columns=symbols)
+
+        symbol_data_1 = np.linspace(0, 10, 10)
+        symbol_data_2 = np.linspace(0, 100, 100)
+
+        feature.fit_classification('SYM1', symbol_data_1)
+        feature.fit_classification('SYM2', symbol_data_2)
+
+        classified_dataframe = feature.apply_classification(dataframe)
+        expected_classified_dataframe_1 = pd.DataFrame([[0., 1.],
+                                                      [0., 0.],
+                                                      [1., 0.],
+                                                      [0., 0.],
+                                                      [0., 0.]], columns=symbols[:2])
+
+        assert classified_dataframe[symbols[:2]].equals(expected_classified_dataframe_1)
+        assert all(classified_dataframe[symbols[2]].values == [0, 0, 0, 0, 0])
