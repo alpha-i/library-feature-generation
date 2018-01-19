@@ -3,7 +3,7 @@ from unittest import TestCase
 import numpy as np
 from alphai_feature_generation.feature import FinancialFeature
 from tests.helpers import sample_market_calendar
-
+from tests.helpers import sample_hourly_ohlcv_data_dict
 
 class TestFeature(TestCase):
 
@@ -22,7 +22,8 @@ class TestFeature(TestCase):
             is_target=True,
             exchange_calendar=sample_market_calendar,
             local=False,
-            length=35
+            length=35,
+            normalise_per_series=True
         )
 
         self.feature2 = FinancialFeature(
@@ -36,7 +37,8 @@ class TestFeature(TestCase):
             is_target=True,
             exchange_calendar=sample_market_calendar,
             local=False,
-            length=35
+            length=35,
+            normalise_per_series=True
         )
 
         self.feature3 = FinancialFeature(
@@ -50,7 +52,8 @@ class TestFeature(TestCase):
             is_target=True,
             exchange_calendar=sample_market_calendar,
             local=False,
-            length=35
+            length=35,
+            normalise_per_series=True
         )
 
         self.feature4 = FinancialFeature(
@@ -64,7 +67,8 @@ class TestFeature(TestCase):
             is_target=True,
             exchange_calendar=sample_market_calendar,
             local=False,
-            length=35
+            length=35,
+            normalise_per_series=True
         )
 
     def test_fit_normalisation(self):
@@ -85,3 +89,31 @@ class TestFeature(TestCase):
 
         self.feature4.fit_normalisation(symbol_data=symbol_data1)
         assert np.isclose(self.feature4.scaler.center_, np.median(symbol_data1), rtol=1e-4)
+
+    def test_apply_normalisation(self):
+        data = sample_hourly_ohlcv_data_dict['open']
+
+        for column in data.columns:
+            self.feature1.fit_normalisation(symbol_data=data[column].values, symbol=column)
+
+        self.feature1.apply_normalisation(data)
+        np.testing.assert_allclose(data.max(), np.asarray([1.,  1.,  1.,  1.,  1.]))
+        np.testing.assert_allclose(data.min(), np.asarray([0., 0., 0., 0., 0.]))
+
+        for column in data.columns:
+            self.feature2.fit_normalisation(symbol_data=data[column].values, symbol=column)
+
+        self.feature2.apply_normalisation(data)
+        np.testing.assert_allclose(data.mean(), np.asarray([0.,  0.,  0.,  0.,  0.]), atol=1e-4)
+
+        for column in data.columns:
+            self.feature3.fit_normalisation(symbol_data=data[column].values, symbol=column)
+
+        self.feature3.apply_normalisation(data)
+        np.testing.assert_allclose(data.mean(), np.asarray([0.,  0.,  0.,  0.,  0.]), atol=1e-3)
+
+        for column in data.columns:
+            self.feature4.fit_normalisation(symbol_data=data[column].values, symbol=column)
+
+        self.feature4.apply_normalisation(data)
+        np.testing.assert_allclose(np.median(data, axis=0), np.asarray([0.,  0.,  0.,  0.,  0.]), atol=1e-3)
