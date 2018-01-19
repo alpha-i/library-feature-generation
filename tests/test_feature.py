@@ -1,10 +1,12 @@
 from unittest import TestCase
 import pandas as pd
+from copy import deepcopy
 
 import numpy as np
 from alphai_feature_generation.feature import FinancialFeature
 from tests.helpers import sample_market_calendar
 from tests.helpers import sample_hourly_ohlcv_data_dict
+
 
 class TestFeature(TestCase):
 
@@ -109,7 +111,7 @@ class TestFeature(TestCase):
         assert np.isclose(self.feature4.scaler.center_, np.median(symbol_data1), rtol=1e-4)
 
     def test_apply_normalisation(self):
-        data = sample_hourly_ohlcv_data_dict['open']
+        data = deepcopy(sample_hourly_ohlcv_data_dict['open'])
 
         for column in data.columns:
             self.feature1.fit_normalisation(symbol_data=data[column].values, symbol=column)

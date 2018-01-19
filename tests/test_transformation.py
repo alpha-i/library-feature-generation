@@ -8,6 +8,7 @@ from alphai_feature_generation.feature import KEY_EXCHANGE
 from alphai_feature_generation.transformation import (
     FinancialDataTransformation,
 )
+
 from tests.helpers import (
     sample_hourly_ohlcv_data_dict,
     sample_fin_data_transf_feature_factory_list_nobins,
