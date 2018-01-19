@@ -318,7 +318,7 @@ class FinancialFeature(object):
                     hot_dataframe[symbol] = np.squeeze(one_hot_labels)
             else:
                 logging.warning("Symbol lacks clasification bins: {}".format(symbol))
-                dataframe.drop(symbol, axis=1, inplace=True)
+                hot_dataframe.drop(symbol, axis=1, inplace=True)
                 logging.warning("Dropping {} from dataframe.".format(symbol))
 
         return hot_dataframe

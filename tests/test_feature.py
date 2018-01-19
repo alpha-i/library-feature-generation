@@ -150,11 +150,10 @@ class TestFeature(TestCase):
         feature.fit_classification('SYM2', symbol_data_2)
 
         classified_dataframe = feature.apply_classification(dataframe)
-        expected_classified_dataframe_1 = pd.DataFrame([[0., 1.],
+        expected_classified_dataframe = pd.DataFrame([[0., 1.],
                                                       [0., 0.],
                                                       [1., 0.],
                                                       [0., 0.],
                                                       [0., 0.]], columns=symbols[:2])
 
-        assert classified_dataframe[symbols[:2]].equals(expected_classified_dataframe_1)
-        assert all(classified_dataframe[symbols[2]].values == [0, 0, 0, 0, 0])
+        assert classified_dataframe.equals(expected_classified_dataframe)
