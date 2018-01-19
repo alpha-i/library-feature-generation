@@ -1,68 +1,87 @@
 from unittest import TestCase
 
 import numpy as np
-import pandas as pd
-import pytest
-
-from alphai_feature_generation.feature import KEY_EXCHANGE
-from alphai_feature_generation.transformation import (
-    FinancialDataTransformation,
-)
-from tests.helpers import (
-    sample_hourly_ohlcv_data_dict,
-    sample_fin_data_transf_feature_factory_list_nobins,
-    sample_fin_data_transf_feature_factory_list_bins,
-    sample_fin_data_transf_feature_fixed_length,
-    sample_historical_universes,
-    TEST_ARRAY,
-)
-
-SAMPLE_TRAIN_LABELS = np.stack((TEST_ARRAY, TEST_ARRAY, TEST_ARRAY, TEST_ARRAY, TEST_ARRAY))
-SAMPLE_PREDICT_LABELS = SAMPLE_TRAIN_LABELS[:, int(0.5 * SAMPLE_TRAIN_LABELS.shape[1])]
-
-SAMPLE_TRAIN_LABELS = {'open': SAMPLE_TRAIN_LABELS}
-SAMPLE_PREDICT_LABELS = {'open': SAMPLE_PREDICT_LABELS}
+from alphai_feature_generation.feature import FinancialFeature
+from tests.helpers import sample_market_calendar
 
 
 class TestFeature(TestCase):
 
     def setUp(self):
-        configuration_nobins = {
-            'feature_config_list': sample_fin_data_transf_feature_factory_list_nobins,
-            'features_ndays': 2,
-            'features_resample_minutes': 60,
-            'features_start_market_minute': 1,
-            KEY_EXCHANGE: 'NYSE',
-            'prediction_frequency_ndays': 1,
-            'prediction_market_minute': 30,
-            'target_delta_ndays': 5,
-            'target_market_minute': 30,
-            'n_classification_bins': 5,
-            'nassets': 5,
-            'local': False,
-            'classify_per_series': False,
-            'normalise_per_series': False,
-            'fill_limit': 0
-        }
 
-        self.transformation_without_bins = FinancialDataTransformation(configuration_nobins)
+        transform_config = {'name': 'log-return'}
 
-        configuration_bins = {
-            'feature_config_list': sample_fin_data_transf_feature_factory_list_bins,
-            'features_ndays': 2,
-            'features_resample_minutes': 60,
-            'features_start_market_minute': 1,
-            KEY_EXCHANGE: 'NYSE',
-            'prediction_frequency_ndays': 1,
-            'prediction_market_minute': 30,
-            'target_delta_ndays': 5,
-            'target_market_minute': 30,
-            'n_classification_bins': 5,
-            'nassets': 5,
-            'local': False,
-            'classify_per_series': False,
-            'normalise_per_series': False,
-            'fill_limit': 0
-        }
+        self.feature1 = FinancialFeature(
+            name='close',
+            transformation=transform_config,
+            normalization='min_max',
+            nbins=10,
+            ndays=5,
+            resample_minutes=0,
+            start_market_minute=90,
+            is_target=True,
+            exchange_calendar=sample_market_calendar,
+            local=False,
+            length=35
+        )
 
-        self.transformation_with_bins = FinancialDataTransformation(configuration_bins)
+        self.feature2 = FinancialFeature(
+            name='close',
+            transformation=transform_config,
+            normalization='standard',
+            nbins=10,
+            ndays=5,
+            resample_minutes=0,
+            start_market_minute=90,
+            is_target=True,
+            exchange_calendar=sample_market_calendar,
+            local=False,
+            length=35
+        )
+
+        self.feature3 = FinancialFeature(
+            name='close',
+            transformation=transform_config,
+            normalization='gaussian',
+            nbins=10,
+            ndays=5,
+            resample_minutes=0,
+            start_market_minute=90,
+            is_target=True,
+            exchange_calendar=sample_market_calendar,
+            local=False,
+            length=35
+        )
+
+        self.feature4 = FinancialFeature(
+            name='close',
+            transformation=transform_config,
+            normalization='robust',
+            nbins=10,
+            ndays=5,
+            resample_minutes=0,
+            start_market_minute=90,
+            is_target=True,
+            exchange_calendar=sample_market_calendar,
+            local=False,
+            length=35
+        )
+
+    def test_fit_normalisation(self):
+
+        symbol_data1 = np.random.randn(10000)
+
+        self.feature1.fit_normalisation(symbol_data=symbol_data1)
+        assert np.isclose(self.feature1.scaler.data_max_, symbol_data1.max(), rtol=1e-4)
+        assert np.isclose(self.feature1.scaler.data_min_, symbol_data1.min(), rtol=1e-4)
+
+        self.feature2.fit_normalisation(symbol_data=symbol_data1)
+        assert np.isclose(self.feature2.scaler.mean_, symbol_data1.mean(), rtol=1e-4)
+        assert np.isclose(self.feature2.scaler.var_, symbol_data1.var(), rtol=1e-4)
+
+        self.feature3.fit_normalisation(symbol_data=symbol_data1)
+        assert self.feature3.scaler.references_.shape == (1000,)
+        assert self.feature3.scaler.quantiles_.shape == (1000, 1)
+
+        self.feature4.fit_normalisation(symbol_data=symbol_data1)
+        assert np.isclose(self.feature4.scaler.center_, np.median(symbol_data1), rtol=1e-4)
