@@ -165,6 +165,7 @@ class TestFinancialDataTransformation(TestCase):
         feature_x_dict, feature_y_dict = self.transformation_without_bins.collect_prediction_from_features(
             raw_data_dict,
             prediction_timestamp,
+            prediction_timestamp,
             universe,
             target_timestamp,
         )
@@ -186,6 +187,7 @@ class TestFinancialDataTransformation(TestCase):
         prediction_timestamp = sample_hourly_ohlcv_data_dict['open'].index[98]
         feature_x_dict, feature_y_dict = self.transformation_without_bins.collect_prediction_from_features(
             raw_data_dict,
+            prediction_timestamp,
             prediction_timestamp,
         )
 
