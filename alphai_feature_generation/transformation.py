@@ -203,7 +203,7 @@ class FinancialDataTransformation(DataTransformation):
             if feature.is_target:
                 return feature
 
-    def collect_prediction_from_features(self, raw_data_dict, prediction_timestamp, universe=None,
+    def collect_prediction_from_features(self, raw_data_dict, x_end_timestamp, y_start_timestamp, universe=None,
                                          target_timestamp=None):
         """
         Collect processed prediction x and y data for all the features.
@@ -217,7 +217,8 @@ class FinancialDataTransformation(DataTransformation):
         feature_y_dict = OrderedDict()
 
         # FIXME This parallelisation was creating a crash in the backtests. So switching off for now.
-        part = partial(self.process_predictions, prediction_timestamp, raw_data_dict, target_timestamp, universe)
+        part = partial(self.process_predictions, x_end_timestamp, y_start_timestamp,
+                       raw_data_dict, target_timestamp, universe)
         processed_predictions = map(part, self.features)
 
         for prediction in processed_predictions:
@@ -232,7 +233,7 @@ class FinancialDataTransformation(DataTransformation):
 
         return feature_x_dict, feature_y_dict
 
-    def process_predictions(self, prediction_timestamp, raw_data_dict, target_timestamp, universe, feature):
+    def process_predictions(self, x_timestamp, y_timestamp, raw_data_dict, target_timestamp, universe, feature):
         # TODO separate feature and target calculation
 
         if universe is None:
@@ -240,7 +241,7 @@ class FinancialDataTransformation(DataTransformation):
         feature_name = feature.full_name if feature.full_name in raw_data_dict.keys() else feature.name
         feature_x = feature.get_prediction_features(
             raw_data_dict[feature_name].loc[:, universe],
-            prediction_timestamp
+            x_timestamp
         )
 
         feature_y = None
@@ -248,7 +249,7 @@ class FinancialDataTransformation(DataTransformation):
             feature_y = feature.get_prediction_targets(
                 # currently target is hardcoded to be log-return calculated on the close (Chris B)
                 raw_data_dict[HARDCODED_FEATURE_FOR_EXTRACT_Y].loc[:, universe],
-                prediction_timestamp,
+                y_timestamp,
                 target_timestamp
             )
 
@@ -618,16 +619,16 @@ class FinancialDataTransformation(DataTransformation):
             prediction_date = prediction_market_open.date()
             universe = _get_universe_from_date(prediction_date, universe)
 
-        prediction_timestamp = self._get_prediction_timestamp(prediction_market_open)
+        x_end_timestamp, y_start_timestamp = self._get_prediction_timestamps(prediction_market_open)
         target_timestamp = self._get_target_timestamp(target_market_open)
 
-        if target_timestamp and prediction_timestamp > target_timestamp:
+        if target_timestamp and y_start_timestamp > target_timestamp:
             raise ValueError('Target timestamp should be later than prediction_timestamp')
 
         feature_x_dict, feature_y_dict = self.collect_prediction_from_features(
-            raw_data_dict, prediction_timestamp, universe, target_timestamp)
+            raw_data_dict, x_end_timestamp, y_start_timestamp, universe, target_timestamp)
 
-        return feature_x_dict, feature_y_dict, prediction_timestamp
+        return feature_x_dict, feature_y_dict, x_end_timestamp
 
     def _get_target_timestamp(self, target_market_open):
         """
@@ -648,17 +649,22 @@ class FinancialDataTransformation(DataTransformation):
         else:
             return None
 
-    def _get_prediction_timestamp(self, prediction_market_open):
+    def _get_prediction_timestamps(self, prediction_market_open):
         """
         Calculate the prediction timestamp for the given opening day
 
         :param prediction_market_open:
         :return:
         """
+
+        x_end_timestamp = prediction_market_open + timedelta(minutes=self.prediction_market_minute)
+
         if self.predict_the_market_close:
-            return CalendarUtilities.closing_time_for_day(self.exchange_calendar, prediction_market_open)
+            y_start_timestamp = CalendarUtilities.closing_time_for_day(self.exchange_calendar, prediction_market_open)
         else:
-            return prediction_market_open + timedelta(minutes=self.prediction_market_minute)
+            y_start_timestamp = x_end_timestamp
+
+        return x_end_timestamp, y_start_timestamp
 
     def apply_global_transformations(self, raw_data_dict):
         """
