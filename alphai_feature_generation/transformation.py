@@ -498,11 +498,12 @@ class FinancialDataTransformation(DataTransformation):
 
         symbols = get_unique_symbols(x_list)
 
-        with ensure_closing_pool() as pool:
-            if do_normalisation_fitting:
-                fit_function = partial(self.fit_normalisation, symbols, x_list)
-                fitted_features = pool.map(fit_function, self.features)
-                self.features = FeatureList(fitted_features)
+        # this was using multiprocessing and hanging during the backtest
+        # let's switch this off for now
+        if do_normalisation_fitting:
+            fit_function = partial(self.fit_normalisation, symbols, x_list)
+            fitted_features = [fit_function(feature) for feature in self.features]
+            self.features = FeatureList(fitted_features)
 
         for feature in self.features:
             x_list = self.apply_normalisation(x_list, feature)
