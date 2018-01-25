@@ -63,9 +63,9 @@ def load_preset_config(expected_n_symbols, iteration=0):
 def load_expected_results(iteration):
     return_value_list = [
         {'x_mean': 207.451975429, 'y_mean': 0.2},
-        {'x_mean': 208.451291806, 'y_mean': 0.2},  # Test predict_the_market_close
+        {'x_mean': 207.451975429, 'y_mean': 0.2},  # Test predict_the_market_close
         {'x_mean': 207.451975429, 'y_mean': 0.2},  # Test classification and normalisation
-        {'x_mean': 3.70074341542e-18, 'y_mean': 0.2},  # Test length/resolution requests
+        {'x_mean': 5.96046e-09, 'y_mean': 0.2},  # Test length/resolution requests
     ]
 
     try:
@@ -165,6 +165,7 @@ class TestFinancialDataTransformation(TestCase):
         feature_x_dict, feature_y_dict = self.transformation_without_bins.collect_prediction_from_features(
             raw_data_dict,
             prediction_timestamp,
+            prediction_timestamp,
             universe,
             target_timestamp,
         )
@@ -186,6 +187,7 @@ class TestFinancialDataTransformation(TestCase):
         prediction_timestamp = sample_hourly_ohlcv_data_dict['open'].index[98]
         feature_x_dict, feature_y_dict = self.transformation_without_bins.collect_prediction_from_features(
             raw_data_dict,
+            prediction_timestamp,
             prediction_timestamp,
         )
 
