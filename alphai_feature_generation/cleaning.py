@@ -1,10 +1,11 @@
-from copy import deepcopy
 import datetime
 import logging
+from copy import deepcopy
 
 import numpy as np
 import pandas as pd
 
+logger = logging.getLogger(__name__)
 
 DEFAULT_RESAMPLING_FUNCTION = 'mean'
 
@@ -345,7 +346,8 @@ def select_trading_hours_data_frame(data_frame, market_calendar, include_start=T
     for trading_day in market_schedule.itertuples():
         tmp_trading_day_list.append(
             data_frame[str(trading_day.market_open.date())].
-            between_time(trading_day.market_open.time(), trading_day.market_close.time(), include_start, include_end))
+                between_time(trading_day.market_open.time(), trading_day.market_close.time(), include_start,
+                             include_end))
 
     return pd.concat(tmp_trading_day_list, axis=0)
 
@@ -480,7 +482,7 @@ def remove_duplicated_symbols_ohlcv(ohlcv_data, max_correlation=0.999):
         symbols_to_drop += list(volumes[list(duplicated_symbols)].sort_values(ascending=False).index[1:])
 
     if len(symbols_to_drop) > 0:
-        logging.info("Dropping {} symbols.".format(len(symbols_to_drop)))
+        logger.debug("Dropping {} symbols.".format(len(symbols_to_drop)))
 
     for key in ohlcv_data.keys():
         clean_ohlcv_data[key] = ohlcv_data[key].drop(symbols_to_drop, axis=1)
