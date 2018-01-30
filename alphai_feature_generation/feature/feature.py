@@ -14,6 +14,9 @@ from alphai_feature_generation.feature.resampling import ResamplingStrategy
 from alphai_feature_generation.feature.transform import Transformation
 from alphai_feature_generation.helpers import CalendarUtilities
 
+
+logger = logging.getLogger(__name__)
+
 KEY_EXCHANGE = 'exchange_name'
 
 
@@ -156,8 +159,8 @@ class FinancialFeature(object):
                     data_x[nan_mask.mask] = np.nan
                     dataframe[symbol] = data_x.reshape(original_shape)
                 else:
-                    logging.warning("Symbol lacks normalisation scaler: {}".format(symbol))
-                    logging.warning("Dropping symbol from dataframe: {}".format(symbol))
+                    logger.debug("Symbol lacks normalisation scaler: {}".format(symbol))
+                    logger.debug("Dropping symbol from dataframe: {}".format(symbol))
                     dataframe.drop(symbol, axis=1, inplace=True)
             else:
                 data_x = self.scaler.transform(nan_mask.data)
@@ -240,7 +243,7 @@ class FinancialFeature(object):
             end_index = end_point + 1  # +1 because iloc is not inclusive of end index
             start_index = end_point - self.length + 1
         except:
-            logging.warning('Prediction timestamp {} not within range of dataframe'.format(prediction_timestamp))
+            logger.debug('Prediction timestamp {} not within range of dataframe'.format(prediction_timestamp))
             start_index = 0
             end_index = -1
 
@@ -317,9 +320,9 @@ class FinancialFeature(object):
                 if one_hot_labels.shape[-1] > 1:
                     hot_dataframe[symbol] = np.squeeze(one_hot_labels)
             else:
-                logging.warning("Symbol lacks clasification bins: {}".format(symbol))
+                logger.debug("Symbol lacks clasification bins: {}".format(symbol))
                 hot_dataframe.drop(symbol, axis=1, inplace=True)
-                logging.warning("Dropping {} from dataframe.".format(symbol))
+                logger.debug("Dropping {} from dataframe.".format(symbol))
 
         return hot_dataframe
 
@@ -370,7 +373,7 @@ class FinancialFeature(object):
                 symbol_bins = self.bin_distribution_dict[symbol]
                 means[i], variances[i] = declassify_labels(symbol_bins, predict_y[:, i, :])
             else:
-                logging.warning("No bin distribution found for symbol: {}".format(symbol))
+                logger.debug("No bin distribution found for symbol: {}".format(symbol))
                 means[i] = np.nan
                 variances[i] = np.nan
 
