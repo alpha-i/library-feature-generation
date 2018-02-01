@@ -319,6 +319,8 @@ class FinancialDataTransformation(DataTransformation):
 
         target_timestamp = self._get_valid_target_timestamp_in_schedule(schedule, predict_timestamp)
 
+        _, predict_timestamp = self._get_prediction_timestamps(schedule.loc[prediction_day]['market_open'])
+
         return predict_x, symbols, predict_timestamp, target_timestamp
 
     def _get_valid_target_timestamp_in_schedule(self, schedule, predict_timestamp):

@@ -234,6 +234,52 @@ class TestFinancialDataTransformation(TestCase):
         predict_x, symbols, predict_timestamp, target_timestamp = fintransform.create_predict_data(
             sample_hourly_ohlcv_data_dict)
 
+        assert predict_timestamp == pd.Timestamp('2015-03-09 14:00:00+0000', tz='UTC')
+
+        assert len(predict_x.keys()) == expected_n_features
+        assert list(predict_x.keys()) == ['open_value', 'close_log-return', 'high_log-return']
+
+        assert np.isclose(predict_x['open_value'][0, :, 0].mean(), 124.787, rtol=REL_TOL)
+        assert np.isclose(predict_x['open_value'][0, :, 1].mean(), 570.950, rtol=REL_TOL)
+        assert np.isclose(predict_x['open_value'][0, :, 2].mean(), 32.418, rtol=REL_TOL)
+        assert np.isclose(predict_x['open_value'][0, :, 3].mean(), 384.03379, rtol=REL_TOL)
+        assert np.isclose(predict_x['open_value'][0, :, 4].mean(), 15.9612, rtol=REL_TOL)
+
+        assert np.isclose(predict_x['close_log-return'][0, :, 0].mean(), -0.00037412756518502636, rtol=REL_TOL)
+        assert np.isclose(predict_x['close_log-return'][0, :, 1].mean(), -0.00071031231939734001, rtol=REL_TOL)
+        assert np.isclose(predict_x['close_log-return'][0, :, 2].mean(), -0.0028026462004643749, rtol=REL_TOL)
+        assert np.isclose(predict_x['close_log-return'][0, :, 3].mean(), -0.0011889590013153429, rtol=REL_TOL)
+        assert np.isclose(predict_x['close_log-return'][0, :, 4].mean(), 0.0015928267596619391, rtol=REL_TOL)
+
+        assert np.isclose(predict_x['high_log-return'][0, :, 0].mean(), -0.14222451613690593, rtol=REL_TOL)
+        assert np.isclose(predict_x['high_log-return'][0, :, 1].mean(), -0.19212886645801133, rtol=REL_TOL)
+        assert np.isclose(predict_x['high_log-return'][0, :, 2].mean(), -0.50004735819544888, rtol=REL_TOL)
+        assert np.isclose(predict_x['high_log-return'][0, :, 3].mean(), -0.2603029872984271, rtol=REL_TOL)
+        assert np.isclose(predict_x['high_log-return'][0, :, 4].mean(), 0.15312313803264102, rtol=REL_TOL)
+
+        for key in predict_x.keys():
+            assert predict_x[key].shape == (expected_n_samples, expected_n_time_dict[key], expected_n_symbols)
+
+        assert len(symbols) == expected_n_symbols
+        assert list(symbols) == ['AAPL', 'GOOG', 'INTC', 'AMZN', 'BAC']
+
+    def test_create_predict_data_on_market_close(self):
+
+        expected_n_samples = 1
+        expected_n_time_dict = {'open_value': 15, 'high_log-return': 15, 'close_log-return': 15}
+        expected_n_symbols = 5
+        expected_n_features = 3
+
+        config = load_preset_config(expected_n_symbols)
+        config['predict_the_market_close'] = True
+        fintransform = FinancialDataTransformation(config)
+
+        # have to run train first so that the normalizers are fit
+        _, _ = fintransform.create_train_data(sample_hourly_ohlcv_data_dict, sample_historical_universes)
+        predict_x, symbols, predict_timestamp, target_timestamp = fintransform.create_predict_data(
+            sample_hourly_ohlcv_data_dict)
+
+        assert predict_timestamp == pd.Timestamp('2015-03-09 20:00:00+0000', tz='UTC')
         assert len(predict_x.keys()) == expected_n_features
         assert list(predict_x.keys()) == ['open_value', 'close_log-return', 'high_log-return']
 
