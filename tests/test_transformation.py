@@ -231,7 +231,7 @@ class TestFinancialDataTransformation(TestCase):
 
         # have to run train first so that the normalizers are fit
         _, _ = fintransform.create_train_data(sample_hourly_ohlcv_data_dict, sample_historical_universes)
-        predict_x, symbols, predict_timestamp, target_timestamp = fintransform.create_predict_data(
+        predict_x, symbols, predict_timestamp, y_timestamp, target_timestamp = fintransform.create_predict_data(
             sample_hourly_ohlcv_data_dict)
 
         assert len(predict_x.keys()) == expected_n_features
