@@ -96,7 +96,13 @@ class BinDistribution:
             hi_edge = self.bin_edges[i+1]
 
             single_bin_data = data[(data >= lo_edge) & (data <= hi_edge)]
-            weighted_bin_centres[i] = np.mean(single_bin_data)
+            weighted_estimate = np.mean(single_bin_data)
+
+            # Could yield nans if bins are empty.
+            if np.isnan(weighted_estimate):
+                weighted_bin_centres[i] = self.bin_centres[i]
+            else:
+                weighted_bin_centres[i] = weighted_estimate
 
         return weighted_bin_centres
 
@@ -179,7 +185,7 @@ def classify_labels(bin_edges, labels):
     return binned_labels
 
 
-def declassify_labels(dist, pdf_arrays):
+def declassify_labels(dist, pdf_arrays, use_median=True):
     """
     Converts multiple discrete probability mass functions into means and standard deviations
     pdf_arrays has shape [n_samples, n_bins]"
@@ -188,7 +194,7 @@ def declassify_labels(dist, pdf_arrays):
     :return:
     """
 
-    point_estimates = extract_point_estimates(dist.weighted_bin_centres, pdf_arrays)
+    point_estimates = extract_point_estimates(dist.weighted_bin_centres, pdf_arrays, use_median)
 
     mean = np.mean(point_estimates)
     variance = np.var(point_estimates) - dist.sheppards_correction
@@ -197,7 +203,19 @@ def declassify_labels(dist, pdf_arrays):
     return mean, variance
 
 
-def extract_point_estimates(bin_centres, pdf_array):
+def declassify_single_pdf(dist, pdf_array, use_median=True):
+    """ Here we keep the multple pdfs seperate, yielding a mean and variance for each"""
+    point_estimates = extract_point_estimates(dist.weighted_bin_centres, pdf_array, use_median)
+
+    mean = np.mean(point_estimates)
+    variance = np.sum(dist.weighted_bin_centres ** 2 * pdf_array) - mean ** 2
+    variance -= dist.sheppards_correction
+    variance = np.maximum(variance, dist.sheppards_correction)  # Prevent variance becoming too small
+
+    return point_estimates, variance
+
+
+def extract_point_estimates(bin_centres, pdf_array, use_median):
     """
     Finds the mean values of discrete probability mass functions into point estimates, taken to be the mean
     bin_centres has shape [n_bins]
@@ -227,9 +245,20 @@ def extract_point_estimates(bin_centres, pdf_array):
 
     for i in range(n_points):
         pdf = pdf_array[i, :]
-        points[i] = np.sum(bin_centres * pdf)
+        if use_median:
+            points[i] = calculate_median_of_discrete_pdf(bin_centres, pdf)
+        else:
+            points[i] = np.sum(bin_centres * pdf)
 
     if np.abs(normalisation_offset) > 1e-3:
         logger.debug('Derived points: {}'.format(points))
 
     return points
+
+
+def calculate_median_of_discrete_pdf(bin_centres, pdf):
+    """ Estimate median of a histogram. """
+
+    return np.sum(bin_centres * pdf)  # placeholder
+
+

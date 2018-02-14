@@ -3,6 +3,7 @@ import pandas_market_calendars as mcal
 from alphai_feature_generation.feature import FinancialFeature
 from alphai_feature_generation.feature.feature import KEY_EXCHANGE
 
+DEFAULT_TRANSFORMATION =  {'name': 'value'}
 
 class FinancialFeatureFactory:
 
@@ -30,9 +31,11 @@ class FinancialFeatureFactory:
         """
         assert isinstance(feature_config, dict)
 
+        transform = feature_config.get('transformation', DEFAULT_TRANSFORMATION)
+
         return FinancialFeature(
             feature_config['name'],
-            feature_config['transformation'],
+            transform,
             feature_config['normalization'],
             feature_config['nbins'],
             feature_config['length'],

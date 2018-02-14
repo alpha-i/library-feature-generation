@@ -9,15 +9,14 @@ from sklearn.preprocessing import RobustScaler, MinMaxScaler, StandardScaler
 
 from alphai_feature_generation import (FINANCIAL_FEATURE_NORMALIZATIONS,
                                        MARKET_DAYS_SEARCH_MULTIPLIER, MIN_MARKET_DAYS_SEARCH)
-from alphai_feature_generation.classifier import BinDistribution, classify_labels, declassify_labels
+from alphai_feature_generation.classifier import BinDistribution, classify_labels, declassify_single_pdf
 from alphai_feature_generation.feature.resampling import ResamplingStrategy
 from alphai_feature_generation.feature.transform import Transformation
 from alphai_feature_generation.helpers import CalendarUtilities
 
-
 logger = logging.getLogger(__name__)
 
-KEY_EXCHANGE = 'exchange_name'
+KEY_EXCHANGE = 'holiday_calendar'
 
 
 class FinancialFeature(object):
@@ -326,34 +325,6 @@ class FinancialFeature(object):
 
         return hot_dataframe
 
-    def declassify_single_predict_y(self, predict_y):
-        raise NotImplementedError('Declassification is only available for multi-pass prediction at the moment.')
-
-    def declassify_multi_predict_y(self, predict_y):
-        """
-        Declassify multi-pass predict_y data
-        :param predict_y: target multi-pass prediction with axes (passes, series, bins)
-        :return: mean and variance of target multi-pass prediction
-        """
-        n_series = predict_y.shape[1]
-
-        if self.nbins:
-            means = np.zeros(shape=(n_series,))
-            variances = np.zeros(shape=(n_series,))
-            for series_idx in range(n_series):
-                if self.classify_per_series:
-                    series_bins = self.bin_distribution[series_idx]
-                else:
-                    series_bins = self.bin_distribution
-
-                means[series_idx], variances[series_idx] = \
-                    declassify_labels(series_bins, predict_y[:, series_idx, :])
-        else:
-            means = np.mean(predict_y, axis=0, dtype=np.float32)
-            variances = np.var(predict_y, axis=0, dtype=np.float32)
-
-        return means, variances
-
     def inverse_transform_multi_predict_y(self, predict_y, symbols):
         """
         Inverse-transform multi-pass predict_y data
@@ -363,23 +334,29 @@ class FinancialFeature(object):
         assert self.is_target
 
         n_symbols = len(symbols)
-        print("new symbols:", n_symbols)
-        means = np.zeros(shape=(n_symbols,), dtype=np.float32)
-        variances = np.zeros(shape=(n_symbols,), dtype=np.float32)
+        n_forecasts = predict_y.shape[2]
+        print("new symbols:", n_symbols, "n_forecasts:", n_forecasts)
+        data_shape = (n_forecasts, n_symbols)
+        means = np.zeros(shape=data_shape, dtype=np.float32)
+        variances = np.zeros(shape=data_shape, dtype=np.float32)
         assert predict_y.shape[1] == n_symbols, "Weird shape - predict y not equal to n symbols"
 
         for i, symbol in enumerate(symbols):
-            if symbol in self.bin_distribution_dict:
-                symbol_bins = self.bin_distribution_dict[symbol]
-                means[i], variances[i] = declassify_labels(symbol_bins, predict_y[:, i, :])
-            else:
-                logger.debug("No bin distribution found for symbol: {}".format(symbol))
-                means[i] = np.nan
-                variances[i] = np.nan
+            for j in range(n_forecasts):
+                if symbol in self.bin_distribution_dict:
+                    symbol_bins = self.bin_distribution_dict[symbol]
+                    pdf = predict_y[:, i, j, :]
+                    means[j, i], variances[j, i] = declassify_single_pdf(symbol_bins, pdf)
+                else:
+                    logger.debug("No bin distribution found for symbol: {}".format(symbol))
+                    means[j, i] = np.nan
+                    variances[j, i] = np.nan
 
-        variances[variances == 0] = 1.0  # FIXME Hack
+        #FIXME replace with proper asymmetric calculation
+        sigma = np.sqrt(variances)
+        lower_bound = means - sigma
+        upper_bound = means + sigma
 
-        diag_cov_matrix = np.diag(variances)
-        return means, diag_cov_matrix
+        return means, lower_bound, upper_bound
 
 

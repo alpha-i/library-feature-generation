@@ -13,13 +13,6 @@ import pandas_market_calendars as mcal
 from alphai_feature_generation.feature.factory import FinancialFeatureFactory, FeatureList, KEY_EXCHANGE
 from alphai_feature_generation.helpers import CalendarUtilities, logtime
 
-TOTAL_TICKS_FINANCIAL_FEATURES = ['open_value', 'high_value', 'low_value', 'close_value', 'volume_value']
-TOTAL_TICKS_M1_FINANCIAL_FEATURES = ['open_log-return', 'high_log-return', 'low_log-return', 'close_log-return',
-                                     'volume_log-return']
-
-HARDCODED_FEATURE_FOR_EXTRACT_Y = 'close'
-
-
 logger = logging.getLogger(__name__)
 
 
@@ -48,7 +41,7 @@ class DataTransformation(metaclass=ABCMeta):
         raise NotImplementedError
 
 
-class FinancialDataTransformation(DataTransformation):
+class GymDataTransformation(DataTransformation):
     def __init__(self, configuration):
         """
         :param dict configuration: dictionary containing the feature details.
@@ -61,8 +54,7 @@ class FinancialDataTransformation(DataTransformation):
             int target_delta_ndays: target time horizon in number of days
             int target_market_minute: number of minutes after market open for the target timestamp
         """
-        self.exchange_calendar = mcal.get_calendar(configuration[KEY_EXCHANGE])
-        self.minutes_in_trading_days = CalendarUtilities.get_minutes_in_one_trading_day(configuration[KEY_EXCHANGE])
+
         self.features_ndays = configuration['features_ndays']
         self.features_resample_minutes = configuration['features_resample_minutes']
         self.features_start_market_minute = configuration['features_start_market_minute']
@@ -75,10 +67,16 @@ class FinancialDataTransformation(DataTransformation):
         self.n_series = configuration['nassets']
         self.fill_limit = configuration['fill_limit']
         self.predict_the_market_close = configuration.get('predict_the_market_close', False)
-        self.clean_nan_from_dict = configuration.get('clean_nan_from_dict', False)
+        try:
+            self.holiday_calendar = mcal.get_calendar(configuration[KEY_EXCHANGE])
+            self.minutes_in_trading_days = CalendarUtilities.get_minutes_in_one_trading_day(configuration[KEY_EXCHANGE])
+        except:
+            self.holiday_calendar = None
+            self.minutes_in_trading_days = 1440
 
         self.feature_length = self.get_feature_length()
         self.features = self._financial_features_factory(configuration['feature_config_list'])
+        self.target_feature = configuration.get('target_feature', self.features[0].name)
 
         self.configuration = configuration
         self._assert_input()
@@ -165,7 +163,7 @@ class FinancialDataTransformation(DataTransformation):
             'nbins': self.n_classification_bins,
             'ndays': self.features_ndays,
             'start_market_minute': self.features_start_market_minute,
-            KEY_EXCHANGE: self.exchange_calendar.name,
+            KEY_EXCHANGE: self.holiday_calendar.name,
             'classify_per_series': self.classify_per_series,
             'normalise_per_series': self.normalise_per_series
         }
@@ -195,7 +193,7 @@ class FinancialDataTransformation(DataTransformation):
         raw_data_start_date = raw_data_dict[features_keys[0]].index[0].date()
         raw_data_end_date = raw_data_dict[features_keys[0]].index[-1].date()
 
-        return self.exchange_calendar.schedule(str(raw_data_start_date), str(raw_data_end_date))
+        return self.holiday_calendar.schedule(str(raw_data_start_date), str(raw_data_end_date))
 
     def get_target_feature(self):
         """
@@ -206,22 +204,19 @@ class FinancialDataTransformation(DataTransformation):
             if feature.is_target:
                 return feature
 
-    def collect_prediction_from_features(self, raw_data_dict, x_end_timestamp, y_start_timestamp, universe=None,
-                                         target_timestamp=None):
+    def collect_prediction_from_features(self, raw_data_dict, x_end_timestamp, y_start_timestamp, target_timestamp=None):
         """
         Collect processed prediction x and y data for all the features.
         :param dict raw_data_dict: dictionary of dataframes containing features data.
         :param Timestamp prediction_timestamp: Timestamp when the prediction is made
-        :param list/None universe: list of relevant symbols
         :param Timestamp/None target_timestamp: Timestamp the prediction is for.
         :return (dict, dict): feature_x_dict, feature_y_dict
         """
         feature_x_dict = OrderedDict()
         feature_y_dict = OrderedDict()
 
-        # FIXME This parallelisation was creating a crash in the backtests. So switching off for now.
         part = partial(self.process_predictions, x_end_timestamp, y_start_timestamp,
-                       raw_data_dict, target_timestamp, universe)
+                       raw_data_dict, target_timestamp)
         processed_predictions = map(part, self.features)
 
         for prediction in processed_predictions:
@@ -236,11 +231,9 @@ class FinancialDataTransformation(DataTransformation):
 
         return feature_x_dict, feature_y_dict
 
-    def process_predictions(self, x_timestamp, y_timestamp, raw_data_dict, target_timestamp, universe, feature):
-        # TODO separate feature and target calculation
+    def process_predictions(self, x_timestamp, y_timestamp, raw_data_dict, target_timestamp, feature):
 
-        if universe is None:
-            universe = raw_data_dict[feature.name].columns
+        universe = raw_data_dict[feature.name].columns
         feature_name = feature.full_name if feature.full_name in raw_data_dict.keys() else feature.name
         feature_x = feature.get_prediction_features(
             raw_data_dict[feature_name].loc[:, universe],
@@ -250,12 +243,13 @@ class FinancialDataTransformation(DataTransformation):
         feature_y = None
         if feature.is_target:
             feature_y = feature.get_prediction_targets(
-                # currently target is hardcoded to be log-return calculated on the close (Chris B)
-                raw_data_dict[HARDCODED_FEATURE_FOR_EXTRACT_Y].loc[:, universe],
+                # Unless specified otherwise, target is the first feature in list
+                raw_data_dict[self.target_feature].loc[:, universe],
                 y_timestamp,
                 target_timestamp
             )
 
+            #FIXME unclear why this transpose is necessary
             if feature_y is not None:
                 transposed_y = feature_y.to_frame().transpose()
                 transposed_y.set_index(pd.DatetimeIndex([target_timestamp]), inplace=True)
@@ -263,26 +257,18 @@ class FinancialDataTransformation(DataTransformation):
 
         return feature.full_name, feature_x, feature_y
 
-    def create_train_data(self, raw_data_dict, historical_universes):
+    def create_train_data(self, raw_data_dict):
         """
         Prepare x and y data for training
         :param dict raw_data_dict: dictionary of dataframes containing features data.
-        :param pd.Dataframe historical_universes: Dataframe with three columns ['start_date', 'end_date', 'assets']
         :return (dict, dict): feature_x_dict, feature_y_dict
         """
 
-        raw_data_dict = self.add_log_returns(raw_data_dict)
         raw_data_dict = self.filter_unwanted_keys(raw_data_dict)
-
-        raw_data_dict['close'] = raw_data_dict['close'].astype('float32', copy=False)
-
         market_schedule = self._extract_schedule_for_training(raw_data_dict)
-        normalise = True
+        fit_normalisation = True
 
-        train_x, train_y, _, _ = self._create_data(raw_data_dict, market_schedule, historical_universes, normalise)
-
-        if self.clean_nan_from_dict:
-            train_x, train_y = remove_nans_from_dict(train_x, train_y)
+        train_x, train_y, _, _ = self._create_data(raw_data_dict, market_schedule, fit_normalisation)
 
         return train_x, train_y
 
@@ -304,53 +290,21 @@ class FinancialDataTransformation(DataTransformation):
         :return: tuple: predict, symbol_list, prediction_timestamp, target_timestamp
         """
 
-        raw_data_dict = self.add_log_returns(raw_data_dict)
         raw_data_dict = self.filter_unwanted_keys(raw_data_dict)
         market_schedule = self._extract_schedule_for_prediction(raw_data_dict)
 
         predict_x, _, symbols, predict_timestamp = self._create_data(raw_data_dict, market_schedule)
-
-        if self.clean_nan_from_dict:
-            predict_x = remove_nans_from_dict(predict_x)
-            logger.debug("May need to update symbols when removing nans from dict")
-
-        prediction_day = predict_timestamp.date()
-        schedule = self.exchange_calendar.schedule(prediction_day, prediction_day + timedelta(days=10))
-
-        target_timestamp = self._get_valid_target_timestamp_in_schedule(schedule, predict_timestamp)
-
-        _, predict_timestamp = self._get_prediction_timestamps(schedule.loc[prediction_day]['market_open'])
+        target_timestamp = predict_timestamp + timedelta(days=self.target_delta_ndays)
 
         return predict_x, symbols, predict_timestamp, target_timestamp
 
-    def _get_valid_target_timestamp_in_schedule(self, schedule, predict_timestamp):
-        """
-        Return valid market time for target time given timestamp and delta_n_days
-
-        :param predict_timestamp:
-        :type predict_timestamp: pd.Timestamp
-        :return target_timestamp:
-        :rtype target_timestamp: pd.Timestamp
-        """
-
-        target_market_schedule = self._extract_target_market_day(schedule, predict_timestamp)
-
-        target_market_open = target_market_schedule.market_open
-        target_timestamp = self._get_target_timestamp(target_market_open)
-
-        if self.exchange_calendar.open_at_time(schedule, target_timestamp, include_close=True):
-            return target_timestamp
-        else:
-            raise ValueError("Target timestamp {} not in market time".format(target_timestamp))
-
     @logtime
-    def _create_data(self, raw_data_dict, simulated_market_dates,
-                     historical_universes=None, do_normalisation_fitting=False):
+    def _create_data(self, raw_data_dict, simulated_market_dates, do_normalisation_fitting=False):
         """
         Create x and y data
         :param dict raw_data_dict: dictionary of dataframes containing features data.
         :param simulated_market_dates: List of dates for which we generate the 'past' and 'future' data
-        :param pd.Dataframe historical_universes: Dataframe with three columns ['start_date', 'end_date', 'assets']
+        :param bool do_normalisation_fitting: Whether to fit data normalisation parameters
         :return (dict, dict): feature_x_dict, feature_y_dict
         """
 
@@ -376,7 +330,7 @@ class FinancialDataTransformation(DataTransformation):
         managed_dict = multiprocessing.Manager().dict(raw_data_dict)
 
         with ensure_closing_pool() as pool:
-            fit_function = partial(self.build_features_function, managed_dict, historical_universes, data_schedule)
+            fit_function = partial(self.build_features_function, managed_dict, data_schedule)
             pooled_results = pool.map(fit_function, list(simulated_market_dates.market_open))
 
         for result in pooled_results:
@@ -418,13 +372,12 @@ class FinancialDataTransformation(DataTransformation):
 
         return x_dict, y_dict, x_symbols, prediction_timestamp
 
-    def build_features_function(self, raw_data_dict, historical_universes, data_schedule, prediction_market_open):
+    def build_features_function(self, raw_data_dict, data_schedule, prediction_market_open):
         target_market_schedule = self._extract_target_market_day(data_schedule, prediction_market_open)
         target_market_open = target_market_schedule.market_open if target_market_schedule is not None else None
 
         try:
             feature_x_dict, feature_y_dict, prediction_timestamp = self.build_features(raw_data_dict,
-                                                                                       historical_universes,
                                                                                        target_market_open,
                                                                                        prediction_market_open)
         except DateNotInUniverseError as e:
@@ -457,20 +410,6 @@ class FinancialDataTransformation(DataTransformation):
             return market_schedule.iloc[target_index]
         else:
             return None
-
-    def add_log_returns(self, data_dict):
-        """ If not already in dictionary, add raw log returns
-
-        :param data_dict: Original data dict
-        :return: Updated dict
-        """
-
-        base_key = 'close' if 'close' in data_dict else list(data_dict.keys())[0]
-        close_data = data_dict[base_key]
-        data_dict['log-return'] = np.log(close_data.pct_change() + 1, dtype=np.float32).replace([np.inf, -np.inf],
-                                                                                                np.nan)
-
-        return data_dict
 
     def print_diagnostics(self, xdict, ydict):
         """
@@ -610,7 +549,7 @@ class FinancialDataTransformation(DataTransformation):
             logger.debug("Failed to find {} in dict: {}".format(target_name, list(y_dict.keys())))
         return y_dict
 
-    def build_features(self, raw_data_dict, universe, target_market_open, prediction_market_open, ):
+    def build_features(self, raw_data_dict, target_market_open, prediction_market_open, ):
         """ Creates dictionaries of features and labels for a single window
 
         :param dict raw_data_dict: dictionary of dataframes containing features data.
@@ -620,9 +559,7 @@ class FinancialDataTransformation(DataTransformation):
         :return:
         """
 
-        if universe is not None:
-            prediction_date = prediction_market_open.date()
-            universe = _get_universe_from_date(prediction_date, universe)
+        prediction_date = prediction_market_open.date()
 
         x_end_timestamp, y_start_timestamp = self._get_prediction_timestamps(prediction_market_open)
         target_timestamp = self._get_target_timestamp(target_market_open)
@@ -631,7 +568,7 @@ class FinancialDataTransformation(DataTransformation):
             raise ValueError('Target timestamp should be later than prediction_timestamp')
 
         feature_x_dict, feature_y_dict = self.collect_prediction_from_features(
-            raw_data_dict, x_end_timestamp, y_start_timestamp, universe, target_timestamp)
+            raw_data_dict, x_end_timestamp, y_start_timestamp, target_timestamp)
 
         return feature_x_dict, feature_y_dict, x_end_timestamp
 
@@ -648,7 +585,7 @@ class FinancialDataTransformation(DataTransformation):
         if target_market_open:
 
             if self.predict_the_market_close:
-                return CalendarUtilities.closing_time_for_day(self.exchange_calendar, target_market_open.date())
+                return CalendarUtilities.closing_time_for_day(self.holiday_calendar, target_market_open.date())
             else:
                 return target_market_open + timedelta(minutes=self.target_market_minute)
         else:
@@ -665,7 +602,7 @@ class FinancialDataTransformation(DataTransformation):
         x_end_timestamp = prediction_market_open + timedelta(minutes=self.prediction_market_minute)
 
         if self.predict_the_market_close:
-            y_start_timestamp = CalendarUtilities.closing_time_for_day(self.exchange_calendar, prediction_market_open)
+            y_start_timestamp = CalendarUtilities.closing_time_for_day(self.holiday_calendar, prediction_market_open)
         else:
             y_start_timestamp = x_end_timestamp
 
@@ -749,9 +686,9 @@ class FinancialDataTransformation(DataTransformation):
         :return ndarray: inversely transformed multi-pass predict_y data
         """
         target_feature = self.get_target_feature()
-        means, cov_matrix = target_feature.inverse_transform_multi_predict_y(predict_y, symbols)
+        medians, lower_bound, upper_bound = target_feature.inverse_transform_multi_predict_y(predict_y, symbols)
 
-        return means, cov_matrix
+        return medians, lower_bound, upper_bound
 
     def _extract_schedule_for_prediction(self, raw_data_dict):
         """
@@ -760,6 +697,7 @@ class FinancialDataTransformation(DataTransformation):
         :return:
 
         """
+
         full_schedule = self._extract_schedule_from_data(raw_data_dict)
         return full_schedule.drop(labels=full_schedule[0:-1].index, axis=0)
 
@@ -774,21 +712,6 @@ class FinancialDataTransformation(DataTransformation):
         return self._extract_schedule_from_data(raw_data_dict)[max_feature_ndays:-self.target_delta_ndays]
 
 
-def _get_universe_from_date(date, historical_universes):
-    """
-    Select the universe list of symbols from historical_universes dataframe, given input date.
-    :param pd.datetime.date date: Date for which the universe is required.
-    :param pd.Dataframe historical_universes: Dataframe with three columns ['start_date', 'end_date', 'assets']
-    :return list: list of relevant symbols
-    """
-    try:
-        universe_idx = historical_universes[(date >= historical_universes.start_date) &
-                                            (date < historical_universes.end_date)].index[0]
-        return historical_universes.assets[universe_idx]
-    except IndexError as e:
-        raise DateNotInUniverseError("Date {} not in universe. Skip".format(date))
-
-
 def get_unique_symbols(data_list):
     """Returns a list of all unique symbols in the dict of dataframes"""
 
@@ -800,41 +723,3 @@ def get_unique_symbols(data_list):
             symbols.update(feat_symbols)
 
     return symbols
-
-
-def remove_nans_from_dict(x_dict, y_dict=None):
-    """
-    looks for any of the examples in the dictionaries that have NaN and removes all those
-
-    :param x_dict: x_dict with features
-    :param y_dict: y_dict with targets
-    :return: X_dict and y_dict
-    """
-
-    for key, value in x_dict.items():
-        n_examples = value.shape[0]
-        break
-
-    resulting_bool_array = np.ones(n_examples, dtype=bool)
-
-    for key, value in x_dict.items():
-        resulting_bool_array = resulting_bool_array & ~np.isnan(value).sum(axis=2).sum(axis=1).astype(bool)
-
-    if y_dict:
-        for key, value in y_dict.items():
-            resulting_bool_array = resulting_bool_array & ~np.isnan(value).sum(axis=2).sum(axis=1).astype(bool)
-
-    logger.debug("Found {} examples with Nans, removing examples"
-                 " from all dicts".format((~resulting_bool_array).sum()))
-    logger.debug("{} examples still left in the dicts".format(resulting_bool_array.sum()))
-
-    # apply selection to all dicts
-    for key, value in x_dict.items():
-        x_dict[key] = value[resulting_bool_array]
-
-    if y_dict:
-        for key, value in y_dict.items():
-            y_dict[key] = value[resulting_bool_array]
-        return x_dict, y_dict
-    else:
-        return x_dict
