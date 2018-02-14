@@ -9,7 +9,7 @@ from sklearn.preprocessing import RobustScaler, MinMaxScaler, StandardScaler
 
 from alphai_feature_generation import (FINANCIAL_FEATURE_NORMALIZATIONS,
                                        MARKET_DAYS_SEARCH_MULTIPLIER, MIN_MARKET_DAYS_SEARCH)
-from alphai_feature_generation.classifier import BinDistribution, classify_labels, declassify_single_pdf
+from alphai_feature_generation.classifier import BinDistribution
 from alphai_feature_generation.feature.resampling import ResamplingStrategy
 from alphai_feature_generation.feature.transform import Transformation
 from alphai_feature_generation.helpers import CalendarUtilities
@@ -314,8 +314,8 @@ class FinancialFeature(object):
             data_y = dataframe[symbol].values
 
             if symbol in self.bin_distribution_dict:
-                symbol_binning = self.bin_distribution_dict[symbol]
-                one_hot_labels = classify_labels(symbol_binning.bin_edges, data_y)
+                symbol_distribution = self.bin_distribution_dict[symbol]
+                one_hot_labels = symbol_distribution.classify_labels(data_y)
                 if one_hot_labels.shape[-1] > 1:
                     hot_dataframe[symbol] = np.squeeze(one_hot_labels)
             else:
@@ -346,7 +346,7 @@ class FinancialFeature(object):
                 if symbol in self.bin_distribution_dict:
                     symbol_bins = self.bin_distribution_dict[symbol]
                     pdf = predict_y[:, i, j, :]
-                    means[j, i], variances[j, i] = declassify_single_pdf(symbol_bins, pdf)
+                    means[j, i], variances[j, i] = symbol_bins.declassify_single_pdf(pdf)
                 else:
                     logger.debug("No bin distribution found for symbol: {}".format(symbol))
                     means[j, i] = np.nan
