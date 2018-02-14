@@ -62,6 +62,38 @@ class TransformLogReturn(AbstractTransform):
         return log_return
 
 
+class TransformClipLogReturn(AbstractTransform):
+
+    MAX_LOG_RETURN = 0.1
+
+    def validate_config(self):
+        return True
+
+    @staticmethod
+    def shrink_tails(df):
+        """ Shrinks outliers to reduce their impact. """
+        max_log_return = TransformClipLogReturn.MAX_LOG_RETURN
+        return df.clip(lower=-max_log_return, upper=max_log_return)
+
+    def transform_x(self, feature, data):
+        data = np.log(data.pct_change() + 1, dtype=np.float32).replace([np.inf, -np.inf], np.nan)
+
+        data = self.shrink_tails(data)
+
+        # Remove the zeros / nans associated with log return
+        if feature.local:
+            data = data.iloc[1:]
+
+        return data
+
+    def transform_y(self, feature, data, reference_data):
+
+        prediction_reference_ratio = data / reference_data
+
+        log_return = np.log(prediction_reference_ratio, dtype=np.float32).replace([np.inf, -np.inf], np.nan)
+        return self.shrink_tails(log_return)
+
+
 class TransformVolatility(AbstractTransform):
 
     def validate_config(self):
@@ -203,6 +235,7 @@ class TransformValue(AbstractTransform):
 FEATURE_TRANSFORMATIONS_MAPPING = {
     'value': TransformValue,
     'log-return': TransformLogReturn,
+    'clip-log-return': TransformClipLogReturn,
     'stochastic_k': TransformStochasticK,
     'ewma': TransformEWMA,
     'ker': TransformKer,

@@ -1,10 +1,12 @@
 import pytest
 from numpy.testing import assert_almost_equal
 
-from alphai_feature_generation.feature import FinancialFeature
+from alphai_feature_generation.feature.features.financial import FinancialFeature
 from alphai_feature_generation.feature.transform import TransformKer
 
-from tests.helpers import sample_market_calendar, sample_hourly_ohlcv_data_dict, ASSERT_NDECIMALS
+from tests.helpers import ASSERT_NDECIMALS
+from tests.feature.features.financial.helpers import sample_market_calendar
+from tests.transformation.financial.helpers import sample_ohlcv_hourly
 
 
 def test_transform_ker_invalid_config():
@@ -26,12 +28,12 @@ def test_transform_ker_x():
             resample_minutes=0,
             start_market_minute=150,
             is_target=True,
-            exchange_calendar=sample_market_calendar,
+            calendar=sample_market_calendar,
             local=False,
             length=10
         )
 
-    raw_dataframe = sample_hourly_ohlcv_data_dict[feature.name]
+    raw_dataframe = sample_ohlcv_hourly[feature.name]
 
     transform = TransformKer(transform_config)
     processed_prediction_data_x = transform.transform_x(feature, raw_dataframe)

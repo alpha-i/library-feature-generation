@@ -3,19 +3,22 @@ from setuptools import find_packages
 
 setup(
     name='alphai_feature_generation',
-    version='1.3.6',
+    version='2.0.0-dev-gym',
     description='Alpha-I Feature Generation',
     author='Christopher Bonnett',
     author_email='christopher.bonnett@alpha-i.co',
     packages=find_packages(exclude=['doc', 'tests*']),
-    install_requires=['numpy',
-                      'pandas',
+    install_requires=['pandas<0.22',
                       'scikit-learn',
+                      'numpy',
                       'scipy',
-                      'pandas_market_calendars>=0.12',
+                      'alphai_calendars>=0.0.1,<1.0.0',
                       'tables',
                       'pyts',
                       'future',
-                      'python-dateutil'
-                      ]
+                      'python-dateutil',
+                  ],
+    dependency_links=[
+        'https://pypi.fury.io/zNzsk7gQsYY335HLzW9x/alpha-i/alphai_calendars/',
+    ]
 )
