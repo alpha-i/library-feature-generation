@@ -164,15 +164,26 @@ class BinDistribution:
             cumulative_sum += pdf[bin_index]
 
         # Now we know bin_index holds the median value. Just need to interpolate a bit
-        if bin_index == 0:  # Treat edges differently
-            value = self.weighted_bin_centres[bin_index]
+        bin_total = pdf[bin_index]
+
+        if bin_index == 0:  # Treat edges of histogram as triangles
+            bin_offset = self.bin_edges[1] - self.weighted_bin_centres[0]
+            triangle_width = 3 * bin_offset  # Triangle CoM is 1/3
+            low_edge = self.bin_edges[1] - triangle_width
+            area_fill_fraction = confidence_interval / bin_total
+            linear_fill_fraction = np.sqrt(area_fill_fraction)
+            value = low_edge + triangle_width * linear_fill_fraction
         elif bin_index == self.n_bins:
-            value = self.weighted_bin_centres[bin_index]
+            bin_offset = self.weighted_bin_centres[-1] - self.bin_edges[-2]
+            triangle_width = 3 * bin_offset  # Triangle CoM is 1/3
+            upper_edge = self.bin_edges[-2] + triangle_width
+            area_fill_fraction = (1 - confidence_interval) / bin_total
+            linear_fill_fraction = np.sqrt(area_fill_fraction)
+            value = upper_edge - triangle_width * linear_fill_fraction
         else:
             lower_edge = self.bin_edges[bin_index]
             bin_width = self.bin_widths[bin_index]
 
-            bin_total = pdf[bin_index]
             overflow = cumulative_sum - confidence_interval
             residue = bin_total - overflow
 
