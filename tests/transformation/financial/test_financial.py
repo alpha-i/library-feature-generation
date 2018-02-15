@@ -4,19 +4,14 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from alphai_feature_generation.feature import KEY_EXCHANGE
-from alphai_feature_generation.transformation import (
-    FinancialDataTransformation,
-)
+from alphai_feature_generation.feature import FinancialFeature
+from alphai_feature_generation.transformation import FinancialDataTransformation
 
-from tests.helpers import (
-    sample_hourly_ohlcv_data_dict,
-    sample_fin_data_transf_feature_factory_list_nobins,
-    sample_fin_data_transf_feature_factory_list_bins,
-    sample_fin_data_transf_feature_fixed_length,
-    sample_historical_universes,
-    TEST_ARRAY,
-)
+from tests.helpers import TEST_ARRAY
+
+from tests.transformation.financial.helpers import sample_hourly_ohlcv_data_dict, \
+    sample_fin_data_transf_feature_factory_list_nobins, sample_fin_data_transf_feature_fixed_length, \
+    sample_fin_data_transf_feature_factory_list_bins, sample_historical_universes
 
 SAMPLE_TRAIN_LABELS = np.stack((TEST_ARRAY, TEST_ARRAY, TEST_ARRAY, TEST_ARRAY, TEST_ARRAY))
 SAMPLE_PREDICT_LABELS = SAMPLE_TRAIN_LABELS[:, int(0.5 * SAMPLE_TRAIN_LABELS.shape[1])]
@@ -26,6 +21,7 @@ SAMPLE_PREDICT_LABELS = {'open': SAMPLE_PREDICT_LABELS}
 
 REL_TOL = 1e-4
 
+KEY_EXCHANGE = FinancialFeature.KEY_EXCHANGE
 
 def load_preset_config(expected_n_symbols, iteration=0):
     config = {'feature_config_list': sample_fin_data_transf_feature_factory_list_bins,

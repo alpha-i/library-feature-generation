@@ -2,7 +2,8 @@ import pytest
 
 from alphai_feature_generation.feature import FinancialFeature
 from alphai_feature_generation.feature.transform import TransformGASF, TransformGADF
-from tests.helpers import sample_market_calendar, sample_hourly_ohlcv_data_dict
+from tests.feature.financial.helpers import sample_market_calendar
+from tests.transformation.financial.helpers import sample_hourly_ohlcv_data_dict
 
 
 def _perform_test(feature, raw_dataframe, transform):

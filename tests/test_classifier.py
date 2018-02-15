@@ -1,12 +1,7 @@
 import numpy as np
 import unittest
 
-from alphai_feature_generation.classifier import (
-    BinDistribution,
-    classify_labels,
-    declassify_labels,
-    extract_point_estimates
-)
+from alphai_feature_generation.classifier import BinDistribution
 
 from tests.helpers import (
     N_BINS,
@@ -55,16 +50,44 @@ class TestBinDistribution(unittest.TestCase):
 
         self.assertAlmostEqual(distribution.sheppards_correction, correction)
 
-
-class TestClassifier(unittest.TestCase):
-
     def test_classify_labels(self):
-        true_classification = np.zeros(N_BINS)
-        true_classification[5] = 1
-        label = np.array([5.01])
+        distribution = BinDistribution(TEST_TRAIN_LABELS, N_BINS)
+        labels = np.array([0.5, 9.5])  # should be assigned to first and last bins
+        classes = distribution.classify_labels(labels)
 
-        binned_label = classify_labels(TEST_EDGES, label)
-        self.assertTrue(np.allclose(binned_label, true_classification, rtol=RTOL, atol=ATOL))
+        class1 = np.zeros(N_BINS)
+        class2 = np.zeros(N_BINS)
+        class1[0] = 1
+        class2[-1] = 1
+
+        correct_classes = [class1, class2]
+        self.assertTrue(np.allclose(classes, correct_classes, rtol=RTOL, atol=ATOL))
+
+    # def test_calculate_single_confidence_interval(self):
+    #     distribution = BinDistribution(TEST_TRAIN_LABELS, N_BINS)
+    #
+    #     median_confidence_interval = 0.5
+    #     high_confidence_interval = 0.975
+    #     TEST_PDF_1 = distribution.pdf
+    #     value_1 = distribution._calculate_single_confidence_interval(TEST_PDF_1, median_confidence_interval)
+    #     value_2 = distribution._calculate_single_confidence_interval(TEST_PDF_1, high_confidence_interval)
+    #
+    #     TEST_PDF_2 = np.zeros(N_BINS)
+    #     TEST_PDF_2[-1] = 1
+    #
+    #     value_3 = distribution._calculate_single_confidence_interval(TEST_PDF_2, median_confidence_interval)
+    #     value_4 = distribution._calculate_single_confidence_interval(TEST_PDF_2, high_confidence_interval)
+    #
+    #     upper_bound = TEST_EDGES[-1]
+    #     true_value_1 = upper_bound / 2  # Median of the 0-10 range
+    #     true_value_2 = upper_bound * 0.975  # 97.5% confidence for U(0-10)
+    #     true_value_3 = upper_bound * 0.95  # Median of the 0.9-1 bin
+    #     true_value_4 = upper_bound * 0.9975  # 97.5% confidence for that bin
+    #
+    #     self.assertAlmostEqual(value_1, true_value_1, delta=RTOL)
+    #     self.assertAlmostEqual(value_2, true_value_2, delta=RTOL)
+    #     self.assertAlmostEqual(value_3, true_value_3, delta=RTOL)
+    #     self.assertAlmostEqual(value_4, true_value_4, delta=RTOL)
 
     def test_declassify_labels(self):
         # Check the mean and variance of a simple pdf [00001000]
@@ -75,7 +98,7 @@ class TestClassifier(unittest.TestCase):
         dist = BinDistribution(TEST_TRAIN_LABELS, N_BINS)
         pdf_arrays = dist.pdf
 
-        mean, variance = declassify_labels(dist, pdf_arrays)
+        mean, variance = dist.declassify_labels(pdf_arrays)
         true_mean = np.mean(TEST_TRAIN_LABELS)
 
         true_variance = bin_width ** 2 / 12
@@ -91,9 +114,11 @@ class TestClassifier(unittest.TestCase):
         pdf_array[0, index_a] = 1
         pdf_array[1, index_b] = 1
 
-        estimated_points = extract_point_estimates(TEST_BIN_CENTRES, pdf_array)
+        distribution = BinDistribution(TEST_BIN_CENTRES, N_BINS)
+        estimated_points = distribution.extract_point_estimates(pdf_array, False)
         point_a = TEST_BIN_CENTRES[index_a]
         point_b = TEST_BIN_CENTRES[index_b]
         points = [point_a, point_b]
 
         self.assertTrue(np.allclose(estimated_points, points, rtol=RTOL, atol=ATOL))
+

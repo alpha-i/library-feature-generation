@@ -16,10 +16,11 @@ from alphai_feature_generation.helpers import CalendarUtilities
 
 logger = logging.getLogger(__name__)
 
-KEY_EXCHANGE = 'holiday_calendar'
 
+class GymFeature(object):
 
-class FinancialFeature(object):
+    KEY_EXCHANGE = 'holiday_calendar'
+
     def __init__(self, name, transformation, normalization, nbins, length, ndays, resample_minutes, start_market_minute,
                  is_target, exchange_calendar, local, classify_per_series=False, normalise_per_series=False):
         """
