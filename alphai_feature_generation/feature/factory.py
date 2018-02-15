@@ -1,13 +1,19 @@
+from abc import abstractmethod, ABCMeta
+
 import pandas_market_calendars as mcal
 
-from alphai_feature_generation.feature import FinancialFeature
-from alphai_feature_generation.feature.feature import KEY_EXCHANGE
+from alphai_feature_generation.feature import FinancialFeature, GymFeature
+
+DEFAULT_TRANSFORMATION =  {'name': 'value'}
 
 
-class FinancialFeatureFactory:
+class AbstractFeatureFactory(metaclass=ABCMeta):
 
-    @staticmethod
-    def create_from_list(feature_config_list):
+    @abstractmethod
+    def get_feature_class(self):
+        return NotImplemented
+
+    def create_from_list(self, feature_config_list):
         """
         Build list of financial features from list of complete feature-config dictionaries.
         :param list feature_config_list: list of dictionaries containing feature details.
@@ -17,12 +23,11 @@ class FinancialFeatureFactory:
 
         feature_list = FeatureList()
         for single_feature_dict in feature_config_list:
-            feature_list.add_feature(FinancialFeatureFactory.create_feature(single_feature_dict))
+            feature_list.add_feature(self.create_feature(single_feature_dict))
 
         return feature_list
 
-    @staticmethod
-    def create_feature(feature_config):
+    def create_feature(self, feature_config):
         """
         Build target financial feature from dictionary.
         :param dict feature_config: dictionary containing feature details.
@@ -30,9 +35,13 @@ class FinancialFeatureFactory:
         """
         assert isinstance(feature_config, dict)
 
-        return FinancialFeature(
+        transform = feature_config.get('transformation', DEFAULT_TRANSFORMATION)
+        feature_class = self.get_feature_class()
+        exchange_calendar_name = feature_config[feature_class.KEY_EXCHANGE]
+
+        return feature_class(
             feature_config['name'],
-            feature_config['transformation'],
+            transform,
             feature_config['normalization'],
             feature_config['nbins'],
             feature_config['length'],
@@ -40,11 +49,23 @@ class FinancialFeatureFactory:
             feature_config['resample_minutes'],
             feature_config['start_market_minute'],
             feature_config['is_target'],
-            mcal.get_calendar(feature_config[KEY_EXCHANGE]),
+            mcal.get_calendar(exchange_calendar_name),
             feature_config['local'],
             feature_config.get('classify_per_series'),
             feature_config.get('normalise_per_series')
         )
+
+
+class FinancialFeatureFactory(AbstractFeatureFactory):
+
+    def get_feature_class(self):
+        return FinancialFeature
+
+
+class GymFeatureFactory(AbstractFeatureFactory):
+
+    def get_feature_class(self):
+        return GymFeature
 
 
 class FeatureList:

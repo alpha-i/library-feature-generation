@@ -1,1 +1,2 @@
-from alphai_feature_generation.feature.feature import FinancialFeature, KEY_EXCHANGE
+from alphai_feature_generation.feature.features.financial import FinancialFeature
+from alphai_feature_generation.feature.features.gym import GymFeature

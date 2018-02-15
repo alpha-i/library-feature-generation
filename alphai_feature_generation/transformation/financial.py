@@ -1,8 +1,7 @@
 import logging
 import multiprocessing
-from abc import ABCMeta, abstractmethod
+
 from collections import OrderedDict
-from contextlib import contextmanager
 from datetime import timedelta
 from functools import partial
 
@@ -10,42 +9,24 @@ import numpy as np
 import pandas as pd
 import pandas_market_calendars as mcal
 
-from alphai_feature_generation.feature.factory import FinancialFeatureFactory, FeatureList, KEY_EXCHANGE
+from alphai_feature_generation.feature.factory import FinancialFeatureFactory, FeatureList
+from alphai_feature_generation.feature.features.financial import FinancialFeature
 from alphai_feature_generation.helpers import CalendarUtilities, logtime
+from alphai_feature_generation.transformation.base import (
+    ensure_closing_pool,
+    DataTransformation,
+    get_unique_symbols
+)
+
 
 TOTAL_TICKS_FINANCIAL_FEATURES = ['open_value', 'high_value', 'low_value', 'close_value', 'volume_value']
 TOTAL_TICKS_M1_FINANCIAL_FEATURES = ['open_log-return', 'high_log-return', 'low_log-return', 'close_log-return',
                                      'volume_log-return']
 
 HARDCODED_FEATURE_FOR_EXTRACT_Y = 'close'
-
-
 logger = logging.getLogger(__name__)
 
-
-@contextmanager
-def ensure_closing_pool():
-    pool = multiprocessing.Pool(processes=multiprocessing.cpu_count() - 1)
-    try:
-        yield pool
-    finally:
-        pool.terminate()
-        pool.join()
-        del pool
-
-
-class DateNotInUniverseError(Exception):
-    pass
-
-
-class DataTransformation(metaclass=ABCMeta):
-    @abstractmethod
-    def create_train_data(self, *args):
-        raise NotImplementedError
-
-    @abstractmethod
-    def create_predict_data(self, *args):
-        raise NotImplementedError
+KEY_EXCHANGE = FinancialFeature.KEY_EXCHANGE
 
 
 class FinancialDataTransformation(DataTransformation):
@@ -78,7 +59,7 @@ class FinancialDataTransformation(DataTransformation):
         self.clean_nan_from_dict = configuration.get('clean_nan_from_dict', False)
 
         self.feature_length = self.get_feature_length()
-        self.features = self._financial_features_factory(configuration['feature_config_list'])
+        self.features = self._feature_factory(configuration['feature_config_list'])
 
         self.configuration = configuration
         self._assert_input()
@@ -153,7 +134,7 @@ class FinancialDataTransformation(DataTransformation):
 
         return correct_dimensions
 
-    def _financial_features_factory(self, feature_config_list):
+    def _feature_factory(self, feature_config_list):
         """
         Build list of financial features from list of incomplete feature-config dictionaries (class-specific).
         :param list feature_config_list: list of dictionaries containing feature details.
@@ -787,20 +768,6 @@ def _get_universe_from_date(date, historical_universes):
         return historical_universes.assets[universe_idx]
     except IndexError as e:
         raise DateNotInUniverseError("Date {} not in universe. Skip".format(date))
-
-
-def get_unique_symbols(data_list):
-    """Returns a list of all unique symbols in the dict of dataframes"""
-
-    symbols = set()
-
-    for data_dict in data_list:
-        for feature in data_dict:
-            feat_symbols = data_dict[feature].columns
-            symbols.update(feat_symbols)
-
-    return symbols
-
 
 def remove_nans_from_dict(x_dict, y_dict=None):
     """

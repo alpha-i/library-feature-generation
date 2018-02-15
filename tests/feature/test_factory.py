@@ -1,11 +1,12 @@
 import pytest
 
 from alphai_feature_generation.feature.factory import FinancialFeatureFactory
-from tests.helpers import sample_fin_feature_factory_list, sample_fin_feature_list
+from tests.feature.financial.helpers import sample_fin_feature_factory_list, sample_fin_feature_list
 
 
-def test_financial_features_factory_successful_call():
-    feature_list = FinancialFeatureFactory.create_from_list(sample_fin_feature_factory_list)
+def test_features_factory_successful_call():
+    factory = FinancialFeatureFactory()
+    feature_list = factory.create_from_list(sample_fin_feature_factory_list)
 
     for feature in feature_list:
         expected_feature = _get_feature_by_name(feature.name, sample_fin_feature_list)
@@ -19,7 +20,7 @@ def test_financial_features_factory_successful_call():
         assert feature.is_target == expected_feature.is_target
 
 
-def test_single_financial_features_factory_wrong_keys():
+def test_single_features_factory_wrong_keys():
     feature_dict = {
         'name': 'feature1',
         'transformation': {'name': 'log-return'},
@@ -29,14 +30,18 @@ def test_single_financial_features_factory_wrong_keys():
         'wrong': 1,
         'is_target': False,
     }
+
+    factory = FinancialFeatureFactory()
     with pytest.raises(KeyError):
-        FinancialFeatureFactory.create_feature(feature_dict)
+        factory.create_feature(feature_dict)
 
 
-def test_financial_features_factory_wrong_input_type():
+def test_features_factory_wrong_input_type():
     feature_list = {}
+
+    factory = FinancialFeatureFactory()
     with pytest.raises(AssertionError):
-        FinancialFeatureFactory.create_from_list(feature_list)
+        factory.create_from_list(feature_list)
 
 
 def _get_feature_by_name(name, feature_list):
