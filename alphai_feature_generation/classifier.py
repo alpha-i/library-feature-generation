@@ -127,42 +127,60 @@ class BinDistribution:
         return full_gap / n_bins
 
     def _calc_sheppards_correction(self):
-        """
-        Computes the extend to which the variance is overestimated when using binned data.
+        """ Computes the extend to which the variance is overestimated when using binned data.
 
         :return float: The amount by which the variance of the discrete pdf overestimates the continuous pdf
         """
         return np.median(self.bin_widths ** 2) / 12
 
-    def calculate_discrete_median(self, pdf):
-        """ Estimate median of a histogram by stepping through bins until we hit 50% threshold. """
+    def estimate_confidence_interval(self, pdf, confidence_interval=0.68):
+        """ Returns median and outer ranges of confidence interval. Default is 68%"""
+
+        median_val = 0.5
+        hi_val = median_val + confidence_interval / 2
+        low_val = median_val - confidence_interval / 2
+
+        median = self._calculate_single_confidence_interval(pdf, median_val)
+        lower_bound = self._calculate_single_confidence_interval(pdf, low_val)
+        upper_bound = self._calculate_single_confidence_interval(pdf, hi_val)
+
+        return median, lower_bound, upper_bound
+
+    def _calculate_single_confidence_interval(self, pdf, confidence_interval):
+        """ Estimate confidence level of a histogram by stepping through bins until we hit desired threshold. """
+        if confidence_interval < 0 or confidence_interval > 1:
+            raise ValueError("Invalid confidence interval {} requested.".format(confidence_interval))
+
+        pdf = pdf.flatten()
+        if not len(pdf) == self.n_bins:
+            raise ValueError("Pdf {} of length {} doesnt match expected number of bins {}".format(pdf, len(pdf), self.n_bins))
 
         # First verify length of input
         bin_index = 0
         cumulative_sum = pdf[bin_index]
 
-        while cumulative_sum < 0.5:
+        while cumulative_sum < confidence_interval:
             bin_index += 1
             cumulative_sum += pdf[bin_index]
 
         # Now we know bin_index holds the median value. Just need to interpolate a bit
-        is_not_edge = (bin_index == 0 or bin_index == len(pdf))
-
-        if is_not_edge:  # Treat edges differently
+        if bin_index == 0:  # Treat edges differently
+            value = self.weighted_bin_centres[bin_index]
+        elif bin_index == self.n_bins:
+            value = self.weighted_bin_centres[bin_index]
+        else:
             lower_edge = self.bin_edges[bin_index]
             bin_width = self.bin_widths[bin_index]
 
             bin_total = pdf[bin_index]
-            overflow = cumulative_sum - 0.5
+            overflow = cumulative_sum - confidence_interval
             residue = bin_total - overflow
 
             bin_fraction = residue / bin_total
 
-            median = lower_edge + bin_width * bin_fraction
-        else:
-            median = self.weighted_bin_centres[bin_index]
+            value = lower_edge + bin_width * bin_fraction
 
-        return median  # placeholder
+        return value
 
     def declassify_single_pdf(self, pdf_array, use_median=True):
         """  Here we keep the multple pdfs seperate, yielding a mean and variance for each.

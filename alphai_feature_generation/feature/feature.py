@@ -325,7 +325,7 @@ class FinancialFeature(object):
 
         return hot_dataframe
 
-    def inverse_transform_multi_predict_y(self, predict_y, symbols):
+    def inverse_transform_multi_predict_y(self, predict_y, symbols, confidence_interval=0.68):
         """
         Inverse-transform multi-pass predict_y data
         :param pd.Dataframe predict_y: target multi-pass prediction
@@ -338,7 +338,8 @@ class FinancialFeature(object):
         print("new symbols:", n_symbols, "n_forecasts:", n_forecasts)
         data_shape = (n_forecasts, n_symbols)
         means = np.zeros(shape=data_shape, dtype=np.float32)
-        variances = np.zeros(shape=data_shape, dtype=np.float32)
+        lower_bound = np.zeros(shape=data_shape, dtype=np.float32)
+        upper_bound = np.zeros(shape=data_shape, dtype=np.float32)
         assert predict_y.shape[1] == n_symbols, "Weird shape - predict y not equal to n symbols"
 
         for i, symbol in enumerate(symbols):
@@ -346,17 +347,13 @@ class FinancialFeature(object):
                 if symbol in self.bin_distribution_dict:
                     symbol_bins = self.bin_distribution_dict[symbol]
                     pdf = predict_y[:, i, j, :]
-                    means[j, i], variances[j, i] = symbol_bins.declassify_single_pdf(pdf)
+                    means[j, i], lower_bound[j, i], upper_bound[j, i] = \
+                        symbol_bins.estimate_confidence_interval(pdf, confidence_interval)
                 else:
                     logger.debug("No bin distribution found for symbol: {}".format(symbol))
                     means[j, i] = np.nan
-                    variances[j, i] = np.nan
-
-        #FIXME replace with proper asymmetric calculation
-        sigma = np.sqrt(variances)
-        lower_bound = means - sigma
-        upper_bound = means + sigma
+                    lower_bound[j, i] = np.nan
+                    upper_bound[j, i] = np.nan
 
         return means, lower_bound, upper_bound
-
 
