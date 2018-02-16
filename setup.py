@@ -16,10 +16,6 @@ setup(
                       'tables',
                       'pyts',
                       'future',
-                      'python-dateutil',
-                      'alphai_finance'
-                      ],
-    dependency_links=[
-        'https://pypi.fury.io/zNzsk7gQsYY335HLzW9x/alpha-i/alphai_finance/',
-    ]
+                      'python-dateutil'
+                      ]
 )
