@@ -15,8 +15,8 @@ from alphai_feature_generation.helpers import CalendarUtilities, logtime
 from alphai_feature_generation.transformation.base import (
     ensure_closing_pool,
     DataTransformation,
-    get_unique_symbols
-)
+    get_unique_symbols,
+    DateNotInUniverseError)
 
 
 TOTAL_TICKS_FINANCIAL_FEATURES = ['open_value', 'high_value', 'low_value', 'close_value', 'volume_value']

@@ -14,8 +14,8 @@ from alphai_feature_generation.helpers import CalendarUtilities, logtime
 from alphai_feature_generation.transformation.base import (
     ensure_closing_pool,
     DataTransformation,
-    get_unique_symbols
-)
+    get_unique_symbols,
+    DateNotInUniverseError)
 
 logger = logging.getLogger(__name__)
 
