@@ -1,10 +1,11 @@
-from copy import deepcopy
 import datetime
 import logging
+from copy import deepcopy
 
 import numpy as np
 import pandas as pd
 
+logger = logging.getLogger(__name__)
 
 DEFAULT_RESAMPLING_FUNCTION = 'mean'
 
@@ -25,7 +26,7 @@ def select_between_timestamps(data, start_timestamp=None, end_timestamp=None):
         raise NameError('Input data type not recognised')
 
 
-def select_between_timestamps_data_frame(data_frame, start_timestamp, end_timestamp):
+def select_between_timestamps_data_frame(data_frame, start_timestamp=None, end_timestamp=None):
     """
     Select a subset of the input dataframe according to specified start/end timestamps
     :param data_frame: Dataframe with time as index
@@ -35,13 +36,17 @@ def select_between_timestamps_data_frame(data_frame, start_timestamp, end_timest
     """
     assert start_timestamp is not None or end_timestamp is not None
     data_frame_timezone = data_frame.index.tz
-    for ts in (start_timestamp, end_timestamp):
-        if ts.tz is None:
-            assert data_frame_timezone is None
-        else:
-            assert ts == ts.tz_convert(data_frame_timezone)
-
-    time_conditions = [data_frame.index >= start_timestamp, data_frame.index <= end_timestamp]
+    for ts in [start_timestamp, end_timestamp]:
+        if ts is not None:
+            if ts.tz is None:
+                assert data_frame_timezone is None
+            else:
+                assert ts == ts.tz_convert(data_frame_timezone)
+    time_conditions = []
+    if start_timestamp is not None:
+        time_conditions.append(data_frame.index >= start_timestamp)
+    if end_timestamp is not None:
+        time_conditions.append(data_frame.index <= end_timestamp)
 
     return data_frame[np.all(time_conditions, axis=0)]
 
@@ -345,7 +350,8 @@ def select_trading_hours_data_frame(data_frame, market_calendar, include_start=T
     for trading_day in market_schedule.itertuples():
         tmp_trading_day_list.append(
             data_frame[str(trading_day.market_open.date())].
-            between_time(trading_day.market_open.time(), trading_day.market_close.time(), include_start, include_end))
+                between_time(trading_day.market_open.time(), trading_day.market_close.time(), include_start,
+                             include_end))
 
     return pd.concat(tmp_trading_day_list, axis=0)
 
@@ -480,7 +486,7 @@ def remove_duplicated_symbols_ohlcv(ohlcv_data, max_correlation=0.999):
         symbols_to_drop += list(volumes[list(duplicated_symbols)].sort_values(ascending=False).index[1:])
 
     if len(symbols_to_drop) > 0:
-        logging.info("Dropping {} symbols.".format(len(symbols_to_drop)))
+        logger.debug("Dropping {} symbols.".format(len(symbols_to_drop)))
 
     for key in ohlcv_data.keys():
         clean_ohlcv_data[key] = ohlcv_data[key].drop(symbols_to_drop, axis=1)

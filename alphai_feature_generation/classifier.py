@@ -3,6 +3,8 @@ import logging
 import numpy as np
 from scipy.special import erfinv
 
+logger = logging.getLogger(__name__)
+
 
 class BinDistribution:
 
@@ -33,10 +35,12 @@ class BinDistribution:
             self.bin_widths = self._compute_bin_widths()
             self.mean_bin_width = self._calc_mean_bin_width()
             self.sheppards_correction = self._calc_sheppards_correction()
+            self.weighted_bin_centres = self._compute_weighted_bin_centres(data)
         else:
             self.bin_edges = [0]
             self.pdf = [1]
             self.bin_centres = 0
+            self.weighted_bin_centres = 0
             self.bin_widths = 0
             self.mean_bin_width = 0
             self.sheppards_correction = 0
@@ -78,6 +82,23 @@ class BinDistribution:
         :return: ndarray The corresponding centres of the bins
         """
         return 0.5 * (self.bin_edges[1:] + self.bin_edges[:-1])
+
+    def _compute_weighted_bin_centres(self, data):
+        """
+        Finds the bin centres
+
+        :return: ndarray The corresponding centres of the bins
+        """
+
+        weighted_bin_centres = np.zeros(self.n_bins)
+        for i in range(self.n_bins):
+            lo_edge = self.bin_edges[i]
+            hi_edge = self.bin_edges[i+1]
+
+            single_bin_data = data[(data >= lo_edge) & (data <= hi_edge)]
+            weighted_bin_centres[i] = np.mean(single_bin_data)
+
+        return weighted_bin_centres
 
     def _compute_bin_widths(self):
         """
@@ -167,7 +188,7 @@ def declassify_labels(dist, pdf_arrays):
     :return:
     """
 
-    point_estimates = extract_point_estimates(dist.bin_centres, pdf_arrays)
+    point_estimates = extract_point_estimates(dist.weighted_bin_centres, pdf_arrays)
 
     mean = np.mean(point_estimates)
     variance = np.var(point_estimates) - dist.sheppards_correction
@@ -194,13 +215,13 @@ def extract_point_estimates(bin_centres, pdf_array):
     normalisation_offset = np.sum(pdf_array[0, :]) - 1.0
 
     if np.abs(normalisation_offset) > 1e-3:
-        logging.warning('Probability mass function not normalised')
-        logging.info('PDF Array shape: {}'.format(pdf_array.shape))
-        logging.info('Normalisation offset: {}'.format(normalisation_offset))
-        logging.info('Full pdf array: {}'.format(pdf_array))
-        logging.info('Bin centres: {}'.format(bin_centres))
+        logger.warning('Probability mass function not normalised')
+        logger.debug('PDF Array shape: {}'.format(pdf_array.shape))
+        logger.debug('Normalisation offset: {}'.format(normalisation_offset))
+        logger.debug('Full pdf array: {}'.format(pdf_array))
+        logger.debug('Bin centres: {}'.format(bin_centres))
 
-        logging.warning('Attempting to continue with pathological distribution')
+        logger.debug('Attempting to continue with pathological distribution')
         for i in range(n_points):
             pdf_array[i, :] = pdf_array[i, :] / np.sum(pdf_array[i, :])
 
@@ -209,6 +230,6 @@ def extract_point_estimates(bin_centres, pdf_array):
         points[i] = np.sum(bin_centres * pdf)
 
     if np.abs(normalisation_offset) > 1e-3:
-        logging.info('Derived points: {}'.format(points))
+        logger.debug('Derived points: {}'.format(points))
 
     return points

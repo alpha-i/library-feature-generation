@@ -20,6 +20,9 @@ TOTAL_TICKS_M1_FINANCIAL_FEATURES = ['open_log-return', 'high_log-return', 'low_
 HARDCODED_FEATURE_FOR_EXTRACT_Y = 'close'
 
 
+logger = logging.getLogger(__name__)
+
+
 @contextmanager
 def ensure_closing_pool():
     pool = multiprocessing.Pool(processes=multiprocessing.cpu_count() - 1)
@@ -71,7 +74,7 @@ class FinancialDataTransformation(DataTransformation):
         self.n_classification_bins = configuration['n_classification_bins']
         self.n_series = configuration['nassets']
         self.fill_limit = configuration['fill_limit']
-        self.predict_the_market_close = configuration.get('predict_the_market_close', False)
+        self.predict_the_market_close = configuration.get('predict_the_market_close')
         self.clean_nan_from_dict = configuration.get('clean_nan_from_dict', False)
 
         self.feature_length = self.get_feature_length()
@@ -203,7 +206,7 @@ class FinancialDataTransformation(DataTransformation):
             if feature.is_target:
                 return feature
 
-    def collect_prediction_from_features(self, raw_data_dict, prediction_timestamp, universe=None,
+    def collect_prediction_from_features(self, raw_data_dict, x_end_timestamp, y_start_timestamp, universe=None,
                                          target_timestamp=None):
         """
         Collect processed prediction x and y data for all the features.
@@ -217,7 +220,8 @@ class FinancialDataTransformation(DataTransformation):
         feature_y_dict = OrderedDict()
 
         # FIXME This parallelisation was creating a crash in the backtests. So switching off for now.
-        part = partial(self.process_predictions, prediction_timestamp, raw_data_dict, target_timestamp, universe)
+        part = partial(self.process_predictions, x_end_timestamp, y_start_timestamp,
+                       raw_data_dict, target_timestamp, universe)
         processed_predictions = map(part, self.features)
 
         for prediction in processed_predictions:
@@ -232,7 +236,7 @@ class FinancialDataTransformation(DataTransformation):
 
         return feature_x_dict, feature_y_dict
 
-    def process_predictions(self, prediction_timestamp, raw_data_dict, target_timestamp, universe, feature):
+    def process_predictions(self, x_timestamp, y_timestamp, raw_data_dict, target_timestamp, universe, feature):
         # TODO separate feature and target calculation
 
         if universe is None:
@@ -240,7 +244,7 @@ class FinancialDataTransformation(DataTransformation):
         feature_name = feature.full_name if feature.full_name in raw_data_dict.keys() else feature.name
         feature_x = feature.get_prediction_features(
             raw_data_dict[feature_name].loc[:, universe],
-            prediction_timestamp
+            x_timestamp
         )
 
         feature_y = None
@@ -248,7 +252,7 @@ class FinancialDataTransformation(DataTransformation):
             feature_y = feature.get_prediction_targets(
                 # currently target is hardcoded to be log-return calculated on the close (Chris B)
                 raw_data_dict[HARDCODED_FEATURE_FOR_EXTRACT_Y].loc[:, universe],
-                prediction_timestamp,
+                y_timestamp,
                 target_timestamp
             )
 
@@ -308,12 +312,14 @@ class FinancialDataTransformation(DataTransformation):
 
         if self.clean_nan_from_dict:
             predict_x = remove_nans_from_dict(predict_x)
-            logging.warning("May need to update symbols when removing nans from dict")
+            logger.debug("May need to update symbols when removing nans from dict")
 
         prediction_day = predict_timestamp.date()
         schedule = self.exchange_calendar.schedule(prediction_day, prediction_day + timedelta(days=10))
 
         target_timestamp = self._get_valid_target_timestamp_in_schedule(schedule, predict_timestamp)
+
+        _, predict_timestamp = self._get_prediction_timestamps(schedule.loc[prediction_day]['market_open'])
 
         return predict_x, symbols, predict_timestamp, target_timestamp
 
@@ -363,7 +369,7 @@ class FinancialDataTransformation(DataTransformation):
         target_market_open = None
 
         if len(simulated_market_dates) == 0:
-            logging.error("Empty Market dates")
+            logger.debug("Empty Market dates")
 
             raise ValueError("Empty Market dates")
 
@@ -387,11 +393,11 @@ class FinancialDataTransformation(DataTransformation):
         n_valid_samples = len(data_x_list)
 
         if n_valid_samples < n_samples:
-            logging.info("{} out of {} samples were found to be valid".format(n_valid_samples, n_samples))
+            logger.debug("{} out of {} samples were found to be valid".format(n_valid_samples, n_samples))
             if len(rejected_x_list) > 0:
                 self.print_diagnostics(rejected_x_list[-1], rejected_y_list[-1])
 
-        logging.info("Making normalised x list")
+        logger.debug("Making normalised x list")
         data_x_list = self._make_normalised_x_list(data_x_list, do_normalisation_fitting)
 
         action = 'prediction'
@@ -400,13 +406,13 @@ class FinancialDataTransformation(DataTransformation):
 
         if target_market_open:
             action = 'training'
-            logging.info("{} out of {} samples were found to be valid".format(n_valid_samples, n_samples))
+            logger.debug("{} out of {} samples were found to be valid".format(n_valid_samples, n_samples))
             classify_y = self.n_classification_bins
             y_list = self._make_classified_y_list(data_y_list) if classify_y else data_y_list
             y_dict, _ = self.stack_samples_for_each_feature(y_list)
 
         x_dict, x_symbols = self.stack_samples_for_each_feature(data_x_list, y_list)
-        logging.info("Assembled {} dict with {} symbols".format(action, len(x_symbols)))
+        logger.debug("Assembled {} dict with {} symbols".format(action, len(x_symbols)))
 
         prediction_timestamp = prediction_timestamp_list[-1] if len(prediction_timestamp_list) > 0 else None
 
@@ -422,15 +428,15 @@ class FinancialDataTransformation(DataTransformation):
                                                                                        target_market_open,
                                                                                        prediction_market_open)
         except DateNotInUniverseError as e:
-            logging.warning(e)
+            logger.debug(e)
             return None, None, None, target_market_open
 
         except KeyError as e:
-            logging.error("Error while building features. {}. prediction_time: {}".format(
+            logger.debug("Error while building features. {}. prediction_time: {}".format(
                 e, prediction_market_open))
             return None, None, None, target_market_open
         except Exception as e:
-            logging.error('Failed to build a set of features', exc_info=e)
+            logger.debug('Failed to build a set of features', exc_info=e)
             return None, None, None, target_market_open
 
         return feature_x_dict, feature_y_dict, prediction_timestamp, target_market_open
@@ -476,14 +482,14 @@ class FinancialDataTransformation(DataTransformation):
 
         x_sample = list(xdict.values())[0]
         x_expected_shape = self.features[0].length
-        logging.info("Last rejected xdict: {}".format(x_sample.shape))
-        logging.info("x_expected_shape: {}".format(x_expected_shape))
+        logger.debug("Last rejected xdict: {}".format(x_sample.shape))
+        logger.debug("x_expected_shape: {}".format(x_expected_shape))
 
         if ydict is not None:
             y_sample = list(ydict.values())[0]
             y_expected_shape = (self.n_series,)
-            logging.info("Last rejected ydict: {}".format(y_sample.shape))
-            logging.info("y_expected_shape: {}".format(y_expected_shape))
+            logger.debug("Last rejected ydict: {}".format(y_sample.shape))
+            logger.debug("y_expected_shape: {}".format(y_expected_shape))
 
     def _make_normalised_x_list(self, x_list, do_normalisation_fitting):
         """ Collects sample of x into a dictionary, and applies normalisation
@@ -498,11 +504,12 @@ class FinancialDataTransformation(DataTransformation):
 
         symbols = get_unique_symbols(x_list)
 
-        with ensure_closing_pool() as pool:
-            if do_normalisation_fitting:
-                fit_function = partial(self.fit_normalisation, symbols, x_list)
-                fitted_features = pool.map(fit_function, self.features)
-                self.features = FeatureList(fitted_features)
+        # this was using multiprocessing and hanging during the backtest
+        # let's switch this off for now
+        if do_normalisation_fitting:
+            fit_function = partial(self.fit_normalisation, symbols, x_list)
+            fitted_features = [fit_function(feature) for feature in self.features]
+            self.features = FeatureList(fitted_features)
 
         for feature in self.features:
             x_list = self.apply_normalisation(x_list, feature)
@@ -513,7 +520,7 @@ class FinancialDataTransformation(DataTransformation):
 
         if feature.scaler:
             normalise_function = partial(self.normalise_dict, feature)
-            logging.info("Applying normalisation to: {}".format(feature.full_name))
+            logger.debug("Applying normalisation to: {}".format(feature.full_name))
 
             with ensure_closing_pool() as pool:
                 list_of_x_dicts = pool.map(normalise_function, x_list)
@@ -526,12 +533,12 @@ class FinancialDataTransformation(DataTransformation):
         if target_feature.full_name in x_dict:
             x_dict[target_feature.full_name] = target_feature.apply_normalisation(x_dict[target_feature.full_name])
         else:
-            logging.info("Failed to find {} in dict: {}".format(target_feature.full_name, list(x_dict.keys())))
+            logger.debug("Failed to find {} in dict: {}".format(target_feature.full_name, list(x_dict.keys())))
         return x_dict
 
     def fit_normalisation(self, symbols, x_list, feature):
         if feature.scaler:
-            logging.info("Fitting normalisation to: {}".format(feature.full_name))
+            logger.debug("Fitting normalisation to: {}".format(feature.full_name))
             if self.normalise_per_series:
                 for symbol in symbols:
                     symbol_data = self.extract_data_by_symbol(x_list, symbol, feature.full_name)
@@ -540,7 +547,7 @@ class FinancialDataTransformation(DataTransformation):
                 all_data = self.extract_all_data(x_list, feature.full_name)
                 feature.fit_normalisation(all_data)
         else:
-            logging.info("Skipping normalisation to: {}".format(feature.full_name))
+            logger.debug("Skipping normalisation to: {}".format(feature.full_name))
         return feature
 
     @staticmethod
@@ -583,13 +590,13 @@ class FinancialDataTransformation(DataTransformation):
         symbols = get_unique_symbols(y_list)
 
         # Fitting of bins
-        logging.info("Fitting y classification to: {}".format(target_name))
+        logger.debug("Fitting y classification to: {}".format(target_name))
         for symbol in symbols:
             symbol_data = self.extract_data_by_symbol(y_list, symbol, target_name)
             target_feature.fit_classification(symbol, symbol_data)
 
         # Applying
-        logging.info("Applying y classification to: {}".format(target_name))
+        logger.debug("Applying y classification to: {}".format(target_name))
         with ensure_closing_pool() as pool:
             apply_classification = partial(self._apply_classification, target_feature, target_name)
             applied_y_list = pool.map(apply_classification, y_list)
@@ -600,7 +607,7 @@ class FinancialDataTransformation(DataTransformation):
         if target_name in y_dict:
             y_dict[target_name] = target_feature.apply_classification(y_dict[target_name])
         else:
-            logging.info("Failed to find {} in dict: {}".format(target_name, list(y_dict.keys())))
+            logger.debug("Failed to find {} in dict: {}".format(target_name, list(y_dict.keys())))
         return y_dict
 
     def build_features(self, raw_data_dict, universe, target_market_open, prediction_market_open, ):
@@ -617,16 +624,16 @@ class FinancialDataTransformation(DataTransformation):
             prediction_date = prediction_market_open.date()
             universe = _get_universe_from_date(prediction_date, universe)
 
-        prediction_timestamp = self._get_prediction_timestamp(prediction_market_open)
+        x_end_timestamp, y_start_timestamp = self._get_prediction_timestamps(prediction_market_open)
         target_timestamp = self._get_target_timestamp(target_market_open)
 
-        if target_timestamp and prediction_timestamp > target_timestamp:
+        if target_timestamp and y_start_timestamp > target_timestamp:
             raise ValueError('Target timestamp should be later than prediction_timestamp')
 
         feature_x_dict, feature_y_dict = self.collect_prediction_from_features(
-            raw_data_dict, prediction_timestamp, universe, target_timestamp)
+            raw_data_dict, x_end_timestamp, y_start_timestamp, universe, target_timestamp)
 
-        return feature_x_dict, feature_y_dict, prediction_timestamp
+        return feature_x_dict, feature_y_dict, x_end_timestamp
 
     def _get_target_timestamp(self, target_market_open):
         """
@@ -647,17 +654,22 @@ class FinancialDataTransformation(DataTransformation):
         else:
             return None
 
-    def _get_prediction_timestamp(self, prediction_market_open):
+    def _get_prediction_timestamps(self, prediction_market_open):
         """
         Calculate the prediction timestamp for the given opening day
 
         :param prediction_market_open:
         :return:
         """
+
+        x_end_timestamp = prediction_market_open + timedelta(minutes=self.prediction_market_minute)
+
         if self.predict_the_market_close:
-            return CalendarUtilities.closing_time_for_day(self.exchange_calendar, prediction_market_open)
+            y_start_timestamp = CalendarUtilities.closing_time_for_day(self.exchange_calendar, prediction_market_open)
         else:
-            return prediction_market_open + timedelta(minutes=self.prediction_market_minute)
+            y_start_timestamp = x_end_timestamp
+
+        return x_end_timestamp, y_start_timestamp
 
     def apply_global_transformations(self, raw_data_dict):
         """
@@ -717,7 +729,7 @@ class FinancialDataTransformation(DataTransformation):
                     else:
                         unusual_samples += 1
                         if not columns_match:
-                            logging.warning("Oi, your columns dont match")
+                            logger.debug("Oi, your columns dont match")
 
                 if len(feature_list) > 0:
                     stacked_samples[feature_name] = np.stack(feature_list, axis=0)
@@ -725,7 +737,7 @@ class FinancialDataTransformation(DataTransformation):
                     stacked_samples = None
 
         if len(samples) > 1:
-            logging.info("Found {} unusual samples out of {}".format(unusual_samples, total_samples))
+            logger.info("Found {} unusual samples out of {}".format(unusual_samples, total_samples))
 
         return stacked_samples, valid_symbols
 
@@ -812,9 +824,9 @@ def remove_nans_from_dict(x_dict, y_dict=None):
         for key, value in y_dict.items():
             resulting_bool_array = resulting_bool_array & ~np.isnan(value).sum(axis=2).sum(axis=1).astype(bool)
 
-    logging.info("Found {} examples with Nans, removing examples"
+    logger.debug("Found {} examples with Nans, removing examples"
                  " from all dicts".format((~resulting_bool_array).sum()))
-    logging.info("{} examples still left in the dicts".format(resulting_bool_array.sum()))
+    logger.debug("{} examples still left in the dicts".format(resulting_bool_array.sum()))
 
     # apply selection to all dicts
     for key, value in x_dict.items():

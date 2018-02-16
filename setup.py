@@ -3,7 +3,7 @@ from setuptools import find_packages
 
 setup(
     name='alphai_feature_generation',
-    version='1.3.1',
+    version='1.3.6',
     description='Alpha-I Feature Generation',
     author='Christopher Bonnett',
     author_email='christopher.bonnett@alpha-i.co',
@@ -16,10 +16,6 @@ setup(
                       'tables',
                       'pyts',
                       'future',
-                      'python-dateutil',
-                      'alphai_finance'
-                      ],
-    dependency_links=[
-        'https://pypi.fury.io/zNzsk7gQsYY335HLzW9x/alpha-i/alphai_finance/',
-    ]
+                      'python-dateutil'
+                      ]
 )

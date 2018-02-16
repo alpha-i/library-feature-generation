@@ -6,13 +6,15 @@ import logging
 import numpy as np
 import pandas as pd
 
-from alphai_finance.data.cleaning import (
-    select_between_timestamps,
+from alphai_feature_generation.helpers import CalendarUtilities
+from alphai_feature_generation.cleaning import (
     remove_duplicated_symbols_ohlcv,
-    slice_data_dict
+    slice_data_dict,
+    select_between_timestamps
 )
 
-from alphai_feature_generation.helpers import CalendarUtilities
+
+logger = logging.getLogger(__name__)
 
 METHOD_FIXED = 'fixed'
 METHOD_ANNUAL = 'annual'
@@ -82,7 +84,7 @@ class VolumeUniverseProvider(AbstractUniverseProvider):
 
         if len(rrule_dates) > 1:
             for idx, (period_start_date, period_end_date) in enumerate(zip(rrule_dates[:-1], rrule_dates[1:])):
-                logging.debug('Calculating historical universe from: {} - {}'.format(str(period_start_date),
+                logger.debug('Calculating historical universe from: {} - {}'.format(str(period_start_date),
                                                                                      str(period_end_date)))
 
                 end_timestamp = pd.Timestamp(period_start_date, tz=data_timezone)
