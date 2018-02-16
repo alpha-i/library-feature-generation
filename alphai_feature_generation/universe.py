@@ -6,13 +6,12 @@ import logging
 import numpy as np
 import pandas as pd
 
-from alphai_finance.data.cleaning import (
-    select_between_timestamps,
-    remove_duplicated_symbols_ohlcv,
-    slice_data_dict
-)
-
 from alphai_feature_generation.helpers import CalendarUtilities
+from alphai_feature_generation.cleaning import (
+    remove_duplicated_symbols_ohlcv,
+    slice_data_dict,
+    select_between_timestamps
+)
 
 
 logger = logging.getLogger(__name__)
