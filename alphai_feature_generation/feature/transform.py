@@ -4,6 +4,8 @@ import numpy as np
 import pandas as pd
 from pyts.transformation import GASF, GADF, MTF
 
+MAX_LOG_RETURN = 0.1
+
 
 class AbstractTransform(metaclass=ABCMeta):
 
@@ -32,8 +34,17 @@ class TransformLogReturn(AbstractTransform):
     def validate_config(self):
         return True
 
+    @staticmethod
+    def shrink_tails(df):
+        """ Shrinks outliers to reduce their impact. """
+
+        return df.clip(lower=-MAX_LOG_RETURN, upper=MAX_LOG_RETURN)
+
     def transform_x(self, feature, data):
         data = np.log(data.pct_change() + 1, dtype=np.float32).replace([np.inf, -np.inf], np.nan)
+
+        # Truncate large log returns
+        data = self.shrink_tails(data)
 
         # Remove the zeros / nans associated with log return
         if feature.local:
@@ -44,7 +55,11 @@ class TransformLogReturn(AbstractTransform):
     def transform_y(self, feature, data, reference_data):
 
         prediction_reference_ratio = data / reference_data
-        return np.log(prediction_reference_ratio, dtype=np.float32).replace([np.inf, -np.inf], np.nan)
+        log_return = np.log(prediction_reference_ratio, dtype=np.float32).replace([np.inf, -np.inf], np.nan)
+
+        # Truncate large log returns
+        log_return = self.shrink_tails(log_return)
+        return log_return
 
 
 class TransformVolatility(AbstractTransform):
