@@ -242,9 +242,16 @@ class GymFeature(object):
         """
 
         try:
+            n_rows = len(data_frame.index)
             end_point = data_frame.index.get_loc(prediction_timestamp, method='pad')
             end_index = end_point + 1  # +1 because iloc is not inclusive of end index
             start_index = end_point - self.length + 1
+
+            # Check if we're violating range of dataframe
+            if end_index >= n_rows:
+                offset = end_index - n_rows + 1
+                start_index -= offset
+                end_index -= offset
         except:
             logger.debug('Prediction timestamp {} not within range of dataframe'.format(prediction_timestamp))
             start_index = 0
@@ -252,7 +259,33 @@ class GymFeature(object):
 
         return data_frame.iloc[start_index:end_index, :]
 
-    def get_prediction_targets(self, data_frame, prediction_timestamp, target_timestamp=None):
+    def _select_prediction_data_y(self, data_frame, target_timestamp, n_forecasts):
+        """
+        Select the y-data for a prediction timestamp.
+        :param pd.Dataframe data_frame: raw data (unselected, unprocessed)
+        :param Timestamp prediction_timestamp: Timestamp when the prediction is made
+        :return pd.Dataframe: selected y-data (unprocessed)
+        """
+
+        try:
+            n_rows = len(data_frame.index)
+            end_point = data_frame.index.get_loc(target_timestamp, method='pad')
+            start_index = end_point + 1  # +1 because iloc is not inclusive of end index, other+1 due to forecast
+            end_index = start_index + n_forecasts
+
+            # Check if we're violating range of dataframe
+            if end_index >= n_rows:
+                offset = end_index - n_rows + 1
+                start_index -= offset
+                end_index -= offset
+        except:
+            logger.debug('Target timestamp {} not within range of dataframe'.format(target_timestamp))
+            start_index = 0
+            end_index = -1
+
+        return data_frame.iloc[start_index:end_index, :]
+
+    def get_prediction_targets(self, data_frame, prediction_timestamp, target_timestamp=None, n_forecasts=1):
         """
         Compute targets from dataframe only if the current feature is target
 
@@ -267,10 +300,7 @@ class GymFeature(object):
         prediction_target = None
 
         if self.is_target and target_timestamp:
-            prediction_target = self.process_prediction_data_y(
-                data_frame.loc[target_timestamp],
-                data_frame.loc[prediction_timestamp],
-            )
+            prediction_target = self._select_prediction_data_y(data_frame, prediction_timestamp, n_forecasts)
 
         return prediction_target
 
@@ -308,11 +338,12 @@ class GymFeature(object):
     def apply_classification(self, dataframe):
         """ Apply predetermined classification to y data.
 
-        :param pd dataframe data_x: Features of shape [n_samples, n_series, n_features]
+        :param pd panel data_x: Features of shape [n_samples, n_series, n_features]
         :return:
         """
 
-        hot_dataframe = pd.DataFrame(0, index=np.arange(self.nbins), columns=dataframe.columns)
+        n_timesteps = len(dataframe.index)
+        hot_panel = pd.Panel(0, items=dataframe.columns, major_axis=np.arange(n_timesteps), minor_axis=np.arange(self.nbins))
 
         for symbol in dataframe:
             data_y = dataframe[symbol].values
@@ -321,13 +352,13 @@ class GymFeature(object):
                 symbol_distribution = self.bin_distribution_dict[symbol]
                 one_hot_labels = symbol_distribution.classify_labels(data_y)
                 if one_hot_labels.shape[-1] > 1:
-                    hot_dataframe[symbol] = np.squeeze(one_hot_labels)
+                    hot_panel[symbol] = np.squeeze(one_hot_labels)
             else:
                 logger.debug("Symbol lacks clasification bins: {}".format(symbol))
                 hot_dataframe.drop(symbol, axis=1, inplace=True)
                 logger.debug("Dropping {} from dataframe.".format(symbol))
 
-        return hot_dataframe
+        return hot_panel.transpose(1, 0, 2)  # Puts time back as the index
 
     def inverse_transform_multi_predict_y(self, predict_y, symbols, confidence_interval=0.68):
         """
@@ -339,7 +370,8 @@ class GymFeature(object):
 
         n_symbols = len(symbols)
         n_forecasts = predict_y.shape[2]
-        print("new symbols:", n_symbols, "n_forecasts:", n_forecasts)
+        print("Symbols:", n_symbols, "n_forecasts:", n_forecasts)
+
         data_shape = (n_forecasts, n_symbols)
         means = np.zeros(shape=data_shape, dtype=np.float32)
         lower_bound = np.zeros(shape=data_shape, dtype=np.float32)
