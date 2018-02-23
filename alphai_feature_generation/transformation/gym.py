@@ -214,7 +214,7 @@ class GymDataTransformation(DataTransformation):
 
         return feature_x_dict, feature_y_dict, prediction_timestamp, target_market_open
 
-    def _build_features(self, raw_data_dict, target_market_open, prediction_market_open, ):
+    def _build_features(self, raw_data_dict, target_market_open, prediction_market_open):
         """ Creates dictionaries of features and labels for a single window
 
         :param dict raw_data_dict: dictionary of dataframes containing features data.
