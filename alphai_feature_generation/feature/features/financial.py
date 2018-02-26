@@ -45,8 +45,8 @@ class FinancialFeature(object):
         self.resample_minutes = resample_minutes
         self.start_market_minute = start_market_minute
         self.is_target = is_target
-        self.exchange_calendar = exchange_calendar
-        self.minutes_in_trading_day = self.exchange_calendar.get_minutes_in_one_day()
+        self.calendar = exchange_calendar
+        self.minutes_in_trading_day = self.calendar.get_minutes_in_one_day()
         self.n_series = None
         self.local = local
         self.length = length
@@ -212,7 +212,7 @@ class FinancialFeature(object):
         """
         schedule_start_date = str(self._get_safe_schedule_start_date(prediction_timestamp))
         schedule_end_date = str(prediction_timestamp.date())
-        market_open_list = self.exchange_calendar.schedule(schedule_start_date, schedule_end_date).market_open
+        market_open_list = self.calendar.schedule(schedule_start_date, schedule_end_date).market_open
         prediction_market_open = market_open_list[prediction_timestamp.date()]
         prediction_market_open_idx = np.argwhere(market_open_list == prediction_market_open).flatten()[0]
         start_timestamp_x = market_open_list[prediction_market_open_idx - self.ndays] + timedelta(

@@ -96,7 +96,7 @@
 #         prediction_timestamp = sample_hourly_ohlcv_data_dict['open'].index[98]
 #         universe = sample_hourly_ohlcv_data_dict['open'].columns[:-1]
 #         target_timestamp = sample_hourly_ohlcv_data_dict['open'].index[133]
-#         feature_x_dict, feature_y_dict = self.transformation_without_bins.collect_prediction_from_features(
+#         feature_x_dict, feature_y_dict = self.transformation_without_bins._collect_prediction_from_features(
 #             raw_data_dict,
 #             prediction_timestamp,
 #             prediction_timestamp,
@@ -119,7 +119,7 @@
 #     def test_get_prediction_data_all_features_no_target(self):
 #         raw_data_dict = sample_hourly_ohlcv_data_dict
 #         prediction_timestamp = sample_hourly_ohlcv_data_dict['open'].index[98]
-#         feature_x_dict, feature_y_dict = self.transformation_without_bins.collect_prediction_from_features(
+#         feature_x_dict, feature_y_dict = self.transformation_without_bins._collect_prediction_from_features(
 #             raw_data_dict,
 #             prediction_timestamp,
 #             prediction_timestamp,
