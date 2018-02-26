@@ -1,6 +1,6 @@
 import pytest
 
-from alphai_feature_generation.feature import FinancialFeature
+from alphai_feature_generation.feature.features.financial import FinancialFeature
 from alphai_feature_generation.feature.transform import TransformMTF
 
 from tests.feature.financial.helpers import sample_market_calendar

@@ -1,13 +1,16 @@
 from abc import abstractmethod, ABCMeta
 
-import pandas_market_calendars as mcal
 
-from alphai_feature_generation.feature import FinancialFeature, GymFeature
+from alphai_feature_generation.feature.features.financial import FinancialFeature
+from alphai_feature_generation.feature.features.gym import GymFeature
 
 DEFAULT_TRANSFORMATION =  {'name': 'value'}
 
 
 class AbstractFeatureFactory(metaclass=ABCMeta):
+
+    def __init__(self, exchange_calendar):
+        self._exchange_calendar = exchange_calendar
 
     @abstractmethod
     def get_feature_class(self):
@@ -37,7 +40,6 @@ class AbstractFeatureFactory(metaclass=ABCMeta):
 
         transform = feature_config.get('transformation', DEFAULT_TRANSFORMATION)
         feature_class = self.get_feature_class()
-        exchange_calendar_name = feature_config[feature_class.KEY_EXCHANGE]
 
         return feature_class(
             feature_config['name'],
@@ -49,7 +51,7 @@ class AbstractFeatureFactory(metaclass=ABCMeta):
             feature_config['resample_minutes'],
             feature_config['start_market_minute'],
             feature_config['is_target'],
-            mcal.get_calendar(exchange_calendar_name),
+            self._exchange_calendar,
             feature_config['local'],
             feature_config.get('classify_per_series'),
             feature_config.get('normalise_per_series')

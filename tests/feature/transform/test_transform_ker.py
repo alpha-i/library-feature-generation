@@ -1,7 +1,7 @@
 import pytest
 from numpy.testing import assert_almost_equal
 
-from alphai_feature_generation.feature import FinancialFeature
+from alphai_feature_generation.feature.features.financial import FinancialFeature
 from alphai_feature_generation.feature.transform import TransformKer
 
 from tests.helpers import ASSERT_NDECIMALS

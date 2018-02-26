@@ -12,15 +12,12 @@ from alphai_feature_generation import (FINANCIAL_FEATURE_NORMALIZATIONS,
 from alphai_feature_generation.classifier import BinDistribution
 from alphai_feature_generation.feature.resampling import ResamplingStrategy
 from alphai_feature_generation.feature.transform import Transformation
-from alphai_feature_generation.helpers import CalendarUtilities
 
 
 logger = logging.getLogger(__name__)
 
 
 class FinancialFeature(object):
-
-    KEY_EXCHANGE = 'exchange_name'
 
     def __init__(self, name, transformation, normalization, nbins, length, ndays, resample_minutes, start_market_minute,
                  is_target, exchange_calendar, local, classify_per_series=False, normalise_per_series=False):
@@ -49,7 +46,7 @@ class FinancialFeature(object):
         self.start_market_minute = start_market_minute
         self.is_target = is_target
         self.exchange_calendar = exchange_calendar
-        self.minutes_in_trading_day = CalendarUtilities.get_minutes_in_one_trading_day(exchange_calendar.name)
+        self.minutes_in_trading_day = self.exchange_calendar.get_minutes_in_one_day()
         self.n_series = None
         self.local = local
         self.length = length

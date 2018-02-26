@@ -7,11 +7,11 @@ from functools import partial
 
 import numpy as np
 import pandas as pd
-import pandas_market_calendars as mcal
+import alphai_calendars as mcal
 
 from alphai_feature_generation.feature.factory import FinancialFeatureFactory, FeatureList
 from alphai_feature_generation.feature.features.financial import FinancialFeature
-from alphai_feature_generation.helpers import CalendarUtilities, logtime
+from alphai_feature_generation.helpers import logtime
 from alphai_feature_generation.transformation.base import (
     ensure_closing_pool,
     DataTransformation,
@@ -26,10 +26,11 @@ TOTAL_TICKS_M1_FINANCIAL_FEATURES = ['open_log-return', 'high_log-return', 'low_
 HARDCODED_FEATURE_FOR_EXTRACT_Y = 'close'
 logger = logging.getLogger(__name__)
 
-KEY_EXCHANGE = FinancialFeature.KEY_EXCHANGE
-
 
 class FinancialDataTransformation(DataTransformation):
+
+    KEY_EXCHANGE = 'exchange_name'
+
     def __init__(self, configuration):
         """
         :param dict configuration: dictionary containing the feature details.
@@ -42,8 +43,8 @@ class FinancialDataTransformation(DataTransformation):
             int target_delta_ndays: target time horizon in number of days
             int target_market_minute: number of minutes after market open for the target timestamp
         """
-        self.exchange_calendar = mcal.get_calendar(configuration[KEY_EXCHANGE])
-        self.minutes_in_trading_days = CalendarUtilities.get_minutes_in_one_trading_day(configuration[KEY_EXCHANGE])
+        self.exchange_calendar = mcal.get_calendar(configuration[self.KEY_EXCHANGE])
+        self.minutes_in_trading_days = self.exchange_calendar.get_minutes_in_one_day()
         self.features_ndays = configuration['features_ndays']
         self.features_resample_minutes = configuration['features_resample_minutes']
         self.features_start_market_minute = configuration['features_start_market_minute']
@@ -67,7 +68,7 @@ class FinancialDataTransformation(DataTransformation):
     def _assert_input(self):
         configuration = self.configuration
 
-        assert isinstance(configuration[KEY_EXCHANGE], str)
+        assert isinstance(configuration[self.KEY_EXCHANGE], str)
         assert isinstance(configuration['features_ndays'], int) and configuration['features_ndays'] >= 0
         assert isinstance(configuration['features_resample_minutes'], int) \
                and configuration['features_resample_minutes'] >= 0
@@ -146,7 +147,7 @@ class FinancialDataTransformation(DataTransformation):
             'nbins': self.n_classification_bins,
             'ndays': self.features_ndays,
             'start_market_minute': self.features_start_market_minute,
-            KEY_EXCHANGE: self.exchange_calendar.name,
+            self.KEY_EXCHANGE: self.exchange_calendar.name,
             'classify_per_series': self.classify_per_series,
             'normalise_per_series': self.normalise_per_series
         }
@@ -162,7 +163,7 @@ class FinancialDataTransformation(DataTransformation):
             feature.update(update_dict)
             feature.update(specific_update)
 
-        factory = FinancialFeatureFactory()
+        factory = FinancialFeatureFactory(self.exchange_calendar)
 
         return factory.create_from_list(feature_config_list)
 
@@ -629,7 +630,7 @@ class FinancialDataTransformation(DataTransformation):
         if target_market_open:
 
             if self.predict_the_market_close:
-                return CalendarUtilities.closing_time_for_day(self.exchange_calendar, target_market_open.date())
+                return self.exchange_calendar.closing_time_for_day(target_market_open.date())
             else:
                 return target_market_open + timedelta(minutes=self.target_market_minute)
         else:
@@ -646,7 +647,7 @@ class FinancialDataTransformation(DataTransformation):
         x_end_timestamp = prediction_market_open + timedelta(minutes=self.prediction_market_minute)
 
         if self.predict_the_market_close:
-            y_start_timestamp = CalendarUtilities.closing_time_for_day(self.exchange_calendar, prediction_market_open)
+            y_start_timestamp = self.exchange_calendar.closing_time_for_day(prediction_market_open)
         else:
             y_start_timestamp = x_end_timestamp
 
@@ -768,6 +769,7 @@ def _get_universe_from_date(date, historical_universes):
         return historical_universes.assets[universe_idx]
     except IndexError as e:
         raise DateNotInUniverseError("Date {} not in universe. Skip".format(date))
+
 
 def remove_nans_from_dict(x_dict, y_dict=None):
     """

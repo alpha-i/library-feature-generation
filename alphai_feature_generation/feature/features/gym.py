@@ -12,7 +12,6 @@ from alphai_feature_generation import (FINANCIAL_FEATURE_NORMALIZATIONS,
 from alphai_feature_generation.classifier import BinDistribution
 from alphai_feature_generation.feature.resampling import ResamplingStrategy
 from alphai_feature_generation.feature.transform import Transformation
-from alphai_feature_generation.helpers import CalendarUtilities
 
 logger = logging.getLogger(__name__)
 

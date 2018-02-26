@@ -4,8 +4,8 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from alphai_feature_generation.feature import FinancialFeature
-from alphai_feature_generation.transformation import FinancialDataTransformation
+from alphai_feature_generation.feature.features.financial import FinancialFeature
+from alphai_feature_generation.transformation.financial import FinancialDataTransformation
 
 from tests.helpers import TEST_ARRAY
 
@@ -21,14 +21,13 @@ SAMPLE_PREDICT_LABELS = {'open': SAMPLE_PREDICT_LABELS}
 
 REL_TOL = 1e-4
 
-KEY_EXCHANGE = FinancialFeature.KEY_EXCHANGE
 
 def load_preset_config(expected_n_symbols, iteration=0):
     config = {'feature_config_list': sample_fin_data_transf_feature_factory_list_bins,
               'features_ndays': 2,
               'features_resample_minutes': 60,
               'features_start_market_minute': 1,
-              KEY_EXCHANGE: 'NYSE',
+              FinancialDataTransformation.KEY_EXCHANGE: 'NYSE',
               'prediction_frequency_ndays': 1,
               'prediction_market_minute': 30,
               'target_delta_ndays': 5,
@@ -80,7 +79,7 @@ class TestFinancialDataTransformation(TestCase):
             'features_ndays': 2,
             'features_resample_minutes': 60,
             'features_start_market_minute': 1,
-            KEY_EXCHANGE: 'NYSE',
+            FinancialDataTransformation.KEY_EXCHANGE: 'NYSE',
             'prediction_frequency_ndays': 1,
             'prediction_market_minute': 30,
             'target_delta_ndays': 5,
@@ -100,7 +99,7 @@ class TestFinancialDataTransformation(TestCase):
             'features_ndays': 2,
             'features_resample_minutes': 60,
             'features_start_market_minute': 1,
-            KEY_EXCHANGE: 'NYSE',
+            FinancialDataTransformation.KEY_EXCHANGE: 'NYSE',
             'prediction_frequency_ndays': 1,
             'prediction_market_minute': 30,
             'target_delta_ndays': 5,

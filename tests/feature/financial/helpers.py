@@ -1,9 +1,10 @@
-import pandas_market_calendars as mcal
+import alphai_calendars as mcal
 
-from alphai_feature_generation.feature import FinancialFeature
+from alphai_feature_generation.feature.features.financial import FinancialFeature
 from alphai_feature_generation.feature.factory import FeatureList
+from alphai_feature_generation.transformation.financial import FinancialDataTransformation
 
-KEY_EXCHANGE = FinancialFeature.KEY_EXCHANGE
+KEY_EXCHANGE = FinancialDataTransformation.KEY_EXCHANGE
 
 sample_market_calendar = mcal.get_calendar('NYSE')
 sample_fin_feature_factory_list = [

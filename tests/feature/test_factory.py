@@ -1,11 +1,14 @@
 import pytest
 
+import alphai_calendars as mcal
 from alphai_feature_generation.feature.factory import FinancialFeatureFactory
 from tests.feature.financial.helpers import sample_fin_feature_factory_list, sample_fin_feature_list
 
 
 def test_features_factory_successful_call():
-    factory = FinancialFeatureFactory()
+
+    calendar = mcal.get_calendar('NYSE')
+    factory = FinancialFeatureFactory(calendar)
     feature_list = factory.create_from_list(sample_fin_feature_factory_list)
 
     for feature in feature_list:
@@ -31,7 +34,8 @@ def test_single_features_factory_wrong_keys():
         'is_target': False,
     }
 
-    factory = FinancialFeatureFactory()
+    calendar = mcal.get_calendar('NYSE')
+    factory = FinancialFeatureFactory(calendar)
     with pytest.raises(KeyError):
         factory.create_feature(feature_dict)
 
@@ -39,7 +43,8 @@ def test_single_features_factory_wrong_keys():
 def test_features_factory_wrong_input_type():
     feature_list = {}
 
-    factory = FinancialFeatureFactory()
+    calendar = mcal.get_calendar('NYSE')
+    factory = FinancialFeatureFactory(calendar)
     with pytest.raises(AssertionError):
         factory.create_from_list(feature_list)
 

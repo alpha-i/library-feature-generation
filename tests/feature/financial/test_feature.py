@@ -8,7 +8,7 @@ import pytest
 from numpy.testing import assert_array_equal
 
 from tests.helpers import TEST_ARRAY
-from alphai_feature_generation.feature import FinancialFeature
+from alphai_feature_generation.feature.features.financial import FinancialFeature
 
 from tests.feature.financial.helpers import sample_market_calendar
 from tests.transformation.financial.helpers import sample_hourly_ohlcv_data_dict
