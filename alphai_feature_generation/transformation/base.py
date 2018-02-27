@@ -65,6 +65,10 @@ class DataTransformation(metaclass=ABCMeta):
         pass
 
     @abstractmethod
+    def _get_feature_for_extract_y(self):
+        raise NotImplementedError
+
+    @abstractmethod
     def _feature_factory(self, feature_configuration_list):
         pass
 
@@ -75,6 +79,23 @@ class DataTransformation(metaclass=ABCMeta):
     @abstractmethod
     def create_predict_data(self, *args):
         raise NotImplementedError
+
+    @abstractmethod
+    def inverse_transform_multi_predict_y(self, predict_y, symbols):
+        raise NotImplementedError
+
+    @abstractmethod
+    def get_calendar_name(self):
+        raise NotImplementedError
+
+    @property
+    def exchange_calendar(self):
+        """
+        Backward compatibility method
+
+        :return:
+        """
+        return self._calendar
 
     def check_x_batch_dimensions(self, feature_x_dict):
         """
