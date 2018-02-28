@@ -297,6 +297,36 @@ class BinDistribution:
 
         return mean, variance
 
+    def calculate_discrete_median(self, pdf):
+        """ Estimate median of a histogram by stepping through bins until we hit 50% threshold. """
+
+        # First verify length of input
+        bin_index = 0
+        cumulative_sum = pdf[bin_index]
+
+        while cumulative_sum < 0.5:
+            bin_index += 1
+            cumulative_sum += pdf[bin_index]
+
+        # Now we know bin_index holds the median value. Just need to interpolate a bit
+        is_not_edge = (bin_index == 0 or bin_index == len(pdf))
+
+        if is_not_edge:  # Treat edges differently
+            lower_edge = self.bin_edges[bin_index]
+            bin_width = self.bin_widths[bin_index]
+
+            bin_total = pdf[bin_index]
+            overflow = cumulative_sum - 0.5
+            residue = bin_total - overflow
+
+            bin_fraction = residue / bin_total
+
+            median = lower_edge + bin_width * bin_fraction
+        else:
+            median = self.weighted_bin_centres[bin_index]
+
+        return median  # placeholder
+
 
 def _calculate_unit_gaussian_edges(n_edges):
     """ Retrieve array of edges for a unit gaussian such that the bins hold equal probability

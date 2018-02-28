@@ -51,8 +51,6 @@ class FinancialFeature(object):
         self.local = local
         self.length = length
 
-        self.bin_distribution = None
-
         self._assert_input(name, normalization, nbins, length, ndays, resample_minutes,
                            start_market_minute, is_target, local)
 
@@ -368,8 +366,8 @@ class FinancialFeature(object):
 
         for i, symbol in enumerate(symbols):
             if symbol in self.bin_distribution_dict:
-                symbol_bins = self.bin_distribution_dict[symbol]
-                means[i], variances[i] = declassify_labels(symbol_bins, predict_y[:, i, :])
+                symbol_bin_distribution = self.bin_distribution_dict[symbol]
+                means[i], variances[i] = symbol_bin_distribution.declassify_labels(predict_y[:, i, :])
             else:
                 logger.debug("No bin distribution found for symbol: {}".format(symbol))
                 means[i] = np.nan
