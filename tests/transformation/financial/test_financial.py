@@ -155,7 +155,7 @@ class TestFinancialDataTransformation(TestCase):
     def test_get_prediction_data_all_features_target(self):
         raw_data_dict = sample_hourly_ohlcv_data_dict
         prediction_timestamp = sample_hourly_ohlcv_data_dict['open'].index[98]
-        universe = sample_hourly_ohlcv_data_dict['open'].columns[:-1]
+        universe = sample_hourly_ohlcv_data_dict['open'].columns
         target_timestamp = sample_hourly_ohlcv_data_dict['open'].index[133]
         feature_x_dict, feature_y_dict = self.transformation_without_bins._collect_prediction_from_features(
             raw_data_dict,
@@ -166,7 +166,7 @@ class TestFinancialDataTransformation(TestCase):
         )
 
         expected_n_time_dict = {'open_value': 15, 'high_log-return': 14, 'close_log-return': 14}
-        expected_n_symbols = 4
+        expected_n_symbols = 5
         expected_n_features = 3
 
         assert len(feature_x_dict.keys()) == expected_n_features

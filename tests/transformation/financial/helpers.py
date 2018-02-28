@@ -12,7 +12,7 @@ COLUMNS_OHLCV = 'open high low close volume'.split()
 sample_hourly_ohlcv_data_dict = {}
 for key in COLUMNS_OHLCV:
     sample_hourly_ohlcv_data_column = pd.read_csv(
-        os.path.join(TEST_DATA_PATH, 'sample_data_dict', 'sample_%s_hourly.csv' % key),
+        os.path.join(TEST_DATA_PATH, 'financial_data_dict', 'sample_%s_hourly.csv' % key),
         index_col=0)
     sample_hourly_ohlcv_data_column.index = pd.to_datetime(sample_hourly_ohlcv_data_column.index,
                                                            utc=True)
@@ -118,7 +118,7 @@ for idx, (period_start_date, period_end_date) in enumerate(zip(rrule_dates[:-1],
 
 sample_daily_ohlcv_data = {}
 sample_daily_ohlcv_data_column = pd.read_csv(
-    os.path.join(TEST_DATA_PATH, 'sample_data_dict', 'sample_%s_daily.csv' % key),
+    os.path.join(TEST_DATA_PATH, 'financial_data_dict', 'sample_%s_daily.csv' % key),
     index_col=0)
 for key in COLUMNS_OHLCV:
     sample_daily_ohlcv_data_column.index = pd.to_datetime(sample_daily_ohlcv_data_column.index)
