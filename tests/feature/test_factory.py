@@ -2,7 +2,7 @@ import pytest
 
 import alphai_calendars as mcal
 from alphai_feature_generation.feature.factory import FinancialFeatureFactory
-from tests.feature.financial.helpers import sample_fin_feature_factory_list, sample_fin_feature_list
+from tests.feature.features.financial.helpers import sample_fin_feature_factory_list, sample_fin_feature_list
 
 
 def test_features_factory_successful_call():

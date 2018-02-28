@@ -1,7 +1,7 @@
 from alphai_feature_generation.feature.features.financial import FinancialFeature
 from alphai_feature_generation.feature.transform import TransformValue
 
-from tests.feature.financial.helpers import sample_market_calendar
+from tests.feature.features.financial.helpers import sample_market_calendar
 from tests.transformation.financial.helpers import sample_hourly_ohlcv_data_dict
 
 

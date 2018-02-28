@@ -72,7 +72,7 @@ class GymDataTransformation(DataTransformation):
         assert isinstance(configuration['fill_limit'], int)
 
     def _get_feature_for_extract_y(self):
-        return self.target_feature
+        return self.target_feature.name
 
     def get_calendar_name(self):
         return self.KEY_EXCHANGE
@@ -243,9 +243,10 @@ class GymDataTransformation(DataTransformation):
         processed_predictions = map(part, self.features)
 
         for prediction in processed_predictions:
-            feature_x_dict[prediction[0]] = prediction[1]
-            if prediction[2] is not None:
-                feature_y_dict[prediction[0]] = prediction[2]
+            feature_name, feature_x, feature_y = prediction
+            feature_x_dict[feature_name] = feature_x
+            if feature_y is not None:
+                feature_y_dict[feature_name] = feature_y
 
         if len(feature_y_dict) > 0:
             assert len(feature_y_dict) == 1, 'Only one target is allowed'

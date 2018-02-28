@@ -46,8 +46,8 @@ class GymFeature(object):
         self.resample_minutes = resample_minutes
         self.start_market_minute = start_market_minute
         self.is_target = is_target
-        self.exchange_calendar = exchange_calendar
-        self.minutes_in_trading_day = CalendarUtilities.get_minutes_in_one_trading_day(exchange_calendar.name)
+        self.calendar = exchange_calendar
+        self.minutes_in_trading_day = self.calendar.get_minutes_in_one_day()
         self.n_series = None
         self.local = local
         self.length = length
@@ -205,6 +205,9 @@ class GymFeature(object):
         safe_ndays = max(MIN_MARKET_DAYS_SEARCH, MARKET_DAYS_SEARCH_MULTIPLIER * self.ndays)
         return prediction_timestamp - timedelta(days=safe_ndays)
 
+    def declassify_single_predict_y(self, predict_y):
+        raise NotImplementedError('Declassification is only available for multi-pass prediction at the moment.')
+
     def _get_start_timestamp_x(self, prediction_timestamp):
         """
         Calculate the start timestamp of x-data for a given prediction timestamp.
@@ -213,7 +216,7 @@ class GymFeature(object):
         """
         schedule_start_date = str(self._get_safe_schedule_start_date(prediction_timestamp))
         schedule_end_date = str(prediction_timestamp.date())
-        market_open_list = self.exchange_calendar.schedule(schedule_start_date, schedule_end_date).market_open
+        market_open_list = self.calendar.schedule(schedule_start_date, schedule_end_date).market_open
         prediction_market_open = market_open_list[prediction_timestamp.date()]
         prediction_market_open_idx = np.argwhere(market_open_list == prediction_market_open).flatten()[0]
         start_timestamp_x = market_open_list[prediction_market_open_idx - self.ndays] + timedelta(

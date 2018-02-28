@@ -4,14 +4,14 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from alphai_feature_generation.feature.features.financial import FinancialFeature
 from alphai_feature_generation.transformation.financial import FinancialDataTransformation
 
 from tests.helpers import TEST_ARRAY
 
 from tests.transformation.financial.helpers import sample_hourly_ohlcv_data_dict, \
-    sample_fin_data_transf_feature_factory_list_nobins, sample_fin_data_transf_feature_fixed_length, \
-    sample_fin_data_transf_feature_factory_list_bins, sample_historical_universes
+    sample_fin_data_transf_feature_factory_list_nobins, sample_fin_data_transf_feature_factory_list_bins, \
+    sample_historical_universes, \
+    load_preset_config, load_expected_results
 
 SAMPLE_TRAIN_LABELS = np.stack((TEST_ARRAY, TEST_ARRAY, TEST_ARRAY, TEST_ARRAY, TEST_ARRAY))
 SAMPLE_PREDICT_LABELS = SAMPLE_TRAIN_LABELS[:, int(0.5 * SAMPLE_TRAIN_LABELS.shape[1])]
@@ -20,55 +20,6 @@ SAMPLE_TRAIN_LABELS = {'open': SAMPLE_TRAIN_LABELS}
 SAMPLE_PREDICT_LABELS = {'open': SAMPLE_PREDICT_LABELS}
 
 REL_TOL = 1e-4
-
-
-def load_preset_config(expected_n_symbols, iteration=0):
-    config = {'feature_config_list': sample_fin_data_transf_feature_factory_list_bins,
-              'features_ndays': 2,
-              'features_resample_minutes': 60,
-              'features_start_market_minute': 1,
-              FinancialDataTransformation.KEY_EXCHANGE: 'NYSE',
-              'prediction_frequency_ndays': 1,
-              'prediction_market_minute': 30,
-              'target_delta_ndays': 5,
-              'target_market_minute': 30,
-              'n_classification_bins': 5,
-              'nassets': expected_n_symbols,
-              'local': False,
-              'classify_per_series': False,
-              'normalise_per_series': False,
-              'fill_limit': 0}
-
-    specific_cases = [
-        {},
-        {'predict_the_market_close': True},
-        {'classify_per_series': True, 'normalise_per_series': True},
-        {'feature_config_list': sample_fin_data_transf_feature_fixed_length}
-    ]
-
-    try:
-        updated_config = specific_cases[iteration]
-        config.update(updated_config)
-    except KeyError:
-        raise ValueError('Requested configuration not implemented')
-
-    return config
-
-
-def load_expected_results(iteration):
-    return_value_list = [
-        {'x_mean': 207.451975429, 'y_mean': 0.2},
-        {'x_mean': 207.451975429, 'y_mean': 0.2},  # Test predict_the_market_close
-        {'x_mean': 207.451975429, 'y_mean': 0.2},  # Test classification and normalisation
-        {'x_mean': 5.96046e-09, 'y_mean': 0.2},  # Test length/resolution requests
-    ]
-
-    try:
-        return_value = return_value_list[iteration]
-        expected_sample = [107.35616667, 498.748, 35.341, 288.86503167]
-        return return_value['x_mean'], return_value['y_mean'], expected_sample
-    except KeyError:
-        raise ValueError('Requested configuration not implemented')
 
 
 class TestFinancialDataTransformation(TestCase):

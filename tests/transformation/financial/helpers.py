@@ -4,6 +4,7 @@ from itertools import combinations
 import pandas as pd
 from dateutil import rrule
 
+from alphai_feature_generation.transformation import FinancialDataTransformation
 from tests.helpers import TEST_DATA_PATH
 
 COLUMNS_OHLCV = 'open high low close volume'.split()
@@ -123,3 +124,52 @@ sample_daily_ohlcv_data_column = pd.read_csv(
 for key in COLUMNS_OHLCV:
     sample_daily_ohlcv_data_column.index = pd.to_datetime(sample_daily_ohlcv_data_column.index)
     sample_daily_ohlcv_data[key] = sample_daily_ohlcv_data_column
+
+
+def load_preset_config(expected_n_symbols, iteration=0):
+    config = {'feature_config_list': sample_fin_data_transf_feature_factory_list_bins,
+              'features_ndays': 2,
+              'features_resample_minutes': 60,
+              'features_start_market_minute': 1,
+              FinancialDataTransformation.KEY_EXCHANGE: 'NYSE',
+              'prediction_frequency_ndays': 1,
+              'prediction_market_minute': 30,
+              'target_delta_ndays': 5,
+              'target_market_minute': 30,
+              'n_classification_bins': 5,
+              'nassets': expected_n_symbols,
+              'local': False,
+              'classify_per_series': False,
+              'normalise_per_series': False,
+              'fill_limit': 0}
+
+    specific_cases = [
+        {},
+        {'predict_the_market_close': True},
+        {'classify_per_series': True, 'normalise_per_series': True},
+        {'feature_config_list': sample_fin_data_transf_feature_fixed_length}
+    ]
+
+    try:
+        updated_config = specific_cases[iteration]
+        config.update(updated_config)
+    except KeyError:
+        raise ValueError('Requested configuration not implemented')
+
+    return config
+
+
+def load_expected_results(iteration):
+    return_value_list = [
+        {'x_mean': 207.451975429, 'y_mean': 0.2},
+        {'x_mean': 207.451975429, 'y_mean': 0.2},  # Test predict_the_market_close
+        {'x_mean': 207.451975429, 'y_mean': 0.2},  # Test classification and normalisation
+        {'x_mean': 5.96046e-09, 'y_mean': 0.2},  # Test length/resolution requests
+    ]
+
+    try:
+        return_value = return_value_list[iteration]
+        expected_sample = [107.35616667, 498.748, 35.341, 288.86503167]
+        return return_value['x_mean'], return_value['y_mean'], expected_sample
+    except KeyError:
+        raise ValueError('Requested configuration not implemented')
