@@ -225,8 +225,7 @@ class GymDataTransformation(DataTransformation):
 
         return medians, lower_bound, upper_bound
 
-    def _collect_prediction_from_features(self, raw_data_dict, x_end_timestamp, y_start_timestamp, universe=None,
-                                          target_timestamp=None):
+    def _collect_prediction_from_features(self, raw_data_dict, x_end_timestamp, y_start_timestamp, target_timestamp=None):
         """
         Collect processed prediction x and y data for all the features.
         :param dict raw_data_dict: dictionary of dataframes containing features data.
@@ -322,7 +321,8 @@ class GymDataTransformation(DataTransformation):
             raise ValueError('Target timestamp should be later than prediction_timestamp')
 
         feature_x_dict, feature_y_dict = self._collect_prediction_from_features(
-            raw_data_dict, x_end_timestamp, y_start_timestamp, target_timestamp)
+            raw_data_dict, x_end_timestamp, y_start_timestamp, target_timestamp
+        )
 
         return feature_x_dict, feature_y_dict, x_end_timestamp
 

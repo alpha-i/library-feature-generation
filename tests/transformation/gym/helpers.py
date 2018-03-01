@@ -2,6 +2,7 @@ import os
 from itertools import combinations
 
 import pandas as pd
+import numpy as np
 from dateutil import rrule
 
 from alphai_feature_generation.transformation import GymDataTransformation
@@ -157,7 +158,6 @@ def load_preset_config(expected_n_symbols, iteration=0):
 
     specific_cases = [
         {},
-        {'predict_the_market_close': True},
         {'classify_per_series': True, 'normalise_per_series': True},
         {'feature_config_list': sample_features_fixed_length}
     ]
@@ -176,15 +176,14 @@ REL_TOL = 1e-4
 
 def load_expected_results(iteration):
     return_value_list = [
-        {'x_mean': 207.451975429, 'y_mean': 0.2},
-        {'x_mean': 207.451975429, 'y_mean': 0.2},  # Test predict_the_market_close
-        {'x_mean': 207.451975429, 'y_mean': 0.2},  # Test classification and normalisation
-        {'x_mean': 5.96046e-09, 'y_mean': 0.2},  # Test length/resolution requests
+        {'x_mean': 13.501594896331738, 'y_mean': 0.2},
+        {'x_mean': 13.501594896331738, 'y_mean': 0.2},  # Test classification and normalisation
+        {'x_mean': np.float32(np.nan), 'y_mean': 0.2},  # Test length/resolution requests
     ]
 
     try:
         return_value = return_value_list[iteration]
-        expected_sample = [107.35616667, 498.748, 35.341, 288.86503167]
+        expected_sample = [15., 16., 17., 18.]
         return return_value['x_mean'], return_value['y_mean'], expected_sample
     except KeyError:
         raise ValueError('Requested configuration not implemented')

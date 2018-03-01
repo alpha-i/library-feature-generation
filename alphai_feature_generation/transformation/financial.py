@@ -106,13 +106,14 @@ class FinancialDataTransformation(DataTransformation):
         return factory.create_from_list(feature_config_list)
 
     @logtime
-    def _create_data(self, raw_data_dict, simulated_market_dates,
-                     historical_universes=None, do_normalisation_fitting=False):
+    def _create_data(self, raw_data_dict, simulated_market_dates, historical_universes=None,
+                     do_normalisation_fitting=False):
         """
         Create x and y data
         :param dict raw_data_dict: dictionary of dataframes containing features data.
         :param simulated_market_dates: List of dates for which we generate the 'past' and 'future' data
         :param pd.Dataframe historical_universes: Dataframe with three columns ['start_date', 'end_date', 'assets']
+        :param bool do_normalisation_fitting:
         :return (dict, dict): feature_x_dict, feature_y_dict
         """
 
@@ -260,9 +261,10 @@ class FinancialDataTransformation(DataTransformation):
         processed_predictions = map(part, self.features)
 
         for prediction in processed_predictions:
-            feature_x_dict[prediction[0]] = prediction[1]
-            if prediction[2] is not None:
-                feature_y_dict[prediction[0]] = prediction[2]
+            feature_name, feature_x, feature_y = prediction
+            feature_x_dict[feature_name] = feature_x
+            if feature_y is not None:
+                feature_y_dict[feature_name] = feature_y
 
         if len(feature_y_dict) > 0:
             assert len(feature_y_dict) == 1, 'Only one target is allowed'

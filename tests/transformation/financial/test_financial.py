@@ -191,17 +191,17 @@ class TestFinancialDataTransformation(TestCase):
         assert np.isclose(predict_x['open_value'][0, :, 3].mean(), 384.03379, rtol=REL_TOL)
         assert np.isclose(predict_x['open_value'][0, :, 4].mean(), 15.9612, rtol=REL_TOL)
 
-        assert np.isclose(predict_x['close_log-return'][0, :, 0].mean(), -0.00037412756518502636, rtol=REL_TOL)
-        assert np.isclose(predict_x['close_log-return'][0, :, 1].mean(), -0.00071031231939734001, rtol=REL_TOL)
-        assert np.isclose(predict_x['close_log-return'][0, :, 2].mean(), -0.0028026462004643749, rtol=REL_TOL)
-        assert np.isclose(predict_x['close_log-return'][0, :, 3].mean(), -0.0011889590013153429, rtol=REL_TOL)
-        assert np.isclose(predict_x['close_log-return'][0, :, 4].mean(), 0.0015928267596619391, rtol=REL_TOL)
-
         assert np.isclose(predict_x['high_log-return'][0, :, 0].mean(), -0.14222451613690593, rtol=REL_TOL)
         assert np.isclose(predict_x['high_log-return'][0, :, 1].mean(), -0.19212886645801133, rtol=REL_TOL)
         assert np.isclose(predict_x['high_log-return'][0, :, 2].mean(), -0.50004735819544888, rtol=REL_TOL)
         assert np.isclose(predict_x['high_log-return'][0, :, 3].mean(), -0.2603029872984271, rtol=REL_TOL)
         assert np.isclose(predict_x['high_log-return'][0, :, 4].mean(), 0.15312313803264102, rtol=REL_TOL)
+
+        assert np.isclose(predict_x['close_log-return'][0, :, 0].mean(), -0.00037412756518502636, rtol=REL_TOL)
+        assert np.isclose(predict_x['close_log-return'][0, :, 1].mean(), -0.00071031231939734001, rtol=REL_TOL)
+        assert np.isclose(predict_x['close_log-return'][0, :, 2].mean(), -0.0028026462004643749, rtol=REL_TOL)
+        assert np.isclose(predict_x['close_log-return'][0, :, 3].mean(), -0.0011889590013153429, rtol=REL_TOL)
+        assert np.isclose(predict_x['close_log-return'][0, :, 4].mean(), 0.0015928267596619391, rtol=REL_TOL)
 
         for key in predict_x.keys():
             assert predict_x[key].shape == (expected_n_samples, expected_n_time_dict[key], expected_n_symbols)
@@ -301,20 +301,21 @@ def test_create_data(index):
 
         np.testing.assert_array_almost_equal(sample_data, expected_sample)
 
-    def test_check_x_batch_dimensions(self):
 
-        expected_n_symbols = 4
+def test_check_x_batch_dimensions():
 
-        test_dict_1 = {'open_value': np.zeros(15), 'close_log-return': np.zeros(15), 'high_log-return': np.zeros(15)}
-        test_dict_2 = {'open_value': np.zeros(0), 'close_log-return': np.zeros(15), 'high_log-return': np.zeros(15)}
-        test_dict_3 = {'open_value': np.zeros(15), 'close_log-return': np.zeros(12), 'high_log-return': np.zeros(15)}
+    expected_n_symbols = 4
 
-        config = self.load_default_config(expected_n_symbols)
-        fintransform = FinancialDataTransformation(config)
+    test_dict_1 = {'open_value': np.zeros(15), 'close_log-return': np.zeros(15), 'high_log-return': np.zeros(15)}
+    test_dict_2 = {'open_value': np.zeros(0), 'close_log-return': np.zeros(15), 'high_log-return': np.zeros(15)}
+    test_dict_3 = {'open_value': np.zeros(15), 'close_log-return': np.zeros(12), 'high_log-return': np.zeros(15)}
 
-        assert fintransform.check_x_batch_dimensions(test_dict_1)
-        assert ~fintransform.check_x_batch_dimensions(test_dict_2)
-        assert ~fintransform.check_x_batch_dimensions(test_dict_3)
+    config = load_preset_config(expected_n_symbols)
+    fintransform = FinancialDataTransformation(config)
+
+    assert fintransform.check_x_batch_dimensions(test_dict_1)
+    assert ~fintransform.check_x_batch_dimensions(test_dict_2)
+    assert ~fintransform.check_x_batch_dimensions(test_dict_3)
 
 
 def mock_ml_model_single_pass(predict_x):

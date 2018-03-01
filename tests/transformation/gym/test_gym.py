@@ -7,7 +7,7 @@ import pytest
 from alphai_feature_generation.transformation.gym import GymDataTransformation
 from tests.transformation.gym.helpers import (load_preset_config,
                                               sample_features_list_bins,
-                                              sample_hourly,
+                                              gym_sample_hourly,
                                               sample_features_no_bin, REL_TOL, load_expected_results)
 
 
@@ -79,7 +79,7 @@ class TestGymDataTransformation(TestCase):
 
     def test_extract_schedule_from_data(self):
 
-        data_schedule = self.transformation_without_bins._extract_schedule_from_data(sample_hourly)
+        data_schedule = self.transformation_without_bins._extract_schedule_from_data(gym_sample_hourly)
 
         assert isinstance(data_schedule, pd.DataFrame)
         assert len(data_schedule) == 56
@@ -93,19 +93,18 @@ class TestGymDataTransformation(TestCase):
         assert target_feature == expected_target_feature
 
     def test_get_prediction_data_all_features_target(self):
-        raw_data_dict = sample_hourly
-        prediction_timestamp = sample_hourly['hour'].index[98]
-        universe = sample_hourly['hour'].columns
-        target_timestamp = sample_hourly['hour'].index[133]
+        raw_data_dict = gym_sample_hourly
+        prediction_timestamp = gym_sample_hourly['hour'].index[98]
+        universe = gym_sample_hourly['hour'].columns
+        target_timestamp = gym_sample_hourly['hour'].index[133]
         feature_x_dict, feature_y_dict = self.transformation_without_bins._collect_prediction_from_features(
             raw_data_dict,
             prediction_timestamp,
             prediction_timestamp,
-            universe,
             target_timestamp,
         )
 
-        expected_n_time_dict = {'hour_value': 1485, 'temperature_log-return': 1484, 'number_people_log-return': 1484}
+        expected_n_time_dict = {'hour_value': 33, 'temperature_log-return': 32, 'number_people_log-return': 32}
         expected_n_symbols = 1
         expected_n_features = 3
 
@@ -118,15 +117,15 @@ class TestGymDataTransformation(TestCase):
             assert feature_y_dict[key].shape == (1, expected_n_symbols)
 
     def test_get_prediction_data_all_features_no_target(self):
-        raw_data_dict = sample_hourly
-        prediction_timestamp = sample_hourly['hour'].index[98]
+        raw_data_dict = gym_sample_hourly
+        prediction_timestamp = gym_sample_hourly['hour'].index[98]
         feature_x_dict, feature_y_dict = self.transformation_without_bins._collect_prediction_from_features(
             raw_data_dict,
             prediction_timestamp,
             prediction_timestamp,
         )
 
-        expected_n_time_dict = {'hour_value': 1485, 'temperature_log-return': 1484, 'number_people_log-return': 1484}
+        expected_n_time_dict = {'hour_value': 33, 'temperature_log-return': 32, 'number_people_log-return': 32}
         expected_n_symbols = 1
         expected_n_features = 3
 
@@ -157,7 +156,7 @@ class TestGymDataTransformation(TestCase):
     def test_create_predict_data(self):
 
         expected_n_samples = 1
-        expected_n_time_dict = {'hour_value': 1485, 'temperature_log-return': 1484, 'number_people_log-return': 1484}
+        expected_n_time_dict = {'hour_value': 33, 'temperature_log-return': 33, 'number_people_log-return': 33}
         expected_n_symbols = 1
         expected_n_features = 3
 
@@ -165,168 +164,120 @@ class TestGymDataTransformation(TestCase):
         gym_transform = GymDataTransformation(config)
 
         # have to run train first so that the normalizers are fit
-        _, _ = gym_transform.create_train_data(sample_hourly)
-        predict_x, symbols, predict_timestamp, target_timestamp = gym_transform.create_predict_data(sample_hourly)
+        _, _ = gym_transform.create_train_data(gym_sample_hourly)
+        predict_x, symbols, predict_timestamp, target_timestamp = gym_transform.create_predict_data(gym_sample_hourly)
 
-        assert predict_timestamp == pd.Timestamp('2015-03-09 14:00:00+0000', tz='UTC')
+        assert predict_timestamp == pd.Timestamp('2015-10-30 08:00:00+0000', tz='UTC')
 
         assert len(predict_x.keys()) == expected_n_features
-        assert list(predict_x.keys()) == expected_n_time_dict.keys()
+        assert set(predict_x.keys()) == set(expected_n_time_dict.keys())
 
-        assert np.isclose(predict_x['open_value'][0, :, 0].mean(), 124.787, rtol=REL_TOL)
-        assert np.isclose(predict_x['open_value'][0, :, 1].mean(), 570.950, rtol=REL_TOL)
-        assert np.isclose(predict_x['open_value'][0, :, 2].mean(), 32.418, rtol=REL_TOL)
-        assert np.isclose(predict_x['open_value'][0, :, 3].mean(), 384.03379, rtol=REL_TOL)
-        assert np.isclose(predict_x['open_value'][0, :, 4].mean(), 15.9612, rtol=REL_TOL)
+        assert np.isclose(predict_x['hour_value'][0, :, 0].mean(), 13.33333, rtol=REL_TOL)
 
-        assert np.isclose(predict_x['close_log-return'][0, :, 0].mean(), -0.00037412756518502636, rtol=REL_TOL)
-        assert np.isclose(predict_x['close_log-return'][0, :, 1].mean(), -0.00071031231939734001, rtol=REL_TOL)
-        assert np.isclose(predict_x['close_log-return'][0, :, 2].mean(), -0.0028026462004643749, rtol=REL_TOL)
-        assert np.isclose(predict_x['close_log-return'][0, :, 3].mean(), -0.0011889590013153429, rtol=REL_TOL)
-        assert np.isclose(predict_x['close_log-return'][0, :, 4].mean(), 0.0015928267596619391, rtol=REL_TOL)
+        assert np.isclose(predict_x['temperature_log-return'][0, :, 0].mean(), -0.0011740965, rtol=REL_TOL)
 
-        assert np.isclose(predict_x['high_log-return'][0, :, 0].mean(), -0.14222451613690593, rtol=REL_TOL)
-        assert np.isclose(predict_x['high_log-return'][0, :, 1].mean(), -0.19212886645801133, rtol=REL_TOL)
-        assert np.isclose(predict_x['high_log-return'][0, :, 2].mean(), -0.50004735819544888, rtol=REL_TOL)
-        assert np.isclose(predict_x['high_log-return'][0, :, 3].mean(), -0.2603029872984271, rtol=REL_TOL)
-        assert np.isclose(predict_x['high_log-return'][0, :, 4].mean(), 0.15312313803264102, rtol=REL_TOL)
+        assert np.isclose(predict_x['number_people_log-return'][0, :, 0].mean(), -0.015582944, rtol=REL_TOL)
 
         for key in predict_x.keys():
             assert predict_x[key].shape == (expected_n_samples, expected_n_time_dict[key], expected_n_symbols)
 
         assert len(symbols) == expected_n_symbols
-        assert list(symbols) == ['AAPL', 'GOOG', 'INTC', 'AMZN', 'BAC']
-#
-#     def test_create_predict_data_on_market_close(self):
-#
-#         expected_n_samples = 1
-#         expected_n_time_dict = {'open_value': 15, 'high_log-return': 15, 'close_log-return': 15}
-#         expected_n_symbols = 1
-#         expected_n_features = 3
-#
-#         config = load_preset_config(expected_n_symbols)
-#         config['predict_the_market_close'] = True
-#         gym_transform = GymDataTransformation(config)
-#
-#         # have to run train first so that the normalizers are fit
-#         _, _ = gym_transform.create_train_data(sample_hourly)
-#         predict_x, symbols, predict_timestamp, target_timestamp = gym_transform.create_predict_data(
-#             sample_hourly)
-#
-#         assert predict_timestamp == pd.Timestamp('2015-03-09 20:00:00+0000', tz='UTC')
-#         assert len(predict_x.keys()) == expected_n_features
-#         assert list(predict_x.keys()) == ['open_value', 'close_log-return', 'high_log-return']
-#
-#         assert np.isclose(predict_x['open_value'][0, :, 0].mean(), 124.787, rtol=REL_TOL)
-#         assert np.isclose(predict_x['open_value'][0, :, 1].mean(), 570.950, rtol=REL_TOL)
-#         assert np.isclose(predict_x['open_value'][0, :, 2].mean(), 32.418, rtol=REL_TOL)
-#         assert np.isclose(predict_x['open_value'][0, :, 3].mean(), 384.03379, rtol=REL_TOL)
-#         assert np.isclose(predict_x['open_value'][0, :, 4].mean(), 15.9612, rtol=REL_TOL)
-#
-#         assert np.isclose(predict_x['close_log-return'][0, :, 0].mean(), -0.00037412756518502636, rtol=REL_TOL)
-#         assert np.isclose(predict_x['close_log-return'][0, :, 1].mean(), -0.00071031231939734001, rtol=REL_TOL)
-#         assert np.isclose(predict_x['close_log-return'][0, :, 2].mean(), -0.0028026462004643749, rtol=REL_TOL)
-#         assert np.isclose(predict_x['close_log-return'][0, :, 3].mean(), -0.0011889590013153429, rtol=REL_TOL)
-#         assert np.isclose(predict_x['close_log-return'][0, :, 4].mean(), 0.0015928267596619391, rtol=REL_TOL)
-#
-#         assert np.isclose(predict_x['high_log-return'][0, :, 0].mean(), -0.14222451613690593, rtol=REL_TOL)
-#         assert np.isclose(predict_x['high_log-return'][0, :, 1].mean(), -0.19212886645801133, rtol=REL_TOL)
-#         assert np.isclose(predict_x['high_log-return'][0, :, 2].mean(), -0.50004735819544888, rtol=REL_TOL)
-#         assert np.isclose(predict_x['high_log-return'][0, :, 3].mean(), -0.2603029872984271, rtol=REL_TOL)
-#         assert np.isclose(predict_x['high_log-return'][0, :, 4].mean(), 0.15312313803264102, rtol=REL_TOL)
-#
-#         for key in predict_x.keys():
-#             assert predict_x[key].shape == (expected_n_samples, expected_n_time_dict[key], expected_n_symbols)
-#
-#         assert len(symbols) == expected_n_symbols
-#         assert list(symbols) == ['AAPL', 'GOOG', 'INTC', 'AMZN', 'BAC']
-#
-#
-# @pytest.mark.parametrize("index", [0, 1, 2, 3])
-# def test_create_data(index):
-#     expected_n_samples = 30
-#     expected_n_time_dict = {'open_value': 15, 'high_log-return': 15, 'close_log-return': 15}
-#     expected_n_symbols = 1
-#     expected_n_features = 3
-#     expected_n_bins = 5
-#
-#     config = load_preset_config(expected_n_symbols, index)
-#     exp_x_mean, exp_y_mean, expected_sample = load_expected_results(index)
-#
-#     gym_transform = GymDataTransformation(config)
-#     train_x, train_y = gym_transform.create_train_data(sample_hourly)
-#
-#     assert len(train_x.keys()) == expected_n_features
-#     if index < 3:
-#         assert list(train_x.keys()) == ['open_value', 'close_log-return', 'high_log-return']
-#
-#         # Check shape of arrays
-#         for key in train_x.keys():
-#             assert train_x[key].shape == (expected_n_samples, expected_n_time_dict[key], expected_n_symbols)
-#
-#         for key in train_y.keys():
-#             assert train_y[key].shape == (expected_n_samples, expected_n_bins, expected_n_symbols)
-#
-#     # Now check contents
-#     if index == 3:
-#         x_key = 'close_log-return_15T'
-#         y_key = 'high_log-return_150T'
-#     else:
-#         x_key = 'open_value'
-#         y_key = 'high_log-return'
-#
-#     assert np.isclose(train_x[x_key].flatten().mean(), exp_x_mean)
-#     assert np.isclose(train_y[y_key].flatten().mean(), exp_y_mean)
-#
-#     if index == 0:  # Check feature ordering is preserved. This mimics the extraction of data in oracle.py
-#         numpy_arrays = []
-#         for key, value in train_x.items():
-#             numpy_arrays.append(value)
-#
-#         train_x = np.stack(numpy_arrays, axis=0)
-#         sample_data = train_x.flatten()[0:4]
-#
-#         np.testing.assert_array_almost_equal(sample_data, expected_sample)
-#
-#     def test_check_x_batch_dimensions(self):
-#
-#         expected_n_symbols = 4
-#
-#         test_dict_1 = {'open_value': np.zeros(15), 'close_log-return': np.zeros(15), 'high_log-return': np.zeros(15)}
-#         test_dict_2 = {'open_value': np.zeros(0), 'close_log-return': np.zeros(15), 'high_log-return': np.zeros(15)}
-#         test_dict_3 = {'open_value': np.zeros(15), 'close_log-return': np.zeros(12), 'high_log-return': np.zeros(15)}
-#
-#         config = self.load_default_config(expected_n_symbols)
-#         gym_transform = GymDataTransformation(config)
-#
-#         assert gym_transform.check_x_batch_dimensions(test_dict_1)
-#         assert ~gym_transform.check_x_batch_dimensions(test_dict_2)
-#         assert ~gym_transform.check_x_batch_dimensions(test_dict_3)
-#
-#
-# def mock_ml_model_single_pass(predict_x):
-#     mean_list = []
-#     for key in predict_x.keys():
-#         value = predict_x[key]  # shape eg (1, 15, 5)
-#         mean_value = value.mean(axis=1)
-#         mean_list.append(mean_value)
-#     mean_list = np.asarray(mean_list)
-#     factors = mean_list.mean(axis=0)
-#     return np.ones(shape=(len(factors),)) * factors
-#
-#
-# def mock_ml_model_multi_pass(predict_x, n_passes, nbins):
-#     mean_list = []
-#     for key in predict_x.keys():
-#         mean_list.append(predict_x[key].mean(axis=1))
-#     mean_list = np.asarray(mean_list)
-#     factors = mean_list.mean(axis=1)
-#     n_series = len(factors)
-#     if nbins:
-#         predict_y = np.zeros((n_passes, n_series, nbins))
-#         for i in range(n_passes):
-#             for j in range(n_series):
-#                 predict_y[i, j, i % nbins] = 1
-#         return predict_y
-#     else:
-#         raise ValueError("Only classification currently supported")
+        assert list(symbols) == ['UCBerkeley']
+
+
+@pytest.mark.parametrize("index", [0, 1, 2])
+def test_create_data(index):
+    expected_n_samples = 38
+    expected_n_time_dict = {'hour_value': 33, 'temperature_log-return': 33, 'number_people_log-return': 33}
+    expected_n_symbols = 1
+    expected_n_features = 3
+    expected_n_bins = 5
+
+    config = load_preset_config(expected_n_symbols, index)
+    gym_transform = GymDataTransformation(config)
+
+    train_x, train_y = gym_transform.create_train_data(gym_sample_hourly)
+
+    assert len(train_x.keys()) == expected_n_features
+    if index < 2:
+        assert set(train_x.keys()) == set(expected_n_time_dict.keys())
+
+        # Check shape of arrays
+        for key in train_x.keys():
+            assert train_x[key].shape == (expected_n_samples, expected_n_time_dict[key], expected_n_symbols)
+
+        for key in train_y.keys():
+            assert train_y[key].shape == (expected_n_samples, expected_n_bins, expected_n_symbols)
+
+    # Now check contents
+    if index == 2:
+        x_key = 'hour_log-return_15T'
+        y_key = 'number_people_log-return_150T'
+    else:
+        x_key = 'hour_value'
+        y_key = 'number_people_log-return'
+
+    exp_x_mean, exp_y_mean, expected_sample = load_expected_results(index)
+
+    x_mean = train_x[x_key].flatten().mean()
+    if np.isnan(exp_x_mean):
+        assert np.isnan(x_mean)
+    else:
+        assert np.isclose(x_mean, exp_x_mean)
+
+    y_mean = train_y[y_key].flatten().mean()
+    assert np.isclose(y_mean, exp_y_mean)
+
+    if index == 0:  # Check feature ordering is preserved. This mimics the extraction of data in oracle.py
+        numpy_arrays = []
+        for key, value in train_x.items():
+            numpy_arrays.append(value)
+
+        train_x = np.stack(numpy_arrays, axis=0)
+        sample_data = train_x.flatten()[0:4]
+
+        np.testing.assert_array_almost_equal(sample_data, expected_sample)
+
+
+def test_check_x_batch_dimensions():
+
+    expected_n_symbols = 4
+
+    test_dict_1 = {'open_value': np.zeros(15), 'close_log-return': np.zeros(15), 'high_log-return': np.zeros(15)}
+    test_dict_2 = {'open_value': np.zeros(0), 'close_log-return': np.zeros(15), 'high_log-return': np.zeros(15)}
+    test_dict_3 = {'open_value': np.zeros(15), 'close_log-return': np.zeros(12), 'high_log-return': np.zeros(15)}
+
+    config = load_preset_config(expected_n_symbols)
+    gym_transform = GymDataTransformation(config)
+
+    assert gym_transform.check_x_batch_dimensions(test_dict_1)
+    assert ~gym_transform.check_x_batch_dimensions(test_dict_2)
+    assert ~gym_transform.check_x_batch_dimensions(test_dict_3)
+
+
+def mock_ml_model_single_pass(predict_x):
+    mean_list = []
+    for key in predict_x.keys():
+        value = predict_x[key]  # shape eg (1, 15, 5)
+        mean_value = value.mean(axis=1)
+        mean_list.append(mean_value)
+    mean_list = np.asarray(mean_list)
+    factors = mean_list.mean(axis=0)
+    return np.ones(shape=(len(factors),)) * factors
+
+
+def mock_ml_model_multi_pass(predict_x, n_passes, nbins):
+    mean_list = []
+    for key in predict_x.keys():
+        mean_list.append(predict_x[key].mean(axis=1))
+    mean_list = np.asarray(mean_list)
+    factors = mean_list.mean(axis=1)
+    n_series = len(factors)
+    if nbins:
+        predict_y = np.zeros((n_passes, n_series, nbins))
+        for i in range(n_passes):
+            for j in range(n_series):
+                predict_y[i, j, i % nbins] = 1
+        return predict_y
+    else:
+        raise ValueError("Only classification currently supported")
