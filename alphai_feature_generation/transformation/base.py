@@ -6,8 +6,10 @@ from contextlib import contextmanager
 from datetime import timedelta
 from functools import partial
 
+
 import numpy as np
 
+import alphai_calendars as mcal
 from alphai_feature_generation.feature.factory import FeatureList
 
 logger = logging.getLogger(__name__)
@@ -30,12 +32,15 @@ class DateNotInUniverseError(Exception):
 
 class DataTransformation(metaclass=ABCMeta):
 
+    KEY_EXCHANGE = None
+
     def __init__(self, configuration):
 
         self._calendar = None
         self.minutes_in_trading_days = None
 
-        self._init_calendar(configuration)
+        self._calendar = mcal.get_calendar(configuration[self.KEY_EXCHANGE])
+        self.minutes_in_trading_days = self._calendar.get_minutes_in_one_day()
         self.configuration = configuration
 
         self.features_ndays = configuration['features_ndays']
@@ -55,10 +60,6 @@ class DataTransformation(metaclass=ABCMeta):
         self.feature_length = self.get_feature_length()
 
         self._assert_input()
-
-    @abstractmethod
-    def _init_calendar(self, configuration):
-        pass
 
     @abstractmethod
     def _assert_input(self):
@@ -100,6 +101,7 @@ class DataTransformation(metaclass=ABCMeta):
     def check_x_batch_dimensions(self, feature_x_dict):
         """
         Evaluate if the x batch has the expected dimensions.
+
         :param dict feature_x_dict: batch of x-features
         :return bool: False if the dimensions are not those expected
         """
@@ -115,6 +117,7 @@ class DataTransformation(metaclass=ABCMeta):
     def check_y_batch_dimensions(self, feature_y_dict):
         """
         Evaluate if the y batch has the expected dimensions.
+
         :param dict feature_y_dict: batch of y-labels
         :return bool: False if the dimensions are not those expected
         """
@@ -130,6 +133,7 @@ class DataTransformation(metaclass=ABCMeta):
     def get_feature_length(self):
         """
         Calculate expected total ticks for x data
+
         :return int: expected total number of ticks for x data
         """
         return self.get_total_ticks_x()
@@ -137,35 +141,77 @@ class DataTransformation(metaclass=ABCMeta):
     def get_total_ticks_x(self):
         """
         Calculate expected total ticks for x data
+
         :return int: expected total number of ticks for x data
         """
         ticks_in_a_day = np.floor(self.minutes_in_trading_days / self.features_resample_minutes) + 1
         intra_day_ticks = np.floor((self.prediction_market_minute - self.features_start_market_minute) /
                                    self.features_resample_minutes)
         total_ticks = ticks_in_a_day * self.features_ndays + intra_day_ticks + 1
+
         return int(total_ticks)
 
     def get_target_feature(self):
         """
         Return the target feature in self.features
+
         :return FinancialFeature: target feature
         """
         for feature in self.features:
             if feature.is_target:
                 return feature
 
-    def filter_unwanted_keys(self, data_dict):
+    def filter_unwanted_keys(self, raw_data_dict):
         """
-        :param data_dict: Dictionary we wish to trim
+        Remove useless data from the raw_data_dict
+        
+        :param raw_data_dict: Dictionary we wish to trim
+        :return dict: data which belong to the expected keys
+        """
+        wanted_keys = {feature.name for feature in self.features}
+
+        return {key: value for key, value in raw_data_dict.items() if key in wanted_keys}
+
+    def _get_valid_target_timestamp_in_schedule(self, schedule, predict_timestamp):
+        """
+        Return valid market time for target time given timestamp calculated using
+        the predict_timestamp and the property target_delta_ndays
+
+        :param pd.Timestamp predict_timestamp: the timestamp of the prediction
+        :return pd.Timestamp target_timestamp: the timestamp of the target
+        """
+
+        market_schedule_for_target_day = self._extract_target_market_day(schedule, predict_timestamp)
+
+        target_market_open = market_schedule_for_target_day.market_open
+        target_timestamp = self._get_target_timestamp(target_market_open)
+
+        if self._calendar.open_at_time(schedule, target_timestamp, include_close=True):
+            return target_timestamp
+        else:
+            raise ValueError("Target timestamp {} not in market time".format(target_timestamp))
+
+    def _extract_target_market_day(self, market_schedule, prediction_timestamp):
+        """
+        Extract the target market open day using prediction day and the property target_delta_ndays
+
+        :param pd.DataFrame market_schedule:
+        :param prediction_timestamp:
+
         :return:
         """
 
-        wanted_keys = {feature.name for feature in self.features}
+        target_index = market_schedule.index.get_loc(prediction_timestamp.date()) + self.target_delta_ndays
 
-        return {key: value for key, value in data_dict.items() if key in wanted_keys}
+        if target_index < len(market_schedule):
+            return market_schedule.iloc[target_index]
+        else:
+            return None
 
     def _make_normalised_x_list(self, x_list, do_normalisation_fitting):
-        """ Collects sample of x into a dictionary, and applies normalisation
+        """
+        Collects sample of x into a dictionary, and applies normalisation
+
         :param x_list: List of unnormalised dictionaries
         :param bool do_normalisation_fitting: Whether to use pre-fitted normalisation, or set normalisation constants
         :return: dict Dictionary of normalised features

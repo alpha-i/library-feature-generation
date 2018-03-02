@@ -5,18 +5,15 @@ from collections import OrderedDict
 from datetime import timedelta
 from functools import partial
 
-import numpy as np
 import pandas as pd
-import alphai_calendars as mcal
 
-from alphai_feature_generation.feature.features.gym import GymFeature
-from alphai_feature_generation.feature.factory import FeatureList, GymFeatureFactory
+from alphai_feature_generation.feature.factory import GymFeatureFactory
 from alphai_feature_generation.helpers import logtime
 from alphai_feature_generation.transformation.base import (
     ensure_closing_pool,
     DataTransformation,
-    get_unique_symbols,
-    DateNotInUniverseError)
+    DateNotInUniverseError
+)
 
 logger = logging.getLogger(__name__)
 
@@ -40,14 +37,6 @@ class GymDataTransformation(DataTransformation):
         super().__init__(configuration)
 
         self.target_feature = self.get_target_feature()
-
-    def _init_calendar(self, configuration):
-        try:
-            self._calendar = mcal.get_calendar(configuration[self.KEY_EXCHANGE])
-            self.minutes_in_trading_days = self._calendar.get_minutes_in_one_day()
-        except:
-            self._calendar = None
-            self.minutes_in_trading_days = 1440
 
     def _assert_input(self):
         configuration = self.configuration
@@ -209,7 +198,13 @@ class GymDataTransformation(DataTransformation):
         market_schedule = self._extract_schedule_for_prediction(raw_data_dict)
 
         predict_x, _, symbols, predict_timestamp = self._create_data(raw_data_dict, market_schedule)
-        target_timestamp = predict_timestamp + timedelta(days=self.target_delta_ndays)
+
+        prediction_day = predict_timestamp.date()
+        schedule = self._calendar.schedule(prediction_day, prediction_day + timedelta(days=10))
+
+        target_timestamp = self._get_valid_target_timestamp_in_schedule(schedule, predict_timestamp)
+
+        _, predict_timestamp = self._get_prediction_timestamps(schedule.loc[prediction_day]['market_open'])
 
         return predict_x, symbols, predict_timestamp, target_timestamp
 
@@ -224,61 +219,6 @@ class GymDataTransformation(DataTransformation):
         medians, lower_bound, upper_bound = target_feature.inverse_transform_multi_predict_y(predict_y, symbols)
 
         return medians, lower_bound, upper_bound
-
-    def _collect_prediction_from_features(self, raw_data_dict, x_end_timestamp, y_start_timestamp, target_timestamp=None):
-        """
-        Collect processed prediction x and y data for all the features.
-        :param dict raw_data_dict: dictionary of dataframes containing features data.
-        :param Timestamp prediction_timestamp: Timestamp when the prediction is made
-        :param list/None universe: list of relevant symbols
-        :param Timestamp/None target_timestamp: Timestamp the prediction is for.
-        :return (dict, dict): feature_x_dict, feature_y_dict
-        """
-        feature_x_dict = OrderedDict()
-        feature_y_dict = OrderedDict()
-
-        part = partial(self._process_predictions, x_end_timestamp, y_start_timestamp,
-                       raw_data_dict, target_timestamp)
-        processed_predictions = map(part, self.features)
-
-        for prediction in processed_predictions:
-            feature_name, feature_x, feature_y = prediction
-            feature_x_dict[feature_name] = feature_x
-            if feature_y is not None:
-                feature_y_dict[feature_name] = feature_y
-
-        if len(feature_y_dict) > 0:
-            assert len(feature_y_dict) == 1, 'Only one target is allowed'
-        else:
-            feature_y_dict = None
-
-        return feature_x_dict, feature_y_dict
-
-    def _process_predictions(self, x_timestamp, y_timestamp, raw_data_dict, target_timestamp, feature):
-
-        universe = raw_data_dict[feature.name].columns
-        feature_name = feature.full_name if feature.full_name in raw_data_dict.keys() else feature.name
-        feature_x = feature.get_prediction_features(
-            raw_data_dict[feature_name].loc[:, universe],
-            x_timestamp
-        )
-
-        feature_y = None
-        if feature.is_target:
-            feature_y = feature.get_prediction_targets(
-                # Unless specified otherwise, target is the first feature in list
-                raw_data_dict[self._get_feature_for_extract_y()].loc[:, universe],
-                y_timestamp,
-                target_timestamp
-            )
-
-            #FIXME unclear why this transpose is necessary
-            if feature_y is not None:
-                transposed_y = feature_y.to_frame().transpose()
-                transposed_y.set_index(pd.DatetimeIndex([target_timestamp]), inplace=True)
-                feature_y = transposed_y
-
-        return feature.full_name, feature_x, feature_y
 
     def _build_features_function(self, raw_data_dict, data_schedule, prediction_market_open):
         target_market_schedule = self._extract_target_market_day(data_schedule, prediction_market_open)
@@ -306,13 +246,10 @@ class GymDataTransformation(DataTransformation):
         """ Creates dictionaries of features and labels for a single window
 
         :param dict raw_data_dict: dictionary of dataframes containing features data.
-        :param pd.Dataframe universe: Dataframe with three columns ['start_date', 'end_date', 'assets']
-        :param prediction_market_open:
         :param target_market_open:
+        :param prediction_market_open:
         :return:
         """
-
-        prediction_date = prediction_market_open.date()
 
         x_end_timestamp, y_start_timestamp = self._get_prediction_timestamps(prediction_market_open)
         target_timestamp = self._get_target_timestamp(target_market_open)
@@ -326,19 +263,58 @@ class GymDataTransformation(DataTransformation):
 
         return feature_x_dict, feature_y_dict, x_end_timestamp
 
-    def _extract_target_market_day(self, market_schedule, prediction_timestamp):
+    def _collect_prediction_from_features(self, raw_data_dict, x_end_timestamp, y_start_timestamp, target_timestamp=None):
         """
-        Extract the target market open day using prediction day and target delta
-
-        :param market_schedule:
-        :param prediction_timestamp:
-
-        :return:
+        Collect processed prediction x and y data for all the features.
+        :param dict raw_data_dict: dictionary of dataframes containing features data.
+        :param Timestamp prediction_timestamp: Timestamp when the prediction is made
+        :param list/None universe: list of relevant symbols
+        :param Timestamp/None target_timestamp: Timestamp the prediction is for.
+        :return (dict, dict): feature_x_dict, feature_y_dict
         """
+        feature_x_dict = OrderedDict()
+        feature_y_dict = OrderedDict()
 
-        target_index = market_schedule.index.get_loc(prediction_timestamp.date()) + self.target_delta_ndays
+        processed_predictions = []
+        for feature in self.features:
+            processed_predictions.append(
+                self._process_predictions(x_end_timestamp, y_start_timestamp,
+                       raw_data_dict, target_timestamp, feature)
+            )
 
-        if target_index < len(market_schedule):
-            return market_schedule.iloc[target_index]
+        for prediction in processed_predictions:
+            feature_name, feature_x, feature_y = prediction
+            feature_x_dict[feature_name] = feature_x
+            if feature_y is not None:
+                feature_y_dict[feature_name] = feature_y
+
+        if len(feature_y_dict) > 0:
+            assert len(feature_y_dict) == 1, 'Only one target is allowed'
         else:
-            return None
+            feature_y_dict = None
+
+        return feature_x_dict, feature_y_dict
+
+    def _process_predictions(self, x_timestamp, y_timestamp, raw_data_dict, target_timestamp, feature):
+
+        feature_name = feature.full_name if feature.full_name in raw_data_dict.keys() else feature.name
+        feature_x = feature.get_prediction_features(
+            raw_data_dict[feature_name].loc[:],
+            x_timestamp
+        )
+
+        feature_y = None
+        if feature.is_target:
+            feature_y = feature.get_prediction_targets(
+                raw_data_dict[self._get_feature_for_extract_y()].loc[:],
+                y_timestamp,
+                target_timestamp
+            )
+
+            #FIXME unclear why this transpose is necessary
+            if feature_y is not None:
+                transposed_y = feature_y.to_frame().transpose()
+                transposed_y.set_index(pd.DatetimeIndex([target_timestamp]), inplace=True)
+                feature_y = transposed_y
+
+        return feature.full_name, feature_x, feature_y
