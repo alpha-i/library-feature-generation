@@ -18,6 +18,7 @@ logger = logging.getLogger(__name__)
 
 
 class FinancialFeature(object):
+    """ Describes a feature intended to help predict a financial time series. """
 
     def __init__(self, name, transformation, normalization, nbins, length, ndays, resample_minutes, start_market_minute,
                  is_target, exchange_calendar, local, classify_per_series=False, normalise_per_series=False):
@@ -89,6 +90,7 @@ class FinancialFeature(object):
 
     def _assert_input(self, name, normalization, nbins, length, ndays, resample_minutes,
                       start_market_minute, is_target, local):
+        """ Make sure the inputs are sensible. """
 
         assert isinstance(name, str)
         assert normalization in FINANCIAL_FEATURE_NORMALIZATIONS

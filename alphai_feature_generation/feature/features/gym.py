@@ -17,6 +17,7 @@ logger = logging.getLogger(__name__)
 
 
 class GymFeature(object):
+    """ Describes a feature intended to help predict attendance levels at a gym. """
 
     KEY_EXCHANGE = 'holiday_calendar'
 
@@ -92,7 +93,7 @@ class GymFeature(object):
 
     def _assert_input(self, name, normalization, nbins, length, ndays, resample_minutes,
                       start_market_minute, is_target, local):
-
+        """ Make sure the inputs are sensible. """
         assert isinstance(name, str)
         assert normalization in FINANCIAL_FEATURE_NORMALIZATIONS
         assert (isinstance(nbins, int) and nbins > 0) or nbins is None
