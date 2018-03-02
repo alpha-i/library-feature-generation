@@ -17,6 +17,7 @@ logger = logging.getLogger(__name__)
 
 @contextmanager
 def ensure_closing_pool():
+    """ Do some fancy multiprocessing stuff while preventing memory leaks. """
     pool = multiprocessing.Pool(processes=multiprocessing.cpu_count() - 1)
     try:
         yield pool
@@ -27,14 +28,20 @@ def ensure_closing_pool():
 
 
 class DateNotInUniverseError(Exception):
+    """ Sorry Morty, we seem to be in the wrong universe. """
     pass
 
 
 class DataTransformation(metaclass=ABCMeta):
+    """ Prepares raw time series data for machine learning applications. """
 
     KEY_EXCHANGE = None
 
     def __init__(self, configuration):
+        """Initialise in accordance with the config dictionary.
+
+        :param dict configuration:
+        """
 
         self._calendar = None
         self.minutes_in_trading_days = None
@@ -63,30 +70,38 @@ class DataTransformation(metaclass=ABCMeta):
 
     @abstractmethod
     def _assert_input(self):
+        """ Make sure your inputs are sensible.  """
         pass
 
     @abstractmethod
     def _get_feature_for_extract_y(self):
+        """ Returns the name of the feature to be used as a target (y). """
         raise NotImplementedError
 
     @abstractmethod
     def _feature_factory(self, feature_configuration_list):
+        """ Creates a list of features from a given configuration list. """
         pass
 
     @abstractmethod
     def create_train_data(self, *args):
+        """ Create a set of training data (x and y)"""
         raise NotImplementedError
 
     @abstractmethod
     def create_predict_data(self, *args):
+        """ Create a set of features for a single prediction (x).
+        These will be normalised in accordance with the properties of the training set. """
         raise NotImplementedError
 
     @abstractmethod
     def inverse_transform_multi_predict_y(self, predict_y, symbols):
+        """ Converts the network output (classification) into a useable prediction (such as mean and uncertainties) """
         raise NotImplementedError
 
     @abstractmethod
     def get_calendar_name(self):
+        """ Gets the name of the calendar. """
         raise NotImplementedError
 
     @property
@@ -132,7 +147,7 @@ class DataTransformation(metaclass=ABCMeta):
 
     def get_feature_length(self):
         """
-        Calculate expected total ticks for x data
+        Calculate expected total ticks for x data.
 
         :return int: expected total number of ticks for x data
         """
@@ -140,7 +155,7 @@ class DataTransformation(metaclass=ABCMeta):
 
     def get_total_ticks_x(self):
         """
-        Calculate expected total ticks for x data
+        Calculate expected total ticks for x data.
 
         :return int: expected total number of ticks for x data
         """
@@ -234,7 +249,13 @@ class DataTransformation(metaclass=ABCMeta):
 
         return x_list
 
-    def apply_normalisation(self, x_list, feature):
+    def apply_normalisation(self, x_list, feature):  #FIXME a method of ths same name exists in feature.py
+        """ Normalise the data using the feature's built-in scaler.
+
+        :param x_list:
+        :param feature:
+        :return:
+        """
 
         if feature.scaler:
             normalise_function = partial(self.normalise_dict, feature)
@@ -247,14 +268,27 @@ class DataTransformation(metaclass=ABCMeta):
         else:
             return x_list
 
-    def normalise_dict(self, target_feature, x_dict):
-        if target_feature.full_name in x_dict:
-            x_dict[target_feature.full_name] = target_feature.apply_normalisation(x_dict[target_feature.full_name])
+    def normalise_dict(self, feature, x_dict):
+        """ Apply normalisation with a single feature.
+
+        :param target_feature:
+        :param x_dict:
+        :return:
+        """
+        if feature.full_name in x_dict:
+            x_dict[feature.full_name] = feature.apply_normalisation(x_dict[feature.full_name])
         else:
-            logger.debug("Failed to find {} in dict: {}".format(target_feature.full_name, list(x_dict.keys())))
+            logger.debug("Failed to find {} in dict: {}".format(feature.full_name, list(x_dict.keys())))
         return x_dict
 
     def fit_normalisation(self, symbols, x_list, feature):
+        """ Fit the normalisation parameters to the data.
+
+        :param symbols:
+        :param x_list:
+        :param feature:
+        :return:
+        """
         if feature.scaler:
             logger.debug("Fitting normalisation to: {}".format(feature.full_name))
             if self.normalise_per_series:
@@ -269,7 +303,7 @@ class DataTransformation(metaclass=ABCMeta):
         return feature
 
     def _make_classified_y_list(self, y_list):
-        """ Takes list of dictionaries, and classifies them based on the full sample
+        """ Takes list of dictionaries, and classifies them based on the full sample.
         :param y_list:  List of unnormalised dictionaries
         :return: dict Dictionary of labels, encoded in one hot format
         """
@@ -296,6 +330,13 @@ class DataTransformation(metaclass=ABCMeta):
         return applied_y_list
 
     def _apply_classification(self, target_feature, target_name, y_dict):
+        """  Classifies the y values.
+
+        :param target_feature: The 'feature' that will act as the target for the network
+        :param target_name:
+        :param y_dict:
+        :return:
+        """
         if target_name in y_dict:
             y_dict[target_name] = target_feature.apply_classification(y_dict[target_name])
         else:
@@ -336,8 +377,8 @@ class DataTransformation(metaclass=ABCMeta):
         return x_end_timestamp, y_start_timestamp
 
     def apply_global_transformations(self, raw_data_dict):
-        """
-        add new features to data dictionary
+        """ Adds processed features to data dictionary, designated 'global' if they result in equal length time series.
+
         :param raw_data_dict: dictionary of dataframes
         :return: dict with new keys
         """

@@ -39,6 +39,8 @@ class GymDataTransformation(DataTransformation):
         self.target_feature = self.get_target_feature()
 
     def _assert_input(self):
+        """ Make sure your inputs are sensible.  """
+
         configuration = self.configuration
 
         assert isinstance(configuration[self.KEY_EXCHANGE], str)
@@ -61,9 +63,11 @@ class GymDataTransformation(DataTransformation):
         assert isinstance(configuration['fill_limit'], int)
 
     def _get_feature_for_extract_y(self):
+        """ Returns the name of the feature to be used as a target (y). """
         return self.target_feature.name
 
     def get_calendar_name(self):
+        """ Gets the name of the calendar. Obvs. """
         return self.KEY_EXCHANGE
 
     def _feature_factory(self, feature_config_list):
@@ -221,6 +225,13 @@ class GymDataTransformation(DataTransformation):
         return medians, lower_bound, upper_bound
 
     def _build_features_function(self, raw_data_dict, data_schedule, prediction_market_open):
+        """ Constructs dictionaries holding the desired x and y feature data.
+
+        :param raw_data_dict:
+        :param data_schedule:
+        :param prediction_market_open:
+        :return:
+        """
         target_market_schedule = self._extract_target_market_day(data_schedule, prediction_market_open)
         target_market_open = target_market_schedule.market_open if target_market_schedule is not None else None
 
@@ -296,7 +307,15 @@ class GymDataTransformation(DataTransformation):
         return feature_x_dict, feature_y_dict
 
     def _process_predictions(self, x_timestamp, y_timestamp, raw_data_dict, target_timestamp, feature):
+        """ Gathers the data associated with a single feature.
 
+        :param x_timestamp:
+        :param y_timestamp:
+        :param raw_data_dict:
+        :param target_timestamp:
+        :param feature:
+        :return:
+        """
         feature_name = feature.full_name if feature.full_name in raw_data_dict.keys() else feature.name
         feature_x = feature.get_prediction_features(
             raw_data_dict[feature_name].loc[:],

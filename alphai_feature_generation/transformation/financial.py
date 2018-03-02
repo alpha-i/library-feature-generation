@@ -39,6 +39,8 @@ class FinancialDataTransformation(DataTransformation):
         self.clean_nan_from_dict = configuration.get('clean_nan_from_dict', False)
 
     def _assert_input(self):
+        """ Make sure your inputs are sensible.  """
+
         configuration = self.configuration
 
         assert isinstance(configuration[self.KEY_EXCHANGE], str)
@@ -61,9 +63,11 @@ class FinancialDataTransformation(DataTransformation):
         assert isinstance(configuration['fill_limit'], int)
 
     def _get_feature_for_extract_y(self):
+        """ Returns the name of the feature to be used as a target (y). """
         return 'close'
 
     def get_calendar_name(self):
+        """ Gets the name of the calendar. """
         return self.KEY_EXCHANGE
 
     def _feature_factory(self, feature_config_list):
@@ -199,7 +203,8 @@ class FinancialDataTransformation(DataTransformation):
         return train_x, train_y
 
     def create_predict_data(self, raw_data_dict):
-        """
+        """  Create a set of features for a single prediction (x).
+        These will be normalised in accordance with the properties of the training set.
 
         :param raw_data_dict:
         :return: tuple: predict, symbol_list, prediction_timestamp, target_timestamp
@@ -237,6 +242,15 @@ class FinancialDataTransformation(DataTransformation):
         return means, cov_matrix
 
     def _build_features_function(self, raw_data_dict, historical_universes, data_schedule, prediction_market_open):
+        """  Constructs dictionaries holding the desired x and y feature data.
+
+        :param raw_data_dict:
+        :param historical_universes:
+        :param data_schedule:
+        :param prediction_market_open:
+        :return:
+        """
+
         target_market_schedule = self._extract_target_market_day(data_schedule, prediction_market_open)
         target_market_open = target_market_schedule.market_open if target_market_schedule is not None else None
 
@@ -320,6 +334,16 @@ class FinancialDataTransformation(DataTransformation):
         return feature_x_dict, feature_y_dict
 
     def _process_predictions(self, x_timestamp, y_timestamp, raw_data_dict, target_timestamp, universe, feature):
+        """ Gathers the data associated with a single feature.
+
+        :param x_timestamp:
+        :param y_timestamp:
+        :param raw_data_dict:
+        :param target_timestamp:
+        :param universe:
+        :param feature:
+        :return:
+        """
 
         if universe is None:
             universe = raw_data_dict[feature.name].columns
