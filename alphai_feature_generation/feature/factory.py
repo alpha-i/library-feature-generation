@@ -4,7 +4,7 @@ from abc import abstractmethod, ABCMeta
 from alphai_feature_generation.feature.features.financial import FinancialFeature
 from alphai_feature_generation.feature.features.gym import GymFeature
 
-DEFAULT_TRANSFORMATION =  {'name': 'value'}
+DEFAULT_TRANSFORMATION = {'name': 'value'}
 
 
 class AbstractFeatureFactory(metaclass=ABCMeta):
