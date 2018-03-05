@@ -37,6 +37,7 @@ class GymDataTransformation(DataTransformation):
         super().__init__(configuration)
 
         self.target_feature = self.get_target_feature()
+        self.n_forecasts = configuration.get('n_forecasts', 1)
 
     def _get_feature_for_extract_y(self):
         """ Returns the name of the feature to be used as a target (y). """
@@ -299,13 +300,8 @@ class GymDataTransformation(DataTransformation):
             feature_y = feature.get_prediction_targets(
                 raw_data_dict[self._get_feature_for_extract_y()].loc[:],
                 y_timestamp,
-                target_timestamp
+                target_timestamp,
+                self.n_forecasts
             )
-
-            #FIXME unclear why this transpose is necessary
-            if feature_y is not None:
-                transposed_y = feature_y.to_frame().transpose()
-                transposed_y.set_index(pd.DatetimeIndex([target_timestamp]), inplace=True)
-                feature_y = transposed_y
 
         return feature.full_name, feature_x, feature_y

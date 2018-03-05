@@ -352,10 +352,10 @@ class GymFeature(object):
                 symbol_distribution = self.bin_distribution_dict[symbol]
                 one_hot_labels = symbol_distribution.classify_labels(data_y)
                 if one_hot_labels.shape[-1] > 1:
-                    hot_panel[symbol] = np.squeeze(one_hot_labels)
+                    hot_panel[symbol] = one_hot_labels
             else:
                 logger.debug("Symbol lacks clasification bins: {}".format(symbol))
-                hot_dataframe.drop(symbol, axis=1, inplace=True)
+                hot_panel.drop(symbol, axis=0, inplace=True)
                 logger.debug("Dropping {} from dataframe.".format(symbol))
 
         return hot_panel.transpose(1, 0, 2)  # Puts time back as the index
@@ -370,7 +370,6 @@ class GymFeature(object):
 
         n_symbols = len(symbols)
         n_forecasts = predict_y.shape[2]
-        print("Symbols:", n_symbols, "n_forecasts:", n_forecasts)
 
         data_shape = (n_forecasts, n_symbols)
         means = np.zeros(shape=data_shape, dtype=np.float32)

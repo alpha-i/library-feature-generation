@@ -37,7 +37,8 @@ sample_features_no_bin = [
         'normalization': None,
         'nbins': None,
         'is_target': False,
-        'local': True
+        'local': True,
+        'length': 5
     },
     {
         'name': 'temperature',
@@ -45,7 +46,8 @@ sample_features_no_bin = [
         'normalization': None,
         'nbins': None,
         'is_target': False,
-        'local': True
+        'local': True,
+        'length': 5
     },
     {
         'name': 'number_people',
@@ -53,7 +55,8 @@ sample_features_no_bin = [
         'normalization': 'standard',
         'nbins': 5,
         'is_target': True,
-        'local': True
+        'local': True,
+        'length': 5
     },
 ]
 

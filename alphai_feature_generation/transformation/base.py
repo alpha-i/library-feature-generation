@@ -427,7 +427,6 @@ class DataTransformation(metaclass=ABCMeta):
 
     def stack_samples_for_each_feature(self, samples, reference_samples=None):
         """ Collate a list of samples (the training set) into a single dictionary
-
         :param samples: List of dicts, each dict should be holding the same set of keys
         :param reference_samples: cross-checks samples match shape of reference samples
         :return: Single dictionary with the values stacked together
@@ -447,37 +446,22 @@ class DataTransformation(metaclass=ABCMeta):
             reference_shape = reference_sample[feature_name].shape
             if len(samples) == 1:
                 stacked_samples[feature_name] = np.expand_dims(reference_sample[feature_name], axis=0)
-                valid_symbols = reference_sample[feature_name].columns
+
+                valid_symbols = getattr(reference_sample[feature_name], 'major_axis', [])
+                if len(valid_symbols) == 0:
+                    valid_symbols = getattr(reference_sample[feature_name], 'columns', [])
+
             else:
                 feature_list = []
                 for i, sample in enumerate(samples):
-                    feature = sample[feature_name]
-                    symbols = list(feature.columns)
-
                     total_samples += 1
-                    is_shape_ok = (feature.shape == reference_shape)
-
-                    if reference_samples:
-                        columns_match = (symbols == list(reference_samples[i][label_name].columns))
-                    else:
-                        columns_match = True
-                    dates_match = True  # FIXME add dates check
-
-                    if is_shape_ok and columns_match and dates_match:  # Make sure shape is OK
-                        feature_list.append(sample[feature_name].values)
-                        valid_symbols = symbols
-                    else:
-                        unusual_samples += 1
-                        if not columns_match:
-                            logger.debug("Oi, your columns dont match")
+                    feature = sample[feature_name]
+                    feature_list.append(sample[feature_name].values)
 
                 if len(feature_list) > 0:
                     stacked_samples[feature_name] = np.stack(feature_list, axis=0)
                 else:
                     stacked_samples = None
-
-        if len(samples) > 1:
-            logger.info("Found {} unusual samples out of {}".format(unusual_samples, total_samples))
 
         return stacked_samples, valid_symbols
 
