@@ -55,8 +55,8 @@ class DataTransformation(metaclass=ABCMeta):
         self.features_start_market_minute = configuration['features_start_market_minute']
         self.prediction_market_minute = configuration['prediction_market_minute']
 
-        self._target_delta = self._build_target_delta(configuration['target_delta'])
-        self.target_delta_ndays = self._target_delta.days
+        self.target_delta = self._build_target_delta(configuration['target_delta'])
+        self.target_delta_ndays = self.target_delta.days
         self.target_market_minute = configuration['target_market_minute']
         self.classify_per_series = configuration['classify_per_series']
         self.normalise_per_series = configuration['normalise_per_series']
@@ -189,8 +189,6 @@ class DataTransformation(metaclass=ABCMeta):
         assert isinstance(self.features_start_market_minute, int)
         assert self.features_start_market_minute < self.minutes_in_trading_days
 
-        assert self.target_delta_ndays >= 0
-
         assert 0 <= self.prediction_market_minute < self.minutes_in_trading_days
         assert 0 <= self.target_market_minute < self.minutes_in_trading_days
 
@@ -247,7 +245,7 @@ class DataTransformation(metaclass=ABCMeta):
         :return:
         """
 
-        target_index = market_schedule.index.get_loc(prediction_timestamp.date()) + self.target_delta_ndays
+        target_index = market_schedule.index.get_loc(prediction_timestamp.date()) + self.target_delta.days
 
         if target_index < len(market_schedule):
             return market_schedule.iloc[target_index]
@@ -507,7 +505,7 @@ class DataTransformation(metaclass=ABCMeta):
 
         max_feature_ndays = self.features.get_max_ndays()
 
-        return self._extract_schedule_from_data(raw_data_dict)[max_feature_ndays:-self.target_delta_ndays]
+        return self._extract_schedule_from_data(raw_data_dict)[max_feature_ndays:-self.target_delta.days]
 
     def print_diagnostics(self, xdict, ydict):
         """

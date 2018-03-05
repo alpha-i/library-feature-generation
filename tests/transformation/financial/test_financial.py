@@ -95,7 +95,7 @@ class TestFinancialDataTransformation(TestCase):
         assert self.transformation_without_bins.get_total_ticks_x() == 15
 
     def test_build_target_delta(self):
-        assert self.transformation_without_bins.target_delta_ndays == 5
+        assert self.transformation_without_bins.target_delta.days == 5
 
     def test_extract_schedule_from_data(self):
 

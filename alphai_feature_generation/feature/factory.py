@@ -16,7 +16,7 @@ class AbstractFeatureFactory(metaclass=ABCMeta):
     def get_feature_class(self):
         return NotImplemented
 
-    def __assert_single_target(self, feature_config_list):
+    def _assert_single_target(self, feature_config_list):
         """
         Check the list of feature to ensure only one is marked as target
         :param feature_config_list:
@@ -36,7 +36,7 @@ class AbstractFeatureFactory(metaclass=ABCMeta):
         :return list: list of FinancialFeature objects
         """
         assert isinstance(feature_config_list, list)
-        self.__assert_single_target(feature_config_list)
+        self._assert_single_target(feature_config_list)
         feature_list = FeatureList()
         for single_feature_dict in feature_config_list:
             feature_list.add_feature(self.create_feature(single_feature_dict))
