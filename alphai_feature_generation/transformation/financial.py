@@ -66,10 +66,6 @@ class FinancialDataTransformation(DataTransformation):
         """ Returns the name of the feature to be used as a target (y). """
         return 'close'
 
-    def get_calendar_name(self):
-        """ Gets the name of the calendar. """
-        return self.KEY_EXCHANGE
-
     def _feature_factory(self, feature_config_list):
         """
         Build list of financial features from list of incomplete feature-config dictionaries (class-specific).

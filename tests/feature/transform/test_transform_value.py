@@ -17,7 +17,7 @@ def test_transform_value_x():
             resample_minutes=0,
             start_market_minute=30,
             is_target=True,
-            exchange_calendar=sample_market_calendar,
+            calendar=sample_market_calendar,
             local=False,
             length=15
         )

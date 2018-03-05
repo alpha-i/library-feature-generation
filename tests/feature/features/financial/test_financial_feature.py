@@ -32,7 +32,7 @@ class TestFinancialFeature(TestCase):
             resample_minutes=0,
             start_market_minute=30,
             is_target=True,
-            exchange_calendar=sample_market_calendar,
+            calendar=sample_market_calendar,
             local=False,
             length=15
         )
@@ -45,7 +45,7 @@ class TestFinancialFeature(TestCase):
             resample_minutes=0,
             start_market_minute=90,
             is_target=True,
-            exchange_calendar=sample_market_calendar,
+            calendar=sample_market_calendar,
             local=False,
             length=35
         )
@@ -58,7 +58,7 @@ class TestFinancialFeature(TestCase):
             resample_minutes=0,
             start_market_minute=150,
             is_target=True,
-            exchange_calendar=sample_market_calendar,
+            calendar=sample_market_calendar,
             local=False,
             length=69
         )
@@ -154,7 +154,7 @@ class TestFeatureNormalization(TestCase):
             resample_minutes=0,
             start_market_minute=90,
             is_target=True,
-            exchange_calendar=sample_market_calendar,
+            calendar=sample_market_calendar,
             local=False,
             length=35,
             normalise_per_series=True
@@ -169,7 +169,7 @@ class TestFeatureNormalization(TestCase):
             resample_minutes=0,
             start_market_minute=90,
             is_target=True,
-            exchange_calendar=sample_market_calendar,
+            calendar=sample_market_calendar,
             local=False,
             length=35,
             normalise_per_series=True
@@ -184,7 +184,7 @@ class TestFeatureNormalization(TestCase):
             resample_minutes=0,
             start_market_minute=90,
             is_target=True,
-            exchange_calendar=sample_market_calendar,
+            calendar=sample_market_calendar,
             local=False,
             length=35,
             normalise_per_series=True
@@ -199,7 +199,7 @@ class TestFeatureNormalization(TestCase):
             resample_minutes=0,
             start_market_minute=90,
             is_target=True,
-            exchange_calendar=sample_market_calendar,
+            calendar=sample_market_calendar,
             local=False,
             length=35,
             normalise_per_series=True
@@ -216,7 +216,7 @@ class TestFeatureNormalization(TestCase):
             resample_minutes=0,
             start_market_minute=90,
             is_target=True,
-            exchange_calendar=sample_market_calendar,
+            calendar=sample_market_calendar,
             local=False,
             length=35,
             normalise_per_series=True

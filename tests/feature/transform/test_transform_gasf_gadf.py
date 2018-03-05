@@ -28,7 +28,7 @@ def test_tranform_gasf_x():
         resample_minutes=0,
         start_market_minute=150,
         is_target=True,
-        exchange_calendar=sample_market_calendar,
+        calendar=sample_market_calendar,
         local=True,
         length=10
     )
@@ -57,7 +57,7 @@ def test_tranform_gadf_x():
         resample_minutes=0,
         start_market_minute=150,
         is_target=True,
-        exchange_calendar=sample_market_calendar,
+        calendar=sample_market_calendar,
         local=True,
         length=10
     )

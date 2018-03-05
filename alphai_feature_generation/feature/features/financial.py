@@ -21,7 +21,7 @@ class FinancialFeature(object):
     """ Describes a feature intended to help predict a financial time series. """
 
     def __init__(self, name, transformation, normalization, nbins, length, ndays, resample_minutes, start_market_minute,
-                 is_target, exchange_calendar, local, classify_per_series=False, normalise_per_series=False):
+                 is_target, calendar, local, classify_per_series=False, normalise_per_series=False):
         """
         Object containing all the information to manipulate the data relative to a financial feature.
         :param str name: Name of the feature
@@ -34,7 +34,7 @@ class FinancialFeature(object):
         :param int resample_minutes: resampling frequency in number of minutes.
         :param int start_market_minute: number of minutes after market open the data collection should start from.
         :param bool is_target: if True the feature is a target.
-        :param pandas_market_calendar exchange_calendar: exchange calendar.
+        :param pandas_market_calendar calendar: exchange calendar.
         """
         # FIXME the get_default_flags args are temporary. We need to load a get_default_flags config in the unit tests.
 
@@ -46,7 +46,7 @@ class FinancialFeature(object):
         self.resample_minutes = resample_minutes
         self.start_market_minute = start_market_minute
         self.is_target = is_target
-        self.calendar = exchange_calendar
+        self.calendar = calendar
         self.minutes_in_trading_day = self.calendar.get_minutes_in_one_day()
         self.n_series = None
         self.local = local

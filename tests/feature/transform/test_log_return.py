@@ -26,7 +26,7 @@ def test_transform_log_return_x():
         resample_minutes=0,
         start_market_minute=90,
         is_target=True,
-        exchange_calendar=sample_market_calendar,
+        calendar=sample_market_calendar,
         local=False,
         length=35
     )
@@ -63,7 +63,7 @@ def test_transform_log_return_y():
         resample_minutes=0,
         start_market_minute=90,
         is_target=True,
-        exchange_calendar=sample_market_calendar,
+        calendar=sample_market_calendar,
         local=False,
         length=35
     )
@@ -97,7 +97,7 @@ def test_transform_x_log_return_with_local_feature():
         resample_minutes=0,
         start_market_minute=90,
         is_target=True,
-        exchange_calendar=sample_market_calendar,
+        calendar=sample_market_calendar,
         local=True,
         length=35
     )

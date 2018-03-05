@@ -9,8 +9,8 @@ DEFAULT_TRANSFORMATION =  {'name': 'value'}
 
 class AbstractFeatureFactory(metaclass=ABCMeta):
 
-    def __init__(self, exchange_calendar):
-        self._exchange_calendar = exchange_calendar
+    def __init__(self, calendar):
+        self._calendar = calendar
 
     @abstractmethod
     def get_feature_class(self):
@@ -51,7 +51,7 @@ class AbstractFeatureFactory(metaclass=ABCMeta):
             feature_config['resample_minutes'],
             feature_config['start_market_minute'],
             feature_config['is_target'],
-            self._exchange_calendar,
+            self._calendar,
             feature_config['local'],
             feature_config.get('classify_per_series'),
             feature_config.get('normalise_per_series')

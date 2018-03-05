@@ -28,7 +28,7 @@ def test_transform_ker_x():
             resample_minutes=0,
             start_market_minute=150,
             is_target=True,
-            exchange_calendar=sample_market_calendar,
+            calendar=sample_market_calendar,
             local=False,
             length=10
         )

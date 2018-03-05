@@ -71,7 +71,7 @@ class DataTransformation(metaclass=ABCMeta):
     @abstractmethod
     def _assert_input(self):
         """ Make sure your inputs are sensible.  """
-        pass
+        raise NotImplementedError
 
     @abstractmethod
     def _get_feature_for_extract_y(self):
@@ -81,7 +81,7 @@ class DataTransformation(metaclass=ABCMeta):
     @abstractmethod
     def _feature_factory(self, feature_configuration_list):
         """ Creates a list of features from a given configuration list. """
-        pass
+        raise NotImplementedError
 
     @abstractmethod
     def create_train_data(self, *args):
@@ -97,11 +97,6 @@ class DataTransformation(metaclass=ABCMeta):
     @abstractmethod
     def inverse_transform_multi_predict_y(self, predict_y, symbols):
         """ Converts the network output (classification) into a useable prediction (such as mean and uncertainties) """
-        raise NotImplementedError
-
-    @abstractmethod
-    def get_calendar_name(self):
-        """ Gets the name of the calendar. """
         raise NotImplementedError
 
     @property
