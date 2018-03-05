@@ -4,6 +4,7 @@ from abc import ABCMeta, abstractmethod
 from collections import OrderedDict
 from contextlib import contextmanager
 from datetime import timedelta
+from enum import Enum
 from functools import partial
 
 
@@ -25,6 +26,17 @@ def ensure_closing_pool():
         pool.terminate()
         pool.join()
         del pool
+
+
+class TargetDeltaUnit(Enum):
+
+    days = 'days'
+    seconds = 'seconds'
+    microseconds = 'microseconds'
+    milliseconds = 'milliseconds'
+    minutes = 'minutes'
+    hours = 'hours'
+    weeks = 'weeks'
 
 
 class DateNotInUniverseError(Exception):
@@ -199,21 +211,16 @@ class DataTransformation(metaclass=ABCMeta):
         :return timedelta:
         """
         value = target_delta_configuration['value']
-        unit = target_delta_configuration['unit']
+        try:
+            unit = TargetDeltaUnit(target_delta_configuration['unit']).value
+        except ValueError as e:
+            msg = "unit {} not allowed. allowed unit {}".format(
+                target_delta_configuration['unit'],
+                TargetDeltaUnit.__members__.keys()
+            )
+            raise ValueError(msg)
 
-        allowed_resolutions = ['hours', 'days', 'minutes', 'seconds', 'microseconds']
-        error_msg = "Resolution values can be hours, days, minutes, seconds, microseconds. {} given".format(unit)
-        assert unit in allowed_resolutions, error_msg
-
-        timedelta_parameters = {}
-        if unit == 'hours':
-            timedelta_parameters = {'seconds': value * 3600}
-        elif unit == 'minutes':
-            timedelta_parameters = {'seconds': value * 60}
-        else:
-            timedelta_parameters[unit] = value
-
-        return timedelta(**timedelta_parameters)
+        return timedelta(**{unit: value})
 
     def _get_valid_target_timestamp_in_schedule(self, schedule, predict_timestamp):
         """
