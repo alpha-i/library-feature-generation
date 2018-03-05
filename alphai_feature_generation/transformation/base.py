@@ -56,7 +56,6 @@ class DataTransformation(metaclass=ABCMeta):
         self.prediction_market_minute = configuration['prediction_market_minute']
 
         self.target_delta = self._build_target_delta(configuration['target_delta'])
-        self.target_delta_ndays = self.target_delta.days
         self.target_market_minute = configuration['target_market_minute']
         self.classify_per_series = configuration['classify_per_series']
         self.normalise_per_series = configuration['normalise_per_series']
