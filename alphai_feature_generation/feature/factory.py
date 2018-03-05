@@ -16,6 +16,19 @@ class AbstractFeatureFactory(metaclass=ABCMeta):
     def get_feature_class(self):
         return NotImplemented
 
+    def __assert_single_target(self, feature_config_list):
+        """
+        Check the list of feature to ensure only one is marked as target
+        :param feature_config_list:
+        :return:
+        """
+        number_of_target_features = 0
+        for feature_config in feature_config_list:
+            if feature_config['is_target']:
+                number_of_target_features += 1
+
+        assert number_of_target_features == 1
+
     def create_from_list(self, feature_config_list):
         """
         Build list of financial features from list of complete feature-config dictionaries.
@@ -23,7 +36,7 @@ class AbstractFeatureFactory(metaclass=ABCMeta):
         :return list: list of FinancialFeature objects
         """
         assert isinstance(feature_config_list, list)
-
+        self.__assert_single_target(feature_config_list)
         feature_list = FeatureList()
         for single_feature_dict in feature_config_list:
             feature_list.add_feature(self.create_feature(single_feature_dict))

@@ -38,30 +38,6 @@ class GymDataTransformation(DataTransformation):
 
         self.target_feature = self.get_target_feature()
 
-    def _assert_input(self):
-        """ Make sure your inputs are sensible.  """
-
-        configuration = self.configuration
-
-        assert isinstance(configuration[self.KEY_EXCHANGE], str)
-        assert isinstance(configuration['features_ndays'], int) and configuration['features_ndays'] >= 0
-        assert isinstance(configuration['features_resample_minutes'], int) \
-               and configuration['features_resample_minutes'] >= 0
-        assert isinstance(configuration['features_start_market_minute'], int)
-        assert configuration['features_start_market_minute'] < self.minutes_in_trading_days
-        assert configuration['prediction_market_minute'] >= 0
-        assert configuration['prediction_market_minute'] < self.minutes_in_trading_days
-        assert configuration['target_delta_ndays'] >= 0
-        assert configuration['target_market_minute'] >= 0
-        assert configuration['target_market_minute'] < self.minutes_in_trading_days
-        assert isinstance(configuration['feature_config_list'], list)
-        n_targets = 0
-        for single_feature_dict in configuration['feature_config_list']:
-            if single_feature_dict['is_target']:
-                n_targets += 1
-        assert n_targets == 1
-        assert isinstance(configuration['fill_limit'], int)
-
     def _get_feature_for_extract_y(self):
         """ Returns the name of the feature to be used as a target (y). """
         return self.target_feature.name

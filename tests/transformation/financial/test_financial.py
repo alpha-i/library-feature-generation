@@ -33,7 +33,10 @@ class TestFinancialDataTransformation(TestCase):
             FinancialDataTransformation.KEY_EXCHANGE: 'NYSE',
             'prediction_frequency_ndays': 1,
             'prediction_market_minute': 30,
-            'target_delta_ndays': 5,
+            'target_delta': {
+                'value': 5,
+                'unit': 'days'
+            },
             'target_market_minute': 30,
             'n_classification_bins': 5,
             'nassets': 5,
@@ -53,7 +56,10 @@ class TestFinancialDataTransformation(TestCase):
             FinancialDataTransformation.KEY_EXCHANGE: 'NYSE',
             'prediction_frequency_ndays': 1,
             'prediction_market_minute': 30,
-            'target_delta_ndays': 5,
+            'target_delta': {
+                'value': 5,
+                'unit': 'days'
+            },
             'target_market_minute': 30,
             'n_classification_bins': 5,
             'nassets': 5,
@@ -87,6 +93,9 @@ class TestFinancialDataTransformation(TestCase):
 
     def test_get_total_ticks_x(self):
         assert self.transformation_without_bins.get_total_ticks_x() == 15
+
+    def test_build_target_delta(self):
+        assert self.transformation_without_bins.target_delta_ndays == 5
 
     def test_extract_schedule_from_data(self):
 

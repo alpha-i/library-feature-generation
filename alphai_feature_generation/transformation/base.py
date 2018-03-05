@@ -54,7 +54,9 @@ class DataTransformation(metaclass=ABCMeta):
         self.features_resample_minutes = configuration['features_resample_minutes']
         self.features_start_market_minute = configuration['features_start_market_minute']
         self.prediction_market_minute = configuration['prediction_market_minute']
-        self.target_delta_ndays = configuration['target_delta_ndays']
+
+        self._target_delta = self._build_target_delta(configuration['target_delta'])
+        self.target_delta_ndays = self._target_delta.days
         self.target_market_minute = configuration['target_market_minute']
         self.classify_per_series = configuration['classify_per_series']
         self.normalise_per_series = configuration['normalise_per_series']
@@ -67,11 +69,6 @@ class DataTransformation(metaclass=ABCMeta):
         self.feature_length = self.get_feature_length()
 
         self._assert_input()
-
-    @abstractmethod
-    def _assert_input(self):
-        """ Make sure your inputs are sensible.  """
-        raise NotImplementedError
 
     @abstractmethod
     def _get_feature_for_extract_y(self):
@@ -181,6 +178,45 @@ class DataTransformation(metaclass=ABCMeta):
         wanted_keys = {feature.name for feature in self.features}
 
         return {key: value for key, value in raw_data_dict.items() if key in wanted_keys}
+
+    def _assert_input(self):
+        """ Make sure your inputs are sensible.  """
+
+        assert isinstance(self.fill_limit, int)
+        assert isinstance(self.features_ndays, int) and self.features_ndays >= 0
+
+        assert isinstance(self.features_resample_minutes, int) and self. features_resample_minutes >= 0
+        assert isinstance(self.features_start_market_minute, int)
+        assert self.features_start_market_minute < self.minutes_in_trading_days
+
+        assert self.target_delta_ndays >= 0
+
+        assert 0 <= self.prediction_market_minute < self.minutes_in_trading_days
+        assert 0 <= self.target_market_minute < self.minutes_in_trading_days
+
+    def _build_target_delta(self, target_delta_configuration):
+        """
+        build the target delta for a given configuration.
+
+        :param dict target_delta_configuration: dict with this structure {'value': int, 'unit': str }
+        :return timedelta:
+        """
+        value = target_delta_configuration['value']
+        unit = target_delta_configuration['unit']
+
+        allowed_resolutions = ['hours', 'days', 'minutes', 'seconds', 'microseconds']
+        error_msg = "Resolution values can be hours, days, minutes, seconds, microseconds. {} given".format(unit)
+        assert unit in allowed_resolutions, error_msg
+
+        timedelta_parameters = {}
+        if unit == 'hours':
+            timedelta_parameters = {'seconds': value * 3600}
+        elif unit == 'minutes':
+            timedelta_parameters = {'seconds': value * 60}
+        else:
+            timedelta_parameters[unit] = value
+
+        return timedelta(**timedelta_parameters)
 
     def _get_valid_target_timestamp_in_schedule(self, schedule, predict_timestamp):
         """

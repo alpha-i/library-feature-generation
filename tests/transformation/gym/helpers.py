@@ -146,7 +146,10 @@ def load_preset_config(expected_n_symbols, iteration=0):
         GymDataTransformation.KEY_EXCHANGE: 'GYMUK',
         'prediction_frequency_ndays': 1,
         'prediction_market_minute': 60,
-        'target_delta_ndays': 5,
+        'target_delta': {
+            'value': 5,
+            'unit': 'days'
+        },
         'target_market_minute': 60,
         'n_classification_bins': 5,
         'nassets': expected_n_symbols,
