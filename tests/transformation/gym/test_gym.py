@@ -22,7 +22,10 @@ class TestGymDataTransformation(TestCase):
             GymDataTransformation.KEY_EXCHANGE: 'GYMUK',
             'prediction_frequency_ndays': 1,
             'prediction_market_minute': 30,
-            'target_delta_ndays': 5,
+            'target_delta': {
+                'value': 5,
+                'unit': 'days'
+            },
             'target_market_minute': 30,
             'n_classification_bins': 5,
             'nassets': 5,
@@ -42,7 +45,10 @@ class TestGymDataTransformation(TestCase):
             GymDataTransformation.KEY_EXCHANGE: 'GYMUK',
             'prediction_frequency_ndays': 1,
             'prediction_market_minute': 30,
-            'target_delta_ndays': 5,
+            'target_delta': {
+                'value': 5,
+                'unit': 'days'
+            },
             'target_market_minute': 30,
             'n_classification_bins': 5,
             'nassets': 5,

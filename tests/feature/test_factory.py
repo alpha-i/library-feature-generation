@@ -1,7 +1,10 @@
 import pytest
 
 import alphai_calendars as mcal
+from copy import deepcopy
+
 from alphai_feature_generation.feature.factory import FinancialFeatureFactory
+from alphai_feature_generation.transformation import FinancialDataTransformation
 from tests.feature.features.financial.helpers import sample_fin_feature_factory_list, sample_fin_feature_list
 
 
@@ -21,6 +24,33 @@ def test_features_factory_successful_call():
         assert feature.resample_minutes == expected_feature.resample_minutes
         assert feature.start_market_minute == expected_feature.start_market_minute
         assert feature.is_target == expected_feature.is_target
+
+
+def test_features_factory_too_many_targets():
+
+    calendar = mcal.get_calendar('NYSE')
+    factory = FinancialFeatureFactory(calendar)
+
+    feature_list = deepcopy(sample_fin_feature_factory_list)
+
+    feature_list.append({
+        'name': 'close',
+        'transformation': {'name': 'value'},
+        'normalization': None,
+        'nbins': 10,
+        'ndays': 5,
+        'resample_minutes': 60,
+        'start_market_minute': 1,
+        'is_target': True,
+        FinancialDataTransformation.KEY_EXCHANGE: 'NYSE',
+        'local': True,
+        'length': 10
+    })
+
+    assert len(feature_list) == 4
+
+    with pytest.raises(AssertionError):
+        factory.create_from_list(feature_list)
 
 
 def test_single_features_factory_wrong_keys():

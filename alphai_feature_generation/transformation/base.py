@@ -4,6 +4,7 @@ from abc import ABCMeta, abstractmethod
 from collections import OrderedDict
 from contextlib import contextmanager
 from datetime import timedelta
+from enum import Enum
 from functools import partial
 
 
@@ -25,6 +26,17 @@ def ensure_closing_pool():
         pool.terminate()
         pool.join()
         del pool
+
+
+class TargetDeltaUnit(Enum):
+
+    days = 'days'
+    seconds = 'seconds'
+    microseconds = 'microseconds'
+    milliseconds = 'milliseconds'
+    minutes = 'minutes'
+    hours = 'hours'
+    weeks = 'weeks'
 
 
 class DateNotInUniverseError(Exception):
@@ -54,7 +66,8 @@ class DataTransformation(metaclass=ABCMeta):
         self.features_resample_minutes = configuration['features_resample_minutes']
         self.features_start_market_minute = configuration['features_start_market_minute']
         self.prediction_market_minute = configuration['prediction_market_minute']
-        self.target_delta_ndays = configuration['target_delta_ndays']
+
+        self.target_delta = self._build_target_delta(configuration['target_delta'])
         self.target_market_minute = configuration['target_market_minute']
         self.classify_per_series = configuration['classify_per_series']
         self.normalise_per_series = configuration['normalise_per_series']
@@ -67,11 +80,6 @@ class DataTransformation(metaclass=ABCMeta):
         self.feature_length = self.get_feature_length()
 
         self._assert_input()
-
-    @abstractmethod
-    def _assert_input(self):
-        """ Make sure your inputs are sensible.  """
-        raise NotImplementedError
 
     @abstractmethod
     def _get_feature_for_extract_y(self):
@@ -182,6 +190,38 @@ class DataTransformation(metaclass=ABCMeta):
 
         return {key: value for key, value in raw_data_dict.items() if key in wanted_keys}
 
+    def _assert_input(self):
+        """ Make sure your inputs are sensible.  """
+
+        assert isinstance(self.fill_limit, int)
+        assert isinstance(self.features_ndays, int) and self.features_ndays >= 0
+
+        assert isinstance(self.features_resample_minutes, int) and self. features_resample_minutes >= 0
+        assert isinstance(self.features_start_market_minute, int)
+        assert self.features_start_market_minute < self.minutes_in_trading_days
+
+        assert 0 <= self.prediction_market_minute < self.minutes_in_trading_days
+        assert 0 <= self.target_market_minute < self.minutes_in_trading_days
+
+    def _build_target_delta(self, target_delta_configuration):
+        """
+        build the target delta for a given configuration.
+
+        :param dict target_delta_configuration: dict with this structure {'value': int, 'unit': str }
+        :return timedelta:
+        """
+        value = target_delta_configuration['value']
+        try:
+            unit = TargetDeltaUnit(target_delta_configuration['unit']).value
+        except ValueError as e:
+            msg = "unit {} not allowed. allowed unit {}".format(
+                target_delta_configuration['unit'],
+                TargetDeltaUnit.__members__.keys()
+            )
+            raise ValueError(msg)
+
+        return timedelta(**{unit: value})
+
     def _get_valid_target_timestamp_in_schedule(self, schedule, predict_timestamp):
         """
         Return valid market time for target time given timestamp calculated using
@@ -211,7 +251,7 @@ class DataTransformation(metaclass=ABCMeta):
         :return:
         """
 
-        target_index = market_schedule.index.get_loc(prediction_timestamp.date()) + self.target_delta_ndays
+        target_index = market_schedule.index.get_loc(prediction_timestamp.date()) + self.target_delta.days
 
         if target_index < len(market_schedule):
             return market_schedule.iloc[target_index]
@@ -471,7 +511,7 @@ class DataTransformation(metaclass=ABCMeta):
 
         max_feature_ndays = self.features.get_max_ndays()
 
-        return self._extract_schedule_from_data(raw_data_dict)[max_feature_ndays:-self.target_delta_ndays]
+        return self._extract_schedule_from_data(raw_data_dict)[max_feature_ndays:-self.target_delta.days]
 
     def print_diagnostics(self, xdict, ydict):
         """

@@ -1,6 +1,5 @@
 from abc import abstractmethod, ABCMeta
 
-
 from alphai_feature_generation.feature.features.financial import FinancialFeature
 from alphai_feature_generation.feature.features.gym import GymFeature
 
@@ -23,12 +22,22 @@ class AbstractFeatureFactory(metaclass=ABCMeta):
         :return list: list of FinancialFeature objects
         """
         assert isinstance(feature_config_list, list)
-
+        self._assert_single_target(feature_config_list)
         feature_list = FeatureList()
         for single_feature_dict in feature_config_list:
             feature_list.add_feature(self.create_feature(single_feature_dict))
 
         return feature_list
+
+    def _assert_single_target(self, feature_config_list):
+        """
+        Check the list of feature to ensure only one is marked as target
+        :param feature_config_list:
+        :return:
+        """
+        targeted_features = [feature for feature in feature_config_list if feature['is_target']]
+
+        assert len(targeted_features) == 1, "Only one feature can be a target"
 
     def create_feature(self, feature_config):
         """
@@ -56,6 +65,8 @@ class AbstractFeatureFactory(metaclass=ABCMeta):
             feature_config.get('classify_per_series'),
             feature_config.get('normalise_per_series')
         )
+
+
 
 
 class FinancialFeatureFactory(AbstractFeatureFactory):
