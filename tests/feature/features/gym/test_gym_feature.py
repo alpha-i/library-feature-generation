@@ -8,10 +8,10 @@ import pytest
 from numpy.testing import assert_array_equal
 
 from tests.helpers import TEST_ARRAY
-from alphai_feature_generation.feature import FinancialFeature
+from alphai_feature_generation.feature.features.gym import GymFeature
 
-from tests.feature.financial.helpers import sample_market_calendar
-from tests.transformation.financial.helpers import sample_hourly_ohlcv_data_dict
+from tests.feature.features.gym.helpers import sample_gym_calendar
+from tests.transformation.gym.helpers import gym_sample_hourly
 
 SAMPLE_TRAIN_LABELS = np.stack((TEST_ARRAY, TEST_ARRAY, TEST_ARRAY, TEST_ARRAY, TEST_ARRAY))
 SAMPLE_PREDICT_LABELS = SAMPLE_TRAIN_LABELS[:, int(0.5 * SAMPLE_TRAIN_LABELS.shape[1])]
@@ -20,45 +20,45 @@ SAMPLE_TRAIN_LABELS = {'open': SAMPLE_TRAIN_LABELS}
 SAMPLE_PREDICT_LABELS = {'open': SAMPLE_PREDICT_LABELS}
 
 
-class TestFinancialFeature(TestCase):
+class TestGymFeature(TestCase):
 
     def setUp(self):
-        self.feature_close_with_value_transform = FinancialFeature(
-            name='open',
+        self.feature_close_with_value_transform = GymFeature(
+            name='hour',
             transformation={'name': 'value'},
             normalization=None,
             nbins=5,
             ndays=2,
             resample_minutes=0,
-            start_market_minute=30,
+            start_market_minute=0,
             is_target=True,
-            exchange_calendar=sample_market_calendar,
+            exchange_calendar=sample_gym_calendar,
             local=False,
             length=15
         )
-        self.feature_close_with_log_return_transform = FinancialFeature(
-            name='close',
+        self.feature_close_with_log_return_transform = GymFeature(
+            name='number_people',
             transformation={'name': 'log-return'},
             normalization=None,
             nbins=10,
             ndays=5,
             resample_minutes=0,
-            start_market_minute=90,
+            start_market_minute=60,
             is_target=True,
-            exchange_calendar=sample_market_calendar,
+            exchange_calendar=sample_gym_calendar,
             local=False,
             length=35
         )
-        self.feature_high_with_log_return_transform = FinancialFeature(
-            name='high',
+        self.feature_high_with_log_return_transform = GymFeature(
+            name='number_people',
             transformation={'name': 'log-return'},
             normalization='standard',
             nbins=None,
             ndays=10,
             resample_minutes=0,
-            start_market_minute=150,
+            start_market_minute=120,
             is_target=True,
-            exchange_calendar=sample_market_calendar,
+            exchange_calendar=sample_gym_calendar,
             local=False,
             length=69
         )
@@ -73,28 +73,28 @@ class TestFinancialFeature(TestCase):
         start_date_str = '20150101'
         end_date_str = '20150501'
 
-        market_open_list = sample_market_calendar.schedule(start_date_str, end_date_str).market_open
-        prediction_timestamp = market_open_list[20] + timedelta(minutes=15)
+        market_open_list = sample_gym_calendar.schedule(start_date_str, end_date_str).market_open
+        prediction_timestamp = market_open_list[20] + timedelta(minutes=60)
 
         start_timestamp_x_1 = self.feature_close_with_value_transform._get_start_timestamp_x(prediction_timestamp)
-        expected_start_timestamp_x1 = pd.Timestamp('2015-01-29 15:00:00+0000', tz='UTC')
+        expected_start_timestamp_x1 = pd.Timestamp('2015-01-28 07:00:00+0000', tz='UTC')
         assert start_timestamp_x_1 == expected_start_timestamp_x1
 
         start_timestamp_x_2 = self.feature_close_with_log_return_transform._get_start_timestamp_x(prediction_timestamp)
-        expected_start_timestamp_x2 = pd.Timestamp('2015-01-26 16:00:00+0000', tz='UTC')
+        expected_start_timestamp_x2 = pd.Timestamp('2015-01-23 08:00:00+0000', tz='UTC')
         assert start_timestamp_x_2 == expected_start_timestamp_x2
 
         start_timestamp_x_3 = self.feature_high_with_log_return_transform._get_start_timestamp_x(prediction_timestamp)
-        expected_start_timestamp_x3 = pd.Timestamp('2015-01-16 17:00:00+0000', tz='UTC')
+        expected_start_timestamp_x3 = pd.Timestamp('2015-01-16 09:00:00+0000', tz='UTC')
         assert start_timestamp_x_3 == expected_start_timestamp_x3
 
     def test_select_prediction_data(self):
-        data_frame = sample_hourly_ohlcv_data_dict[self.feature_close_with_value_transform.name]
+        data_frame = gym_sample_hourly[self.feature_close_with_value_transform.name]
         start_date = data_frame.index[0].date()
         end_date = data_frame.index[-1].date()
 
-        market_open_list = sample_market_calendar.schedule(str(start_date), str(end_date)).market_open
-        prediction_timestamp = market_open_list[20] + timedelta(minutes=15)
+        market_open_list = sample_gym_calendar.schedule(str(start_date), str(end_date)).market_open
+        prediction_timestamp = market_open_list[20] + timedelta(minutes=60)
 
         selected_prediction_data = \
             self.feature_close_with_value_transform._select_prediction_data_x(data_frame, prediction_timestamp)
@@ -107,13 +107,13 @@ class TestFinancialFeature(TestCase):
 
     @staticmethod
     def _run_get_prediction_data_test(feature, expected_length):
-        data_frame = sample_hourly_ohlcv_data_dict[feature.name]
+        data_frame = gym_sample_hourly[feature.name]
         start_date = data_frame.index[0].date()
         end_date = data_frame.index[-1].date()
 
-        market_open_list = sample_market_calendar.schedule(str(start_date), str(end_date)).market_open
-        prediction_timestamp = market_open_list[20] + timedelta(minutes=30)
-        target_timestamp = market_open_list[21] + timedelta(minutes=90)
+        market_open_list = sample_gym_calendar.schedule(str(start_date), str(end_date)).market_open
+        prediction_timestamp = market_open_list[20] + timedelta(minutes=60)
+        target_timestamp = market_open_list[21] + timedelta(minutes=120)
 
         prediction_data_x = feature.get_prediction_features(data_frame, prediction_timestamp)
 
@@ -145,61 +145,61 @@ class TestFeatureNormalization(TestCase):
 
         transform_config = {'name': 'log-return'}
 
-        self.feature1 = FinancialFeature(
+        self.feature1 = GymFeature(
             name='close',
             transformation=transform_config,
             normalization='min_max',
             nbins=10,
             ndays=5,
             resample_minutes=0,
-            start_market_minute=90,
+            start_market_minute=60,
             is_target=True,
-            exchange_calendar=sample_market_calendar,
+            exchange_calendar=sample_gym_calendar,
             local=False,
             length=35,
             normalise_per_series=True
         )
 
-        self.feature2 = FinancialFeature(
+        self.feature2 = GymFeature(
             name='close',
             transformation=transform_config,
             normalization='standard',
             nbins=10,
             ndays=5,
             resample_minutes=0,
-            start_market_minute=90,
+            start_market_minute=60,
             is_target=True,
-            exchange_calendar=sample_market_calendar,
+            exchange_calendar=sample_gym_calendar,
             local=False,
             length=35,
             normalise_per_series=True
         )
 
-        self.feature3 = FinancialFeature(
+        self.feature3 = GymFeature(
             name='close',
             transformation=transform_config,
             normalization='gaussian',
             nbins=10,
             ndays=5,
             resample_minutes=0,
-            start_market_minute=90,
+            start_market_minute=60,
             is_target=True,
-            exchange_calendar=sample_market_calendar,
+            exchange_calendar=sample_gym_calendar,
             local=False,
             length=35,
             normalise_per_series=True
         )
 
-        self.feature4 = FinancialFeature(
+        self.feature4 = GymFeature(
             name='close',
             transformation=transform_config,
             normalization='robust',
             nbins=10,
             ndays=5,
             resample_minutes=0,
-            start_market_minute=90,
+            start_market_minute=60,
             is_target=True,
-            exchange_calendar=sample_market_calendar,
+            exchange_calendar=sample_gym_calendar,
             local=False,
             length=35,
             normalise_per_series=True
@@ -207,16 +207,16 @@ class TestFeatureNormalization(TestCase):
 
         transform_config_2 = {'name': 'value'}
 
-        self.feature5 = FinancialFeature(
+        self.feature5 = GymFeature(
             name='close',
             transformation=transform_config_2,
             normalization='min_max',
             nbins=5,
             ndays=5,
             resample_minutes=0,
-            start_market_minute=90,
+            start_market_minute=60,
             is_target=True,
-            exchange_calendar=sample_market_calendar,
+            exchange_calendar=sample_gym_calendar,
             local=False,
             length=35,
             normalise_per_series=True
@@ -242,32 +242,32 @@ class TestFeatureNormalization(TestCase):
         assert np.isclose(self.feature4.scaler.center_, np.median(symbol_data1), rtol=1e-4)
 
     def test_apply_normalisation(self):
-        data = deepcopy(sample_hourly_ohlcv_data_dict['open'])
+        data = deepcopy(gym_sample_hourly['hour'])
 
         for column in data.columns:
             self.feature1.fit_normalisation(symbol_data=data[column].values, symbol=column)
 
         self.feature1.apply_normalisation(data)
-        np.testing.assert_allclose(data.max(), np.asarray([1.,  1.,  1.,  1.,  1.]))
-        np.testing.assert_allclose(data.min(), np.asarray([0., 0., 0., 0., 0.]))
+        np.testing.assert_allclose(data.max(), np.asarray([1.]))
+        np.testing.assert_allclose(data.min(), np.asarray([0.]))
 
         for column in data.columns:
             self.feature2.fit_normalisation(symbol_data=data[column].values, symbol=column)
 
         self.feature2.apply_normalisation(data)
-        np.testing.assert_allclose(data.mean(), np.asarray([0.,  0.,  0.,  0.,  0.]), atol=1e-4)
+        np.testing.assert_allclose(data.mean(), np.asarray([0.]), atol=1e-4)
 
         for column in data.columns:
             self.feature3.fit_normalisation(symbol_data=data[column].values, symbol=column)
 
         self.feature3.apply_normalisation(data)
-        np.testing.assert_allclose(data.mean(), np.asarray([0.,  0.,  0.,  0.,  0.]), atol=1e-3)
+        np.testing.assert_allclose(data.mean(), np.asarray([0.]), atol=1e-2)
 
         for column in data.columns:
             self.feature4.fit_normalisation(symbol_data=data[column].values, symbol=column)
 
         self.feature4.apply_normalisation(data)
-        np.testing.assert_allclose(np.median(data, axis=0), np.asarray([0.,  0.,  0.,  0.,  0.]), atol=1e-3)
+        np.testing.assert_allclose(np.median(data, axis=0), np.asarray([0.]), atol=1e-3)
 
     def test_apply_classification(self):
         symbols = ['SYM1', 'SYM2', 'SYM3']

@@ -26,7 +26,7 @@ def select_between_timestamps(data, start_timestamp=None, end_timestamp=None):
         raise NameError('Input data type not recognised')
 
 
-def select_between_timestamps_data_frame(data_frame, start_timestamp, end_timestamp):
+def select_between_timestamps_data_frame(data_frame, start_timestamp=None, end_timestamp=None):
     """
     Select a subset of the input dataframe according to specified start/end timestamps
     :param data_frame: Dataframe with time as index
@@ -34,15 +34,20 @@ def select_between_timestamps_data_frame(data_frame, start_timestamp, end_timest
     :param end_timestamp: upper bound time stamp for data selection
     :return: selected data_frame
     """
-    assert start_timestamp is not None or end_timestamp is not None
+    assert start_timestamp or end_timestamp, "start_timestamp and end_timestamp cannot be both set to None"
     data_frame_timezone = data_frame.index.tz
-    for ts in (start_timestamp, end_timestamp):
-        if ts.tz is None:
-            assert data_frame_timezone is None
-        else:
-            assert ts == ts.tz_convert(data_frame_timezone)
+    for ts in [start_timestamp, end_timestamp]:
+        if ts:
+            if ts.tz:
+                assert ts == ts.tz_convert(data_frame_timezone)
+            else:
+                assert data_frame_timezone is None
 
-    time_conditions = [data_frame.index >= start_timestamp, data_frame.index <= end_timestamp]
+    time_conditions = []
+    if start_timestamp is not None:
+        time_conditions.append(data_frame.index >= start_timestamp)
+    if end_timestamp is not None:
+        time_conditions.append(data_frame.index <= end_timestamp)
 
     return data_frame[np.all(time_conditions, axis=0)]
 

@@ -32,7 +32,7 @@ from alphai_feature_generation.cleaning import (
 )
 
 
-from tests.feature.financial.helpers import sample_market_calendar
+from tests.feature.features.financial.helpers import sample_market_calendar
 from tests.transformation.financial.helpers import sample_hourly_ohlcv_data_dict, COLUMNS_OHLCV
 
 

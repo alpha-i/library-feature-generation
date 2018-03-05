@@ -3,13 +3,13 @@ import random
 import numpy as np
 from numpy.testing import assert_almost_equal
 
-from alphai_feature_generation.feature import FinancialFeature
+from alphai_feature_generation.feature.features.financial import FinancialFeature
 
 from alphai_feature_generation.feature.transform import TransformLogReturn
 
 
 from tests.helpers import ASSERT_NDECIMALS
-from tests.feature.financial.helpers import sample_market_calendar
+from tests.feature.features.financial.helpers import sample_market_calendar
 from tests.transformation.financial.helpers import sample_hourly_ohlcv_data_dict
 
 
@@ -26,7 +26,7 @@ def test_transform_log_return_x():
         resample_minutes=0,
         start_market_minute=90,
         is_target=True,
-        exchange_calendar=sample_market_calendar,
+        calendar=sample_market_calendar,
         local=False,
         length=35
     )
@@ -63,7 +63,7 @@ def test_transform_log_return_y():
         resample_minutes=0,
         start_market_minute=90,
         is_target=True,
-        exchange_calendar=sample_market_calendar,
+        calendar=sample_market_calendar,
         local=False,
         length=35
     )
@@ -97,7 +97,7 @@ def test_transform_x_log_return_with_local_feature():
         resample_minutes=0,
         start_market_minute=90,
         is_target=True,
-        exchange_calendar=sample_market_calendar,
+        calendar=sample_market_calendar,
         local=True,
         length=35
     )

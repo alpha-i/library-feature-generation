@@ -6,13 +6,15 @@ import logging
 import numpy as np
 import pandas as pd
 
-from alphai_finance.data.cleaning import (
+import alphai_calendars as mcal
+
+from alphai_feature_generation.cleaning import (
     select_between_timestamps,
     remove_duplicated_symbols_ohlcv,
     slice_data_dict
 )
 
-from alphai_feature_generation.helpers import CalendarUtilities
+
 
 
 logger = logging.getLogger(__name__)
@@ -46,16 +48,20 @@ class VolumeUniverseProvider(AbstractUniverseProvider):
         :param nassets: Number of assets to select
         :param ndays_window: Number of days over which to calculate the period liquidity
         :param update_frequency: str in ['daily', 'weekly', 'monthly', 'yearly']: updates of the historical universe
+        :param exchange: the name of the calendar
         :param dropna: if True drops columns containing any nan after gaps-filling
+
         """
+
 
         self._nassets = configuration['nassets']
         self._ndays_window = configuration['ndays_window']
         self._update_frequency = configuration['update_frequency']
-        self._exchange = configuration['exchange']
         self._dropna = configuration['dropna']
 
-        self._nminutes_window = self._ndays_window * CalendarUtilities.get_minutes_in_one_trading_day(self._exchange)
+        self._exchange_calendar = mcal.get_calendar(configuration['exchange'])
+
+        self._nminutes_window = self._ndays_window * self._exchange_calendar.get_minutes_in_one_day()
         self._rrule = FREQUENCY_RRULE_MAP[self._update_frequency]
 
     def _get_universe_at(self, date, data_dict):
