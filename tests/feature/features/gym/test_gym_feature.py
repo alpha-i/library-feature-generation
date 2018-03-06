@@ -282,9 +282,7 @@ class TestFeatureNormalization(TestCase):
 
         classified_panel = feature.apply_classification(dataframe)
 
-        expected_data = [[0., 1.],  [0., 0.],  [1., 0.], [0., 0.],  [0., 0.]]
-
-        #FIXME some proper instantiation of expected pandas panel required here
-        expected_classified_panel = classified_panel
+        expected_data = [[[0., 0., 1., 0., 0.], [1., 0., 0., 0., 0.]]]
+        expected_classified_panel = pd.Panel(expected_data, major_axis=['SYM1', 'SYM2'])
 
         assert classified_panel.equals(expected_classified_panel)
