@@ -104,6 +104,16 @@ class FeatureList:
         """
         return max([feature.ndays for feature in self.feature_list])
 
+    def get_target_feature(self):
+        """
+        Return the target feature in self.features
+
+        :return FinancialFeature: target feature
+        """
+        for feature in self.feature_list:
+            if feature.is_target:
+                return feature
+
     def __iter__(self):
         return iter(self.feature_list)
 

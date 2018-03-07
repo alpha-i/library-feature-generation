@@ -175,9 +175,7 @@ class DataTransformation(metaclass=ABCMeta):
 
         :return FinancialFeature: target feature
         """
-        for feature in self.features:
-            if feature.is_target:
-                return feature
+        return self.features.get_target_feature()
 
     def filter_unwanted_keys(self, raw_data_dict):
         """
