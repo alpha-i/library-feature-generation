@@ -1,3 +1,4 @@
+from datetime import timedelta
 from unittest import TestCase
 
 import numpy as np
@@ -33,10 +34,7 @@ class TestFinancialDataTransformation(TestCase):
             FinancialDataTransformation.KEY_EXCHANGE: 'NYSE',
             'prediction_frequency_ndays': 1,
             'prediction_market_minute': 30,
-            'target_delta': {
-                'value': 5,
-                'unit': 'days'
-            },
+            'target_delta': timedelta(days=5),
             'target_market_minute': 30,
             'n_classification_bins': 5,
             'nassets': 5,
@@ -56,10 +54,7 @@ class TestFinancialDataTransformation(TestCase):
             FinancialDataTransformation.KEY_EXCHANGE: 'NYSE',
             'prediction_frequency_ndays': 1,
             'prediction_market_minute': 30,
-            'target_delta': {
-                'value': 5,
-                'unit': 'days'
-            },
+            'target_delta': timedelta(days=5),
             'target_market_minute': 30,
             'n_classification_bins': 5,
             'nassets': 5,

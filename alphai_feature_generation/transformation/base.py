@@ -67,7 +67,7 @@ class DataTransformation(metaclass=ABCMeta):
         self.features_start_market_minute = configuration['features_start_market_minute']
         self.prediction_market_minute = configuration['prediction_market_minute']
 
-        self.target_delta = self._build_target_delta(configuration['target_delta'])
+        self.target_delta = configuration['target_delta']
         self.target_market_minute = configuration['target_market_minute']
         self.classify_per_series = configuration['classify_per_series']
         self.normalise_per_series = configuration['normalise_per_series']
@@ -200,25 +200,6 @@ class DataTransformation(metaclass=ABCMeta):
 
         assert 0 <= self.prediction_market_minute < self.minutes_in_trading_days
         assert 0 <= self.target_market_minute < self.minutes_in_trading_days
-
-    def _build_target_delta(self, target_delta_configuration):
-        """
-        build the target delta for a given configuration.
-
-        :param dict target_delta_configuration: dict with this structure {'value': int, 'unit': str }
-        :return timedelta:
-        """
-        value = target_delta_configuration['value']
-        try:
-            unit = TargetDeltaUnit(target_delta_configuration['unit']).value
-        except ValueError as e:
-            msg = "unit {} not allowed. allowed unit {}".format(
-                target_delta_configuration['unit'],
-                TargetDeltaUnit.__members__.keys()
-            )
-            raise ValueError(msg)
-
-        return timedelta(**{unit: value})
 
     def _get_valid_target_timestamp_in_schedule(self, schedule, predict_timestamp):
         """
