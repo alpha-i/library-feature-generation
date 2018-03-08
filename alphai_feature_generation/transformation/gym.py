@@ -20,7 +20,7 @@ logger = logging.getLogger(__name__)
 
 class GymDataTransformation(DataTransformation):
 
-    KEY_EXCHANGE = 'holiday_calendar'
+    KEY_EXCHANGE = 'calendar_name'
 
     def __init__(self, configuration):
         """
@@ -55,7 +55,6 @@ class GymDataTransformation(DataTransformation):
             'nbins': self.n_classification_bins,
             'ndays': self.features_ndays,
             'start_market_minute': self.features_start_market_minute,
-            self.KEY_EXCHANGE: self._calendar.name,
             'classify_per_series': self.classify_per_series,
             'normalise_per_series': self.normalise_per_series
         }

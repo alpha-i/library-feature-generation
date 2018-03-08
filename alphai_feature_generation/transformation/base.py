@@ -36,7 +36,7 @@ class DateNotInUniverseError(Exception):
 class DataTransformation(metaclass=ABCMeta):
     """ Prepares raw time series data for machine learning applications. """
 
-    KEY_EXCHANGE = None
+    KEY_EXCHANGE = 'calendar_name'
 
     def __init__(self, configuration):
         """Initialise in accordance with the config dictionary.
