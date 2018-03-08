@@ -20,8 +20,6 @@ logger = logging.getLogger(__name__)
 
 class FinancialDataTransformation(DataTransformation):
 
-    KEY_EXCHANGE = 'exchange_name'
-
     def __init__(self, configuration):
         """
         :param dict configuration: dictionary containing the feature details.

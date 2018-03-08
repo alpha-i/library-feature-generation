@@ -58,7 +58,7 @@ class DataTransformation(metaclass=ABCMeta):
         self.classify_per_series = configuration['classify_per_series']
         self.normalise_per_series = configuration['normalise_per_series']
         self.n_classification_bins = configuration['n_classification_bins']
-        self.n_series = configuration['nassets']
+        self.n_series = configuration['n_assets']
         self.fill_limit = configuration['fill_limit']
         self.predict_the_market_close = configuration.get('predict_the_market_close', False)
 

@@ -20,8 +20,6 @@ logger = logging.getLogger(__name__)
 
 class GymDataTransformation(DataTransformation):
 
-    KEY_EXCHANGE = 'calendar_name'
-
     def __init__(self, configuration):
         """
         :param dict configuration: dictionary containing the feature details.

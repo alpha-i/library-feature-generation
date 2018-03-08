@@ -139,7 +139,7 @@ def load_preset_config(expected_n_symbols, iteration=0):
           'target_delta': timedelta(days=5),
           'target_market_minute': 30,
           'n_classification_bins': 5,
-          'nassets': expected_n_symbols,
+          'n_assets': expected_n_symbols,
           'local': False,
           'classify_per_series': False,
           'normalise_per_series': False,
