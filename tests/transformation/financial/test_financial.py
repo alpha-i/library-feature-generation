@@ -1,5 +1,9 @@
-from datetime import timedelta
+from collections import OrderedDict
+from datetime import timedelta, datetime
 from unittest import TestCase
+import os
+
+import pickle
 
 import numpy as np
 import pandas as pd
@@ -7,7 +11,7 @@ import pytest
 
 from alphai_feature_generation.transformation.financial import FinancialDataTransformation
 
-from tests.helpers import TEST_ARRAY
+from tests.helpers import TEST_ARRAY, TEST_DATA_PATH
 
 from tests.transformation.financial.helpers import sample_hourly_ohlcv_data_dict, \
     sample_fin_data_transf_feature_factory_list_nobins, sample_fin_data_transf_feature_factory_list_bins, \
@@ -256,6 +260,73 @@ class TestFinancialDataTransformation(TestCase):
 
         assert len(symbols) == expected_n_symbols
         assert list(symbols) == ['AAPL', 'GOOG', 'INTC', 'AMZN', 'BAC']
+
+    def test_stack_samples_for_each_feature(self):
+
+        config = {'classify_per_series': False,
+         'exchange_name': 'NYSE',
+         'feature_config_list': [
+             {'classify_per_series': False,
+              'exchange_name': 'NYSE',
+              'is_target': False,
+              'length': 15,
+              'local': True,
+              'name': 'open',
+              'nbins': 5,
+              'ndays': 2,
+              'normalise_per_series': False,
+              'normalization': None,
+              'resample_minutes': 0,
+              'start_market_minute': 1,
+              'transformation': {'name': 'value'}},
+             {'classify_per_series': False,
+              'exchange_name': 'NYSE',
+              'is_target': False,
+              'length': 15,
+              'local': False,
+              'name': 'close',
+              'nbins': 5,
+              'ndays': 2,
+              'normalise_per_series': False,
+              'normalization': None,
+              'resample_minutes': 0,
+              'start_market_minute': 1,
+              'transformation': {'name': 'log-return'}},
+             {'classify_per_series': False,
+              'exchange_name': 'NYSE',
+              'is_target': True,
+              'length': 15,
+              'local': False,
+              'name': 'high',
+              'nbins': 5,
+              'ndays': 2,
+              'normalise_per_series': False,
+              'normalization': 'standard',
+              'resample_minutes': 0,
+              'start_market_minute': 1,
+              'transformation': {'name': 'log-return'}}
+         ],
+         'features_ndays': 2,
+         'features_resample_minutes': 60,
+         'features_start_market_minute': 1,
+         'fill_limit': 0,
+         'local': False,
+         'n_classification_bins': 5,
+         'nassets': 5,
+         'normalise_per_series': False,
+         'prediction_frequency_ndays': 1,
+         'prediction_market_minute': 30,
+         'target_delta': timedelta(5),
+         'target_market_minute': 30
+        }
+
+        transformation = FinancialDataTransformation(config)
+
+        fixtures = pickle.load(open(os.path.join(TEST_DATA_PATH, 'stack_sample_data.pkl'), 'rb'))
+
+        stacked_samples, valid_symbols = transformation.stack_samples_for_each_feature(fixtures['samples'])
+        np.testing.assert_array_equal(stacked_samples['close_log-return'], fixtures['stacked_samples']['close_log-return'])
+        assert list(valid_symbols) == list(fixtures['valid_symbols'])
 
 
 @pytest.mark.parametrize("index", [0, 1, 2, 3])

@@ -143,7 +143,7 @@ class FinancialDataTransformation(DataTransformation):
             y_list = self._make_classified_y_list(data_y_list) if classify_y else data_y_list
             y_dict, _ = self.stack_samples_for_each_feature(y_list)
 
-        x_dict, x_symbols = self.stack_samples_for_each_feature(data_x_list, y_list)
+        x_dict, x_symbols = self.stack_samples_for_each_feature(data_x_list)
         logger.debug("Assembled {} dict with {} symbols".format(action, len(x_symbols)))
 
         prediction_timestamp = prediction_timestamp_list[-1] if len(prediction_timestamp_list) > 0 else None

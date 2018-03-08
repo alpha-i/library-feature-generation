@@ -128,21 +128,23 @@ for key in COLUMNS_OHLCV:
 
 
 def load_preset_config(expected_n_symbols, iteration=0):
-    config = {'feature_config_list': sample_fin_data_transf_feature_factory_list_bins,
-              'features_ndays': 2,
-              'features_resample_minutes': 60,
-              'features_start_market_minute': 1,
-              FinancialDataTransformation.KEY_EXCHANGE: 'NYSE',
-              'prediction_frequency_ndays': 1,
-              'prediction_market_minute': 30,
-              'target_delta': timedelta(days=5),
-              'target_market_minute': 30,
-              'n_classification_bins': 5,
-              'nassets': expected_n_symbols,
-              'local': False,
-              'classify_per_series': False,
-              'normalise_per_series': False,
-              'fill_limit': 0}
+    config = {
+        'feature_config_list': sample_fin_data_transf_feature_factory_list_bins,
+          'features_ndays': 2,
+          'features_resample_minutes': 60,
+          'features_start_market_minute': 1,
+          FinancialDataTransformation.KEY_EXCHANGE: 'NYSE',
+          'prediction_frequency_ndays': 1,
+          'prediction_market_minute': 30,
+          'target_delta': timedelta(days=5),
+          'target_market_minute': 30,
+          'n_classification_bins': 5,
+          'nassets': expected_n_symbols,
+          'local': False,
+          'classify_per_series': False,
+          'normalise_per_series': False,
+          'fill_limit': 0
+    }
 
     specific_cases = [
         {},

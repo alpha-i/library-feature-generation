@@ -28,17 +28,6 @@ def ensure_closing_pool():
         del pool
 
 
-class TargetDeltaUnit(Enum):
-
-    days = 'days'
-    seconds = 'seconds'
-    microseconds = 'microseconds'
-    milliseconds = 'milliseconds'
-    minutes = 'minutes'
-    hours = 'hours'
-    weeks = 'weeks'
-
-
 class DateNotInUniverseError(Exception):
     """ Sorry Morty, we seem to be in the wrong universe. """
     pass
@@ -54,9 +43,6 @@ class DataTransformation(metaclass=ABCMeta):
 
         :param dict configuration:
         """
-
-        self._calendar = None
-        self.minutes_in_trading_days = None
 
         self._calendar = mcal.get_calendar(configuration[self.KEY_EXCHANGE])
         self.minutes_in_trading_days = self._calendar.get_minutes_in_one_day()
@@ -404,45 +390,36 @@ class DataTransformation(metaclass=ABCMeta):
 
         return raw_data_dict
 
-    def stack_samples_for_each_feature(self, samples, reference_samples=None):
-        """ Collate a list of samples (the training set) into a single dictionary
-        :param samples: List of dicts, each dict should be holding the same set of keys
-        :param reference_samples: cross-checks samples match shape of reference samples
+    def stack_samples_for_each_feature(self, input_samples):
+        """ Collate a list of training_set (the training set) into a single dictionary
+        :param input_samples: List of dicts, each dict should be holding the same set of keys
         :return: Single dictionary with the values stacked together
         """
-        if len(samples) == 0:
-            raise ValueError("At least one sample required for stacking samples.")
+        training_set_length = len(input_samples)
 
-        feature_names = samples[0].keys()
-        label_name = self.get_target_feature().full_name
+        if not training_set_length:
+            raise ValueError("At least one sample required for stacking training_set.")
 
-        stacked_samples = OrderedDict()
+        stacked_training_set = OrderedDict()
         valid_symbols = []
-        total_samples = 0
-        unusual_samples = 0
-        for feature_name in feature_names:
-            reference_sample = samples[0]
-            reference_shape = reference_sample[feature_name].shape
-            if len(samples) == 1:
-                stacked_samples[feature_name] = np.expand_dims(reference_sample[feature_name], axis=0)
 
-                valid_symbols = getattr(reference_sample[feature_name], 'major_axis', [])
-                if len(valid_symbols) == 0:
-                    valid_symbols = getattr(reference_sample[feature_name], 'columns', [])
+        reference_sample = input_samples[0]
+        for feature_name, feature_data in reference_sample.items():
+            if training_set_length == 1:
+                stacked_training_set[feature_name] = np.expand_dims(feature_data, axis=0)
+
+                major_axis = getattr(feature_data, 'major_axis', [])
+                valid_symbols = major_axis if major_axis else getattr(feature_data, 'columns', [])
 
             else:
-                feature_list = []
-                for i, sample in enumerate(samples):
-                    total_samples += 1
-                    feature = sample[feature_name]
-                    feature_list.append(sample[feature_name].values)
+                feature_list = [sample[feature_name].values for sample in input_samples]
 
                 if len(feature_list) > 0:
-                    stacked_samples[feature_name] = np.stack(feature_list, axis=0)
+                    stacked_training_set[feature_name] = np.stack(feature_list, axis=0)
                 else:
-                    stacked_samples = None
+                    stacked_training_set = OrderedDict()
 
-        return stacked_samples, valid_symbols
+        return stacked_training_set, valid_symbols
 
     def _extract_schedule_from_data(self, raw_data_dict):
         """
