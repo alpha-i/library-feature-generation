@@ -4,7 +4,6 @@ from abc import ABCMeta, abstractmethod
 from collections import OrderedDict
 from contextlib import contextmanager
 from datetime import timedelta
-from enum import Enum
 from functools import partial
 
 
@@ -235,7 +234,7 @@ class DataTransformation(metaclass=ABCMeta):
         if len(x_list) == 0:
             raise ValueError("No valid x samples found.")
 
-        symbols = get_unique_symbols(x_list)
+        symbols = self._get_unique_symbols(x_list)
 
         # this was using multiprocessing and hanging during the backtest
         # let's switch this off for now
@@ -258,21 +257,21 @@ class DataTransformation(metaclass=ABCMeta):
         """
 
         if feature.scaler:
-            normalise_function = partial(self.normalise_dict, feature)
             logger.debug("Applying normalisation to: {}".format(feature.full_name))
 
-            with ensure_closing_pool() as pool:
-                list_of_x_dicts = pool.map(normalise_function, x_list)
+            list_of_x_dicts = []
+            for x_dict in x_list:
+                list_of_x_dicts.append(self.normalise_dict(feature, x_dict))
 
             return list_of_x_dicts
         else:
             return x_list
 
     def normalise_dict(self, feature, x_dict):
-        """ Apply normalisation with a single feature.
+        """ Apply normalisation with a single feature if is in the x_dict.
 
-        :param target_feature:
-        :param x_dict:
+        :param Feature feature:
+        :param dict x_dict:
         :return:
         """
         if feature.full_name in x_dict:
@@ -312,35 +311,36 @@ class DataTransformation(metaclass=ABCMeta):
             raise ValueError("No valid y samples found.")
 
         target_feature = self.get_target_feature()
-        target_name = target_feature.full_name
-        symbols = get_unique_symbols(y_list)
+        symbols = self._get_unique_symbols(y_list)
 
         # Fitting of bins
-        logger.debug("Fitting y classification to: {}".format(target_name))
+        logger.debug("Fitting y classification to: {}".format(target_feature.full_name))
         for symbol in symbols:
-            symbol_data = self.extract_data_by_symbol(y_list, symbol, target_name)
+            symbol_data = self.extract_data_by_symbol(y_list, symbol, target_feature.full_name)
             target_feature.fit_classification(symbol, symbol_data)
 
         # Applying
-        logger.debug("Applying y classification to: {}".format(target_name))
-        with ensure_closing_pool() as pool:
-            apply_classification = partial(self._apply_classification, target_feature, target_name)
-            applied_y_list = pool.map(apply_classification, y_list)
+        logger.debug("Applying y classification to: {}".format(target_feature.full_name))
+        applied_y_list = []
+        for y_dict in y_list:
+            applied_y_list.append(
+                self._apply_classification(target_feature, y_dict)
+            )
 
         return applied_y_list
 
-    def _apply_classification(self, target_feature, target_name, y_dict):
+    def _apply_classification(self, target_feature, y_dict):
         """  Classifies the y values.
 
         :param target_feature: The 'feature' that will act as the target for the network
-        :param target_name:
         :param y_dict:
         :return:
         """
-        if target_name in y_dict:
-            y_dict[target_name] = target_feature.apply_classification(y_dict[target_name])
+        if target_feature.full_name in y_dict:
+            y_dict[target_feature.full_name] = target_feature.apply_classification(y_dict[target_feature.full_name])
         else:
-            logger.debug("Failed to find {} in dict: {}".format(target_name, list(y_dict.keys())))
+            logger.debug("Failed to find {} in dict: {}".format( target_feature.full_name, list(y_dict.keys())))
+
         return y_dict
 
     def _get_target_timestamp(self, target_market_open):
@@ -497,15 +497,15 @@ class DataTransformation(metaclass=ABCMeta):
 
         return np.asarray(collated_data)
 
+    @staticmethod
+    def _get_unique_symbols(data_list):
+        """Returns a list of all unique symbols in the dict of dataframes"""
 
-def get_unique_symbols(data_list):
-    """Returns a list of all unique symbols in the dict of dataframes"""
+        symbols = set()
 
-    symbols = set()
+        for data_dict in data_list:
+            for feature in data_dict:
+                feat_symbols = data_dict[feature].columns
+                symbols.update(feat_symbols)
 
-    for data_dict in data_list:
-        for feature in data_dict:
-            feat_symbols = data_dict[feature].columns
-            symbols.update(feat_symbols)
-
-    return symbols
+        return symbols
