@@ -130,7 +130,6 @@ class GymDataTransformation(DataTransformation):
 
         action = 'prediction'
         y_dict = None
-        y_list = None
 
         if target_market_open:
             action = 'training'
@@ -256,15 +255,9 @@ class GymDataTransformation(DataTransformation):
         feature_x_dict = OrderedDict()
         feature_y_dict = OrderedDict()
 
-        processed_predictions = []
         for feature in self.features:
-            processed_predictions.append(
-                self._process_predictions(x_end_timestamp, y_start_timestamp,
-                       raw_data_dict, target_timestamp, feature)
-            )
-
-        for prediction in processed_predictions:
-            feature_name, feature_x, feature_y = prediction
+            feature_name, feature_x, feature_y = self._process_predictions(x_end_timestamp, y_start_timestamp,
+                                      raw_data_dict, target_timestamp, feature)
             feature_x_dict[feature_name] = feature_x
             if feature_y is not None:
                 feature_y_dict[feature_name] = feature_y
@@ -272,7 +265,7 @@ class GymDataTransformation(DataTransformation):
         if len(feature_y_dict) > 0:
             assert len(feature_y_dict) == 1, 'Only one target is allowed'
         else:
-            feature_y_dict = None
+            feature_y_dict = OrderedDict()
 
         return feature_x_dict, feature_y_dict
 
@@ -287,10 +280,7 @@ class GymDataTransformation(DataTransformation):
         :return:
         """
         feature_name = feature.full_name if feature.full_name in raw_data_dict.keys() else feature.name
-        feature_x = feature.get_prediction_features(
-            raw_data_dict[feature_name].loc[:],
-            x_timestamp
-        )
+        feature_x = feature.get_prediction_features(raw_data_dict[feature_name], x_timestamp)
 
         feature_y = None
         if feature.is_target:
