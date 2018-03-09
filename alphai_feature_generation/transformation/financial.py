@@ -9,11 +9,14 @@ import pandas as pd
 from alphai_feature_generation.feature.factory import FinancialFeatureFactory
 from alphai_feature_generation.helpers import logtime
 from alphai_feature_generation.transformation.base import (DataTransformation, DateNotInUniverseError)
+from alphai_feature_generation.transformation.schemas import FinancialDataTransformationConfigurationSchema
 
 logger = logging.getLogger(__name__)
 
 
 class FinancialDataTransformation(DataTransformation):
+
+    CONFIGURATION_SCHEMA = FinancialDataTransformationConfigurationSchema
 
     def __init__(self, configuration):
         """
@@ -29,7 +32,7 @@ class FinancialDataTransformation(DataTransformation):
         """
         super().__init__(configuration)
 
-        self.clean_nan_from_dict = configuration.get('clean_nan_from_dict', False)
+        self.clean_nan_from_dict = self.configuration['clean_nan_from_dict']
 
     def _get_feature_for_extract_y(self):
         """ Returns the name of the feature to be used as a target (y). """

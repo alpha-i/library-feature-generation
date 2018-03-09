@@ -11,6 +11,8 @@ import numpy as np
 
 import alphai_calendars as mcal
 from alphai_feature_generation.feature.factory import FeatureList
+from alphai_feature_generation.transformation.schemas import DataTransformationConfigurationSchema, \
+    InvalidConfigurationException
 
 logger = logging.getLogger(__name__)
 
@@ -36,35 +38,40 @@ class DataTransformation(metaclass=ABCMeta):
     """ Prepares raw time series data for machine learning applications. """
 
     KEY_EXCHANGE = 'calendar_name'
+    CONFIGURATION_SCHEMA = DataTransformationConfigurationSchema
 
     def __init__(self, configuration):
         """Initialise in accordance with the config dictionary.
 
         :param dict configuration:
         """
+        parsed_configuration, errors = self.CONFIGURATION_SCHEMA().load(configuration)
+        if errors:
+            raise InvalidConfigurationException(errors)
+        
+        self.configuration = parsed_configuration
 
-        self._calendar = mcal.get_calendar(configuration[self.KEY_EXCHANGE])
+        self._calendar = mcal.get_calendar(self.configuration[self.KEY_EXCHANGE])
         self.minutes_in_trading_days = self._calendar.get_minutes_in_one_day()
-        self.configuration = configuration
 
-        self.features_ndays = configuration['features_ndays']
-        self.features_resample_minutes = configuration['features_resample_minutes']
-        self.features_start_market_minute = configuration['features_start_market_minute']
-        self.prediction_market_minute = configuration['prediction_market_minute']
+        self.features_ndays = self.configuration['features_ndays']
+        self.features_resample_minutes = self.configuration['features_resample_minutes']
+        self.features_start_market_minute = self.configuration['features_start_market_minute']
+        self.prediction_market_minute = self.configuration['prediction_market_minute']
 
-        self.target_delta = configuration['target_delta']
-        self.target_market_minute = configuration['target_market_minute']
-        self.classify_per_series = configuration['classify_per_series']
-        self.normalise_per_series = configuration['normalise_per_series']
-        self.n_classification_bins = configuration['n_classification_bins']
-        self.n_series = configuration['n_assets']
-        self.fill_limit = configuration['fill_limit']
-        self.predict_the_market_close = configuration.get('predict_the_market_close', False)
+        self.target_delta = self.configuration['target_delta']
+        self.target_market_minute = self.configuration['target_market_minute']
+        self.classify_per_series = self.configuration['classify_per_series']
+        self.normalise_per_series = self.configuration['normalise_per_series']
+        self.n_classification_bins = self.configuration['n_classification_bins']
+        self.n_series = self.configuration['n_assets']
+        self.fill_limit = self.configuration['fill_limit']
+        self.predict_the_market_close = self.configuration.get('predict_the_market_close', False)
 
-        self.features = self._feature_factory(configuration['feature_config_list'])
+        self.features = self._feature_factory(self.configuration['feature_config_list'])
         self.feature_length = self.get_feature_length()
 
-        self._assert_input()
+        self._validate_configuration()
 
     @abstractmethod
     def _get_feature_for_extract_y(self):
@@ -173,16 +180,9 @@ class DataTransformation(metaclass=ABCMeta):
 
         return {key: value for key, value in raw_data_dict.items() if key in wanted_keys}
 
-    def _assert_input(self):
+    def _validate_configuration(self):
         """ Make sure your inputs are sensible.  """
-
-        assert isinstance(self.fill_limit, int)
-        assert isinstance(self.features_ndays, int) and self.features_ndays >= 0
-
-        assert isinstance(self.features_resample_minutes, int) and self. features_resample_minutes >= 0
-        assert isinstance(self.features_start_market_minute, int)
         assert self.features_start_market_minute < self.minutes_in_trading_days
-
         assert 0 <= self.prediction_market_minute < self.minutes_in_trading_days
         assert 0 <= self.target_market_minute < self.minutes_in_trading_days
 
