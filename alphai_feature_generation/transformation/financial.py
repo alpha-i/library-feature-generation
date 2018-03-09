@@ -82,16 +82,7 @@ class FinancialDataTransformation(DataTransformation):
 
         total_number_of_samples = len(simulated_market_dates)
         data_schedule = self._extract_schedule_from_data(raw_data_dict)
-
-        self.apply_global_transformations(raw_data_dict)
-
-        data_x_list = []
-        data_y_list = []
-        rejected_x_list = []
-        rejected_y_list = []
-
-        prediction_timestamp_list = []
-
+        raw_data_dict = self.apply_global_transformations(raw_data_dict)
         target_market_open = None
 
         if len(simulated_market_dates) == 0:
@@ -99,13 +90,18 @@ class FinancialDataTransformation(DataTransformation):
 
             raise ValueError("Empty Market dates")
 
-        results = []
-        for market_open in list(simulated_market_dates.market_open):
-            results.append(
-                self._build_features(raw_data_dict, historical_universes, data_schedule, market_open))
+        features = [
+            self._build_features(raw_data_dict, historical_universes, data_schedule, market_open)
+            for market_open in list(simulated_market_dates.market_open)
+        ]
 
-        for result in results:
-            feature_x_dict, feature_y_dict, prediction_timestamp, target_market_open = result
+        data_x_list = []
+        data_y_list = []
+        rejected_x_list = []
+        rejected_y_list = []
+        prediction_timestamp_list = []
+        for feature in features:
+            feature_x_dict, feature_y_dict, prediction_timestamp, target_market_open = feature
             if feature_x_dict is not None:
                 prediction_timestamp_list.append(prediction_timestamp)
                 if self.check_x_batch_dimensions(feature_x_dict):
@@ -237,8 +233,6 @@ class FinancialDataTransformation(DataTransformation):
 
             feature_x_dict, feature_y_dict = self._collect_prediction_from_features(
                 raw_data_dict, x_end_timestamp, y_start_timestamp, universe, target_timestamp)
-
-
 
         except DateNotInUniverseError as e:
             logger.debug(e)
