@@ -83,11 +83,9 @@ class FinancialDataTransformation(DataTransformation):
         total_number_of_samples = len(simulated_market_dates)
         data_schedule = self._extract_schedule_from_data(raw_data_dict)
         raw_data_dict = self.apply_global_transformations(raw_data_dict)
-        target_market_open = None
 
         if len(simulated_market_dates) == 0:
             logger.debug("Empty Market dates")
-
             raise ValueError("Empty Market dates")
 
         features = [
@@ -100,6 +98,7 @@ class FinancialDataTransformation(DataTransformation):
         rejected_x_list = []
         rejected_y_list = []
         prediction_timestamp_list = []
+
         for feature in features:
             feature_x_dict, feature_y_dict, prediction_timestamp, target_market_open = feature
             if feature_x_dict is not None:
@@ -120,23 +119,13 @@ class FinancialDataTransformation(DataTransformation):
 
         logger.debug("Making normalised x list")
         data_x_list = self._make_normalised_x_list(data_x_list, do_normalisation_fitting)
-
-        action = 'prediction'
-        y_dict = None
-
-        if target_market_open:
-            action = 'training'
-            logger.debug("{} out of {} samples were found to be valid".format(n_valid_samples, total_number_of_samples))
-            classify_y = self.n_classification_bins
-            y_list = self._make_classified_y_list(data_y_list) if classify_y else data_y_list
-            y_dict, _ = self.stack_samples_for_each_feature(y_list)
-
-        x_dict, x_symbols = self.stack_samples_for_each_feature(data_x_list)
-        logger.debug("Assembled {} dict with {} symbols".format(action, len(x_symbols)))
-
         prediction_timestamp = prediction_timestamp_list[-1] if len(prediction_timestamp_list) > 0 else None
+        x_dict, x_symbols = self.stack_samples_for_each_feature(data_x_list)
 
-        return x_dict, y_dict, x_symbols, prediction_timestamp
+        logger.debug("{} out of {} samples were found to be valid".format(n_valid_samples, total_number_of_samples))
+
+        y_dict = {}
+        return x_dict, data_x_list, y_dict, data_y_list, x_symbols, prediction_timestamp
 
     @logtime
     def create_train_data(self, raw_data_dict, historical_universes):
@@ -150,14 +139,25 @@ class FinancialDataTransformation(DataTransformation):
         raw_data_dict = self._add_log_returns(raw_data_dict)
         raw_data_dict = self.filter_unwanted_keys(raw_data_dict)
 
-        raw_data_dict['close'] = raw_data_dict['close'].astype('float32',
-                                                               copy=False)  # this is to speed up calculation. close is the traget feature
+        # this is to speed up calculation. close is the traget feature
+        raw_data_dict['close'] = raw_data_dict['close'].astype('float32',copy=False)
 
         market_schedule = self._extract_schedule_for_training(raw_data_dict)
         fit_normalisation = True
 
-        train_x, train_y, _, _ = self._create_data(raw_data_dict, market_schedule, historical_universes,
-                                                   fit_normalisation)
+        train_x, x_list, _, data_y_list, x_symbols, prediction_timestamp = \
+            self._create_data(
+                raw_data_dict,
+                market_schedule,
+                historical_universes,
+                fit_normalisation
+            )
+
+        classify_y = self.n_classification_bins
+        y_list = self._make_classified_y_list(data_y_list) if classify_y else data_y_list
+        train_y, _ = self.stack_samples_for_each_feature(y_list)
+
+        logger.debug("Assembled training dict with {} symbols".format(len(x_symbols)))
 
         if self.clean_nan_from_dict:
             train_x, train_y = self._remove_nans_from_dict(train_x, train_y)
@@ -177,7 +177,11 @@ class FinancialDataTransformation(DataTransformation):
         raw_data_dict = self.filter_unwanted_keys(raw_data_dict)
         market_schedule = self._extract_schedule_for_prediction(raw_data_dict)
 
-        predict_x, _, symbols, predict_timestamp = self._create_data(raw_data_dict, market_schedule)
+        predict_x, x_list, predict_y, y_list, x_symbols, predict_timestamp = \
+            self._create_data(
+                raw_data_dict,
+                market_schedule
+            )
 
         if self.clean_nan_from_dict:
             predict_x = self._remove_nans_from_dict(predict_x)
@@ -190,7 +194,9 @@ class FinancialDataTransformation(DataTransformation):
 
         _, predict_timestamp = self._get_prediction_timestamps(schedule.loc[prediction_day]['market_open'])
 
-        return predict_x, symbols, predict_timestamp, target_timestamp
+        logger.debug("Assembled prediction dict with {} symbols".format(len(x_symbols)))
+
+        return predict_x, x_symbols, predict_timestamp, target_timestamp
 
     @logtime
     def inverse_transform_multi_predict_y(self, predict_y, symbols):
