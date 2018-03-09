@@ -152,7 +152,7 @@ class TestFinancialDataTransformation(TestCase):
         assert len(feature_x_dict.keys()) == expected_n_features
         for key in feature_x_dict.keys():
             assert feature_x_dict[key].shape == (expected_n_time_dict[key], expected_n_symbols)
-        assert feature_y_dict is None
+        assert not feature_y_dict
 
     def test_make_normalised_x_list(self):
 

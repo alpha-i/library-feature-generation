@@ -1,19 +1,14 @@
 import logging
-import multiprocessing
 
 from collections import OrderedDict
 from datetime import timedelta
-from functools import partial
 
 import numpy as np
 import pandas as pd
 
 from alphai_feature_generation.feature.factory import FinancialFeatureFactory
 from alphai_feature_generation.helpers import logtime
-from alphai_feature_generation.transformation.base import (
-    ensure_closing_pool,
-    DataTransformation,
-    DateNotInUniverseError)
+from alphai_feature_generation.transformation.base import (DataTransformation, DateNotInUniverseError)
 
 logger = logging.getLogger(__name__)
 
@@ -102,13 +97,9 @@ class FinancialDataTransformation(DataTransformation):
 
             raise ValueError("Empty Market dates")
 
-        managed_dict = multiprocessing.Manager().dict(raw_data_dict)
+        for market_open in list(simulated_market_dates.market_open):
 
-        with ensure_closing_pool() as pool:
-            fit_function = partial(self._build_features_function, managed_dict, historical_universes, data_schedule)
-            pooled_results = pool.map(fit_function, list(simulated_market_dates.market_open))
-
-        for result in pooled_results:
+            result = self._build_features_function(raw_data_dict, historical_universes, data_schedule, market_open)
             feature_x_dict, feature_y_dict, prediction_timestamp, target_market_open = result
             if feature_x_dict is not None:
                 prediction_timestamp_list.append(prediction_timestamp)
@@ -131,7 +122,6 @@ class FinancialDataTransformation(DataTransformation):
 
         action = 'prediction'
         y_dict = None
-        y_list = None
 
         if target_market_open:
             action = 'training'
@@ -219,7 +209,6 @@ class FinancialDataTransformation(DataTransformation):
         :param prediction_market_open:
         :return:
         """
-
         target_market_schedule = self._extract_target_market_day(data_schedule, prediction_market_open)
         target_market_open = target_market_schedule.market_open if target_market_schedule is not None else None
 
@@ -272,25 +261,21 @@ class FinancialDataTransformation(DataTransformation):
     def _collect_prediction_from_features(self, raw_data_dict, x_end_timestamp, y_start_timestamp, universe=None,
                                           target_timestamp=None):
         """
-        Collect processed prediction x and y data for all the features.
-        :param dict raw_data_dict: dictionary of dataframes containing features data.
-        :param Timestamp prediction_timestamp: Timestamp when the prediction is made
-        :param list/None universe: list of relevant symbols
-        :param Timestamp/None target_timestamp: Timestamp the prediction is for.
-        :return (dict, dict): feature_x_dict, feature_y_dict
+
+        :param dict raw_data_dict:  dictionary of dataframes containing features data.
+        :param Timestamp x_end_timestamp:
+        :param y_start_timestamp:
+        :param list universe: list of relevant symbols
+        :param target_timestamp: Timestamp the prediction is for.
+        :return :return (dict, dict): feature_x_dict, feature_y_dict
         """
         feature_x_dict = OrderedDict()
         feature_y_dict = OrderedDict()
 
-        processed_predictions = []
         for feature in self.features:
-            processed_predictions.append(
-                self._process_predictions(x_end_timestamp, y_start_timestamp, raw_data_dict, target_timestamp,
-                                          universe, feature)
-            )
-
-        for prediction in processed_predictions:
-            feature_name, feature_x, feature_y = prediction
+            feature_name, feature_x, feature_y = self._process_predictions(x_end_timestamp, y_start_timestamp,
+                                                                           raw_data_dict, target_timestamp,
+                                                                           universe, feature)
             feature_x_dict[feature_name] = feature_x
             if feature_y is not None:
                 feature_y_dict[feature_name] = feature_y
@@ -298,7 +283,7 @@ class FinancialDataTransformation(DataTransformation):
         if len(feature_y_dict) > 0:
             assert len(feature_y_dict) == 1, 'Only one target is allowed'
         else:
-            feature_y_dict = None
+            feature_y_dict = OrderedDict()
 
         return feature_x_dict, feature_y_dict
 
@@ -314,26 +299,21 @@ class FinancialDataTransformation(DataTransformation):
         :return:
         """
 
-        if universe is None:
-            universe = raw_data_dict[feature.name].columns
+        universe = raw_data_dict[feature.name].columns if universe is None else universe
+
         feature_name = feature.full_name if feature.full_name in raw_data_dict.keys() else feature.name
-        feature_x = feature.get_prediction_features(
-            raw_data_dict[feature_name].loc[:, universe],
-            x_timestamp
+        feature_x = feature.get_prediction_features(raw_data_dict[feature_name].loc[:, universe], x_timestamp)
+
+        feature_y = feature.get_prediction_targets(
+            raw_data_dict[self._get_feature_for_extract_y()].loc[:, universe],
+            y_timestamp,
+            target_timestamp
         )
 
-        feature_y = None
-        if feature.is_target:
-            feature_y = feature.get_prediction_targets(
-                raw_data_dict[self._get_feature_for_extract_y()].loc[:, universe],
-                y_timestamp,
-                target_timestamp
-            )
-
-            if feature_y is not None:
-                transposed_y = feature_y.to_frame().transpose()
-                transposed_y.set_index(pd.DatetimeIndex([target_timestamp]), inplace=True)
-                feature_y = transposed_y
+        if feature_y is not None:
+            transposed_y = feature_y.to_frame().transpose()
+            transposed_y.set_index(pd.DatetimeIndex([target_timestamp]), inplace=True)
+            feature_y = transposed_y
 
         return feature.full_name, feature_x, feature_y
 
