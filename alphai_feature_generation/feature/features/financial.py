@@ -380,4 +380,7 @@ class FinancialFeature(object):
         diag_cov_matrix = np.diag(variances)
         return means, diag_cov_matrix
 
+    def __repr__(self):
+        return '<FinancialFeature object: name: {}. full_name: {}>'.format(self.name, self.full_name)
+
 
