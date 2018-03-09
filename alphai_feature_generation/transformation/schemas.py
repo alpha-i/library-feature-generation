@@ -1,18 +1,31 @@
 import datetime
+from collections import defaultdict
 
 from marshmallow import Schema, fields, validates, ValidationError
 
 
-class AttributeDict(dict):
-    __getattr__ = dict.get
-    __setattr__ = dict.__setitem__
-    __delattr__ = dict.__delitem__
+class AttributeDict(defaultdict):
+    def __init__(self, *args, **kwargs):
+        super(AttributeDict, self).__init__(*args, **kwargs)
+
+    def __getattr__(self, key):
+        try:
+            return self[key]
+        except KeyError:
+            raise AttributeError(key)
+
+    def __setattr__(self, key, value):
+        self[key] = value
+
+
+# class AttributeDict(dict):
+#     __getattr__ = dict.get
+#     __setattr__ = dict.__setitem__
+#     __delattr__ = dict.__delitem__
 
 
 class BaseSchema(Schema):
-    @property
-    def dict_class(self):
-        return AttributeDict
+    pass
 
 
 class TimeDeltaSchema(BaseSchema):

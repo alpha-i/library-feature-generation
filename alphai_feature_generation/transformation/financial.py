@@ -1,17 +1,37 @@
 import logging
 from collections import OrderedDict, namedtuple
 from datetime import timedelta
+from functools import partial
+import multiprocessing
 
 import numpy as np
 import pandas as pd
 from alphai_feature_generation.feature.factory import FinancialFeatureFactory
 from alphai_feature_generation.helpers import logtime
-from alphai_feature_generation.transformation.base import (DataTransformation, DateNotInUniverseError)
+from alphai_feature_generation.transformation.base import (DataTransformation, DateNotInUniverseError,
+                                                           ensure_closing_pool)
 from alphai_feature_generation.transformation.schemas import FinancialDataTransformationConfigurationSchema
 
 logger = logging.getLogger(__name__)
 
 Feature = namedtuple('Feature', 'x_dict y_dict prediction_timestamp target_timestamp')
+
+
+import sys
+import pdb
+
+class ForkedPdb(pdb.Pdb):
+    """A Pdb subclass that may be used
+    from a forked multiprocessing child
+
+    """
+    def interaction(self, *args, **kwargs):
+        _stdin = sys.stdin
+        try:
+            sys.stdin = open('/dev/stdin')
+            pdb.Pdb.interaction(self, *args, **kwargs)
+        finally:
+            sys.stdin = _stdin
 
 
 class FinancialDataTransformation(DataTransformation):
@@ -88,10 +108,25 @@ class FinancialDataTransformation(DataTransformation):
             logger.debug("Empty Market dates")
             raise ValueError("Empty Market dates")
 
-        features = [
-            self._build_features(raw_data_dict, historical_universes, data_schedule, market_open)
-            for market_open in list(simulated_market_dates.market_open)
-        ]
+        manager = multiprocessing.Manager()
+        collector = manager.Namespace()
+        collector.raw_data_dict = raw_data_dict
+        collector.historical_universes = historical_universes
+        collector.data_schedule = data_schedule
+
+        partial_function = partial(self._build_features, collector)
+
+        with ensure_closing_pool() as pool:
+            market_open_times = [
+                timestamp.to_pydatetime()
+                for timestamp in list(simulated_market_dates.market_open)
+            ]
+            features = pool.map(partial_function, market_open_times)
+
+        # features = [
+        #     self._build_features(raw_data_dict, historical_universes, data_schedule, market_open)
+        #     for market_open in list(simulated_market_dates.market_open)
+        # ]
 
         data_x_list = []
         data_y_list = []
@@ -212,7 +247,7 @@ class FinancialDataTransformation(DataTransformation):
         return means, cov_matrix
 
     @logtime
-    def _build_features(self, raw_data_dict, historical_universes, data_schedule, prediction_market_open):
+    def _build_features(self, collector, prediction_market_open):
         """  Constructs dictionaries holding the desired x and y feature data.
 
         :param raw_data_dict:
@@ -221,8 +256,13 @@ class FinancialDataTransformation(DataTransformation):
         :param prediction_market_open:
         :rtype: FeatureDict
         """
+        raw_data_dict = collector.raw_data_dict
+        historical_universes = collector.historical_universes
+        data_schedule = collector.data_schedule
+
         target_market_schedule = self._extract_target_market_day(data_schedule, prediction_market_open)
         target_market_open = target_market_schedule.market_open if target_market_schedule is not None else None
+
 
         try:
             if historical_universes is not None:
@@ -251,7 +291,7 @@ class FinancialDataTransformation(DataTransformation):
             logger.debug('Failed to build a set of features', exc_info=e)
             return Feature(None, None, None, target_market_open)
 
-        return Feature(feature_x_dict, feature_y_dict, x_end_timestamp, target_market_open)
+        return Feature(feature_x_dict, feature_y_dict, x_end_timestamp, target_timestamp)
 
     @logtime
     def _collect_prediction_from_features(self, raw_data_dict, x_end_timestamp, y_start_timestamp, universe=None,

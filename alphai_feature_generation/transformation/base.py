@@ -19,7 +19,6 @@ logger = logging.getLogger(__name__)
 
 @contextmanager
 def ensure_closing_pool():
-    """ Do some fancy multiprocessing stuff while preventing memory leaks. """
     pool = multiprocessing.Pool(processes=multiprocessing.cpu_count() - 1)
     try:
         yield pool
@@ -354,11 +353,13 @@ class DataTransformation(metaclass=ABCMeta):
         if target_market_open:
 
             if self.predict_the_market_close:
-                return self._calendar.closing_time_for_day(target_market_open.date())
+                ts = self._calendar.closing_time_for_day(target_market_open.date())
             else:
-                return target_market_open + timedelta(minutes=self.target_market_minute)
+                ts = target_market_open + timedelta(minutes=self.target_market_minute)
         else:
             return None
+
+        return ts.to_pydatetime()
 
     def _get_prediction_timestamps(self, prediction_market_open):
         """
