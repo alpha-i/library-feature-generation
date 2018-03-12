@@ -1,27 +1,6 @@
 import datetime
-from collections import defaultdict
 
 from marshmallow import Schema, fields, validates, ValidationError
-
-
-class AttributeDict(defaultdict):
-    def __init__(self, *args, **kwargs):
-        super(AttributeDict, self).__init__(*args, **kwargs)
-
-    def __getattr__(self, key):
-        try:
-            return self[key]
-        except KeyError:
-            raise AttributeError(key)
-
-    def __setattr__(self, key, value):
-        self[key] = value
-
-
-# class AttributeDict(dict):
-#     __getattr__ = dict.get
-#     __setattr__ = dict.__setitem__
-#     __delattr__ = dict.__delitem__
 
 
 class BaseSchema(Schema):
@@ -33,8 +12,8 @@ class TimeDeltaSchema(BaseSchema):
     value = fields.Float()
 
 
-
 class DataTransformationConfigurationSchema(BaseSchema):
+
     calendar_name = fields.String()
     features_ndays = fields.Integer()
     features_resample_minutes = fields.Integer()
@@ -49,6 +28,7 @@ class DataTransformationConfigurationSchema(BaseSchema):
     fill_limit = fields.Integer()
     predict_the_market_close = fields.Boolean(default=False, missing=False)
     feature_config_list = fields.List(fields.Dict())
+    n_forecasts = fields.Integer(default=1, missing=1)
 
     @validates('target_delta')
     def validate_target_delta(self, data):
@@ -58,7 +38,6 @@ class DataTransformationConfigurationSchema(BaseSchema):
 
 class FinancialDataTransformationConfigurationSchema(DataTransformationConfigurationSchema):
     clean_nan_from_dict = fields.Boolean(default=False, missing=False)
-
 
 
 class InvalidConfigurationException(Exception):

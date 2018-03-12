@@ -22,16 +22,9 @@ class FinancialDataTransformation(DataTransformation):
     CONFIGURATION_SCHEMA = FinancialDataTransformationConfigurationSchema
 
     def __init__(self, configuration):
-        """
-        :param dict configuration: dictionary containing the feature details.
-            list feature_config_list: list of dictionaries containing feature details.
-            str exchange: name of the reference exchange
-            int features_ndays: number of trading days worth of data the feature should use.
-            int features_resample_minutes: resampling frequency in number of minutes.
-            int features_start_market_minute: number of minutes after market open the data collection should start from
-            int prediction_market_minute: number of minutes after market open for the prediction timestamp
-            int target_delta_ndays: target time horizon in number of days
-            int target_market_minute: number of minutes after market open for the target timestamp
+        """Initialise in accordance with the config dictionary.
+
+        :param dict configuration:
         """
         super().__init__(configuration)
 
@@ -106,11 +99,6 @@ class FinancialDataTransformation(DataTransformation):
                 for timestamp in list(simulated_market_dates.market_open)
             ]
             features = pool.map(partial_function, market_open_times)
-
-        # features = [
-        #     self._build_features(raw_data_dict, historical_universes, data_schedule, market_open)
-        #     for market_open in list(simulated_market_dates.market_open)
-        # ]
 
         data_x_list = []
         data_y_list = []

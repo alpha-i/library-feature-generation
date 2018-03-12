@@ -21,21 +21,13 @@ logger = logging.getLogger(__name__)
 class GymDataTransformation(DataTransformation):
 
     def __init__(self, configuration):
-        """
-        :param dict configuration: dictionary containing the feature details.
-            list feature_config_list: list of dictionaries containing feature details.
-            str exchange: name of the reference exchange
-            int features_ndays: number of trading days worth of data the feature should use.
-            int features_resample_minutes: resampling frequency in number of minutes.
-            int features_start_market_minute: number of minutes after market open the data collection should start from
-            int prediction_market_minute: number of minutes after market open for the prediction timestamp
-            int target_delta_ndays: target time horizon in number of days
-            int target_market_minute: number of minutes after market open for the target timestamp
+        """Initialise in accordance with the config dictionary.
+
+        :param dict configuration:
         """
         super().__init__(configuration)
 
         self.target_feature = self.get_target_feature()
-        self.n_forecasts = configuration.get('n_forecasts', 1)
 
     def _get_feature_for_extract_y(self):
         """ Returns the name of the feature to be used as a target (y). """
@@ -59,7 +51,7 @@ class GymDataTransformation(DataTransformation):
 
         for feature in feature_config_list:
             specific_update = {
-                'length': feature.get('length', self.get_total_ticks_x()),
+                'length': feature['length'],
                 'resample_minutes': feature.get('resolution', 0),
                 'is_target': feature.get('is_target', False),
                 'local': feature.get('local', False)

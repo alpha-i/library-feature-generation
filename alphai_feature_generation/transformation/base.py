@@ -66,6 +66,7 @@ class DataTransformation(metaclass=ABCMeta):
         self.n_series = self.configuration['n_assets']
         self.fill_limit = self.configuration['fill_limit']
         self.predict_the_market_close = self.configuration.get('predict_the_market_close', False)
+        self.n_forecasts = self.configuration['n_forecasts']
 
         self.features = self._feature_factory(self.configuration['feature_config_list'])
         self.feature_length = self.get_feature_length()
@@ -179,7 +180,7 @@ class DataTransformation(metaclass=ABCMeta):
 
         return {key: value for key, value in raw_data_dict.items() if key in wanted_keys}
 
-    def _validate_configuration(self):
+    def _validate_configuration(self): #TODO MOVE TO FINANCIAL
         """ Make sure your inputs are sensible.  """
         assert self.features_start_market_minute < self.minutes_in_trading_days
         assert 0 <= self.prediction_market_minute < self.minutes_in_trading_days
