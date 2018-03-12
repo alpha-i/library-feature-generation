@@ -119,9 +119,9 @@ class TestGymFeature(TestCase):
 
         prediction_data_y = feature.get_prediction_targets(data_frame, prediction_timestamp, target_timestamp)
 
-        assert isinstance(prediction_data_x, pd.DataFrame) and isinstance(prediction_data_y, pd.Series)
+        assert isinstance(prediction_data_x, pd.DataFrame) and isinstance(prediction_data_y, pd.DataFrame)
         assert len(prediction_data_x) == expected_length
-        assert_array_equal(prediction_data_x.columns, prediction_data_y.index)
+        assert_array_equal(prediction_data_x.columns, prediction_data_y.columns)
 
     def test_get_prediction_data(self):
         expected_length_list = [15, 35, 69]
@@ -280,11 +280,9 @@ class TestFeatureNormalization(TestCase):
         feature.fit_classification('SYM1', symbol_data_1)
         feature.fit_classification('SYM2', symbol_data_2)
 
-        classified_dataframe = feature.apply_classification(dataframe)
-        expected_classified_dataframe = pd.DataFrame([[0., 1.],
-                                                      [0., 0.],
-                                                      [1., 0.],
-                                                      [0., 0.],
-                                                      [0., 0.]], columns=symbols[:2])
+        classified_panel = feature.apply_classification(dataframe)
 
-        assert classified_dataframe.equals(expected_classified_dataframe)
+        expected_data = [[[0., 0., 1., 0., 0.], [1., 0., 0., 0., 0.]]]
+        expected_classified_panel = pd.Panel(expected_data, major_axis=['SYM1', 'SYM2'])
+
+        assert classified_panel.equals(expected_classified_panel)

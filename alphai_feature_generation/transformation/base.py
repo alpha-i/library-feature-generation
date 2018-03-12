@@ -4,21 +4,20 @@ from abc import ABCMeta, abstractmethod
 from collections import OrderedDict
 from contextlib import contextmanager
 from datetime import timedelta
-from enum import Enum
 from functools import partial
-
 
 import numpy as np
 
 import alphai_calendars as mcal
 from alphai_feature_generation.feature.factory import FeatureList
+from alphai_feature_generation.transformation.schemas import DataTransformationConfigurationSchema, \
+    InvalidConfigurationException
 
 logger = logging.getLogger(__name__)
 
 
 @contextmanager
 def ensure_closing_pool():
-    """ Do some fancy multiprocessing stuff while preventing memory leaks. """
     pool = multiprocessing.Pool(processes=multiprocessing.cpu_count() - 1)
     try:
         yield pool
@@ -26,17 +25,6 @@ def ensure_closing_pool():
         pool.terminate()
         pool.join()
         del pool
-
-
-class TargetDeltaUnit(Enum):
-
-    days = 'days'
-    seconds = 'seconds'
-    microseconds = 'microseconds'
-    milliseconds = 'milliseconds'
-    minutes = 'minutes'
-    hours = 'hours'
-    weeks = 'weeks'
 
 
 class DateNotInUniverseError(Exception):
@@ -47,39 +35,42 @@ class DateNotInUniverseError(Exception):
 class DataTransformation(metaclass=ABCMeta):
     """ Prepares raw time series data for machine learning applications. """
 
-    KEY_EXCHANGE = None
+    KEY_EXCHANGE = 'calendar_name'
+    CONFIGURATION_SCHEMA = DataTransformationConfigurationSchema
 
     def __init__(self, configuration):
         """Initialise in accordance with the config dictionary.
 
         :param dict configuration:
         """
+        parsed_configuration, errors = self.CONFIGURATION_SCHEMA().load(configuration)
+        if errors:
+            raise InvalidConfigurationException(errors)
+        
+        self.configuration = parsed_configuration
 
-        self._calendar = None
-        self.minutes_in_trading_days = None
-
-        self._calendar = mcal.get_calendar(configuration[self.KEY_EXCHANGE])
+        self._calendar = mcal.get_calendar(self.configuration[self.KEY_EXCHANGE])
         self.minutes_in_trading_days = self._calendar.get_minutes_in_one_day()
-        self.configuration = configuration
 
-        self.features_ndays = configuration['features_ndays']
-        self.features_resample_minutes = configuration['features_resample_minutes']
-        self.features_start_market_minute = configuration['features_start_market_minute']
-        self.prediction_market_minute = configuration['prediction_market_minute']
+        self.features_ndays = self.configuration['features_ndays']
+        self.features_resample_minutes = self.configuration['features_resample_minutes']
+        self.features_start_market_minute = self.configuration['features_start_market_minute']
+        self.prediction_market_minute = self.configuration['prediction_market_minute']
 
-        self.target_delta = self._build_target_delta(configuration['target_delta'])
-        self.target_market_minute = configuration['target_market_minute']
-        self.classify_per_series = configuration['classify_per_series']
-        self.normalise_per_series = configuration['normalise_per_series']
-        self.n_classification_bins = configuration['n_classification_bins']
-        self.n_series = configuration['nassets']
-        self.fill_limit = configuration['fill_limit']
-        self.predict_the_market_close = configuration.get('predict_the_market_close', False)
+        self.target_delta = self.configuration['target_delta']
+        self.target_market_minute = self.configuration['target_market_minute']
+        self.classify_per_series = self.configuration['classify_per_series']
+        self.normalise_per_series = self.configuration['normalise_per_series']
+        self.n_classification_bins = self.configuration['n_classification_bins']
+        self.n_series = self.configuration['n_assets']
+        self.fill_limit = self.configuration['fill_limit']
+        self.predict_the_market_close = self.configuration.get('predict_the_market_close', False)
+        self.n_forecasts = self.configuration['n_forecasts']
 
-        self.features = self._feature_factory(configuration['feature_config_list'])
+        self.features = self._feature_factory(self.configuration['feature_config_list'])
         self.feature_length = self.get_feature_length()
 
-        self._assert_input()
+        self._validate_configuration()
 
     @abstractmethod
     def _get_feature_for_extract_y(self):
@@ -175,9 +166,7 @@ class DataTransformation(metaclass=ABCMeta):
 
         :return FinancialFeature: target feature
         """
-        for feature in self.features:
-            if feature.is_target:
-                return feature
+        return self.features.get_target_feature()
 
     def filter_unwanted_keys(self, raw_data_dict):
         """
@@ -190,37 +179,11 @@ class DataTransformation(metaclass=ABCMeta):
 
         return {key: value for key, value in raw_data_dict.items() if key in wanted_keys}
 
-    def _assert_input(self):
+    def _validate_configuration(self): #TODO MOVE TO FINANCIAL
         """ Make sure your inputs are sensible.  """
-
-        assert isinstance(self.fill_limit, int)
-        assert isinstance(self.features_ndays, int) and self.features_ndays >= 0
-
-        assert isinstance(self.features_resample_minutes, int) and self. features_resample_minutes >= 0
-        assert isinstance(self.features_start_market_minute, int)
         assert self.features_start_market_minute < self.minutes_in_trading_days
-
         assert 0 <= self.prediction_market_minute < self.minutes_in_trading_days
         assert 0 <= self.target_market_minute < self.minutes_in_trading_days
-
-    def _build_target_delta(self, target_delta_configuration):
-        """
-        build the target delta for a given configuration.
-
-        :param dict target_delta_configuration: dict with this structure {'value': int, 'unit': str }
-        :return timedelta:
-        """
-        value = target_delta_configuration['value']
-        try:
-            unit = TargetDeltaUnit(target_delta_configuration['unit']).value
-        except ValueError as e:
-            msg = "unit {} not allowed. allowed unit {}".format(
-                target_delta_configuration['unit'],
-                TargetDeltaUnit.__members__.keys()
-            )
-            raise ValueError(msg)
-
-        return timedelta(**{unit: value})
 
     def _get_valid_target_timestamp_in_schedule(self, schedule, predict_timestamp):
         """
@@ -270,7 +233,7 @@ class DataTransformation(metaclass=ABCMeta):
         if len(x_list) == 0:
             raise ValueError("No valid x samples found.")
 
-        symbols = get_unique_symbols(x_list)
+        symbols = self._get_unique_symbols(x_list)
 
         # this was using multiprocessing and hanging during the backtest
         # let's switch this off for now
@@ -293,21 +256,21 @@ class DataTransformation(metaclass=ABCMeta):
         """
 
         if feature.scaler:
-            normalise_function = partial(self.normalise_dict, feature)
             logger.debug("Applying normalisation to: {}".format(feature.full_name))
 
-            with ensure_closing_pool() as pool:
-                list_of_x_dicts = pool.map(normalise_function, x_list)
+            list_of_x_dicts = []
+            for x_dict in x_list:
+                list_of_x_dicts.append(self.normalise_dict(feature, x_dict))
 
             return list_of_x_dicts
         else:
             return x_list
 
     def normalise_dict(self, feature, x_dict):
-        """ Apply normalisation with a single feature.
+        """ Apply normalisation with a single feature if is in the x_dict.
 
-        :param target_feature:
-        :param x_dict:
+        :param Feature feature:
+        :param dict x_dict:
         :return:
         """
         if feature.full_name in x_dict:
@@ -347,35 +310,36 @@ class DataTransformation(metaclass=ABCMeta):
             raise ValueError("No valid y samples found.")
 
         target_feature = self.get_target_feature()
-        target_name = target_feature.full_name
-        symbols = get_unique_symbols(y_list)
+        symbols = self._get_unique_symbols(y_list)
 
         # Fitting of bins
-        logger.debug("Fitting y classification to: {}".format(target_name))
+        logger.debug("Fitting y classification to: {}".format(target_feature.full_name))
         for symbol in symbols:
-            symbol_data = self.extract_data_by_symbol(y_list, symbol, target_name)
+            symbol_data = self.extract_data_by_symbol(y_list, symbol, target_feature.full_name)
             target_feature.fit_classification(symbol, symbol_data)
 
         # Applying
-        logger.debug("Applying y classification to: {}".format(target_name))
-        with ensure_closing_pool() as pool:
-            apply_classification = partial(self._apply_classification, target_feature, target_name)
-            applied_y_list = pool.map(apply_classification, y_list)
+        logger.debug("Applying y classification to: {}".format(target_feature.full_name))
+        applied_y_list = []
+        for y_dict in y_list:
+            applied_y_list.append(
+                self._apply_classification(target_feature, y_dict)
+            )
 
         return applied_y_list
 
-    def _apply_classification(self, target_feature, target_name, y_dict):
+    def _apply_classification(self, target_feature, y_dict):
         """  Classifies the y values.
 
         :param target_feature: The 'feature' that will act as the target for the network
-        :param target_name:
         :param y_dict:
         :return:
         """
-        if target_name in y_dict:
-            y_dict[target_name] = target_feature.apply_classification(y_dict[target_name])
+        if target_feature.full_name in y_dict:
+            y_dict[target_feature.full_name] = target_feature.apply_classification(y_dict[target_feature.full_name])
         else:
-            logger.debug("Failed to find {} in dict: {}".format(target_name, list(y_dict.keys())))
+            logger.debug("Failed to find {} in dict: {}".format( target_feature.full_name, list(y_dict.keys())))
+
         return y_dict
 
     def _get_target_timestamp(self, target_market_open):
@@ -389,11 +353,13 @@ class DataTransformation(metaclass=ABCMeta):
         if target_market_open:
 
             if self.predict_the_market_close:
-                return self._calendar.closing_time_for_day(target_market_open.date())
+                ts = self._calendar.closing_time_for_day(target_market_open.date())
             else:
-                return target_market_open + timedelta(minutes=self.target_market_minute)
+                ts = target_market_open + timedelta(minutes=self.target_market_minute)
         else:
             return None
+
+        return ts.to_pydatetime()
 
     def _get_prediction_timestamps(self, prediction_market_open):
         """
@@ -425,61 +391,36 @@ class DataTransformation(metaclass=ABCMeta):
 
         return raw_data_dict
 
-    def stack_samples_for_each_feature(self, samples, reference_samples=None):
-        """ Collate a list of samples (the training set) into a single dictionary
-
-        :param samples: List of dicts, each dict should be holding the same set of keys
-        :param reference_samples: cross-checks samples match shape of reference samples
+    def stack_samples_for_each_feature(self, input_samples):
+        """ Collate a list of training_set (the training set) into a single dictionary
+        :param input_samples: List of dicts, each dict should be holding the same set of keys
         :return: Single dictionary with the values stacked together
         """
-        if len(samples) == 0:
-            raise ValueError("At least one sample required for stacking samples.")
+        training_set_length = len(input_samples)
 
-        feature_names = samples[0].keys()
-        label_name = self.get_target_feature().full_name
+        if not training_set_length:
+            raise ValueError("At least one sample required for stacking training_set.")
 
-        stacked_samples = OrderedDict()
+        stacked_training_set = OrderedDict()
         valid_symbols = []
-        total_samples = 0
-        unusual_samples = 0
-        for feature_name in feature_names:
-            reference_sample = samples[0]
-            reference_shape = reference_sample[feature_name].shape
-            if len(samples) == 1:
-                stacked_samples[feature_name] = np.expand_dims(reference_sample[feature_name], axis=0)
-                valid_symbols = reference_sample[feature_name].columns
+
+        reference_sample = input_samples[0]
+        for feature_name, feature_data in reference_sample.items():
+            if training_set_length == 1:
+                stacked_training_set[feature_name] = np.expand_dims(feature_data, axis=0)
+
+                major_axis = getattr(feature_data, 'major_axis', [])
+                valid_symbols = major_axis if major_axis else getattr(feature_data, 'columns', [])
+
             else:
-                feature_list = []
-                for i, sample in enumerate(samples):
-                    feature = sample[feature_name]
-                    symbols = list(feature.columns)
-
-                    total_samples += 1
-                    is_shape_ok = (feature.shape == reference_shape)
-
-                    if reference_samples:
-                        columns_match = (symbols == list(reference_samples[i][label_name].columns))
-                    else:
-                        columns_match = True
-                    dates_match = True  # FIXME add dates check
-
-                    if is_shape_ok and columns_match and dates_match:  # Make sure shape is OK
-                        feature_list.append(sample[feature_name].values)
-                        valid_symbols = symbols
-                    else:
-                        unusual_samples += 1
-                        if not columns_match:
-                            logger.debug("Oi, your columns dont match")
+                feature_list = [sample[feature_name].values for sample in input_samples]
 
                 if len(feature_list) > 0:
-                    stacked_samples[feature_name] = np.stack(feature_list, axis=0)
+                    stacked_training_set[feature_name] = np.stack(feature_list, axis=0)
                 else:
-                    stacked_samples = None
+                    stacked_training_set = OrderedDict()
 
-        if len(samples) > 1:
-            logger.info("Found {} unusual samples out of {}".format(unusual_samples, total_samples))
-
-        return stacked_samples, valid_symbols
+        return stacked_training_set, valid_symbols
 
     def _extract_schedule_from_data(self, raw_data_dict):
         """
@@ -557,15 +498,15 @@ class DataTransformation(metaclass=ABCMeta):
 
         return np.asarray(collated_data)
 
+    @staticmethod
+    def _get_unique_symbols(data_list):
+        """Returns a list of all unique symbols in the dict of dataframes"""
 
-def get_unique_symbols(data_list):
-    """Returns a list of all unique symbols in the dict of dataframes"""
+        symbols = set()
 
-    symbols = set()
+        for data_dict in data_list:
+            for feature in data_dict:
+                feat_symbols = data_dict[feature].columns
+                symbols.update(feat_symbols)
 
-    for data_dict in data_list:
-        for feature in data_dict:
-            feat_symbols = data_dict[feature].columns
-            symbols.update(feat_symbols)
-
-    return symbols
+        return symbols

@@ -20,19 +20,10 @@ logger = logging.getLogger(__name__)
 
 class GymDataTransformation(DataTransformation):
 
-    KEY_EXCHANGE = 'holiday_calendar'
-
     def __init__(self, configuration):
-        """
-        :param dict configuration: dictionary containing the feature details.
-            list feature_config_list: list of dictionaries containing feature details.
-            str exchange: name of the reference exchange
-            int features_ndays: number of trading days worth of data the feature should use.
-            int features_resample_minutes: resampling frequency in number of minutes.
-            int features_start_market_minute: number of minutes after market open the data collection should start from
-            int prediction_market_minute: number of minutes after market open for the prediction timestamp
-            int target_delta_ndays: target time horizon in number of days
-            int target_market_minute: number of minutes after market open for the target timestamp
+        """Initialise in accordance with the config dictionary.
+
+        :param dict configuration:
         """
         super().__init__(configuration)
 
@@ -54,14 +45,13 @@ class GymDataTransformation(DataTransformation):
             'nbins': self.n_classification_bins,
             'ndays': self.features_ndays,
             'start_market_minute': self.features_start_market_minute,
-            self.KEY_EXCHANGE: self._calendar.name,
             'classify_per_series': self.classify_per_series,
             'normalise_per_series': self.normalise_per_series
         }
 
         for feature in feature_config_list:
             specific_update = {
-                'length': feature.get('length', self.get_total_ticks_x()),
+                'length': feature['length'],
                 'resample_minutes': feature.get('resolution', 0),
                 'is_target': feature.get('is_target', False),
                 'local': feature.get('local', False)
@@ -132,7 +122,6 @@ class GymDataTransformation(DataTransformation):
 
         action = 'prediction'
         y_dict = None
-        y_list = None
 
         if target_market_open:
             action = 'training'
@@ -141,7 +130,7 @@ class GymDataTransformation(DataTransformation):
             y_list = self._make_classified_y_list(data_y_list) if classify_y else data_y_list
             y_dict, _ = self.stack_samples_for_each_feature(y_list)
 
-        x_dict, x_symbols = self.stack_samples_for_each_feature(data_x_list, y_list)
+        x_dict, x_symbols = self.stack_samples_for_each_feature(data_x_list)
         logger.debug("Assembled {} dict with {} symbols".format(action, len(x_symbols)))
 
         prediction_timestamp = prediction_timestamp_list[-1] if len(prediction_timestamp_list) > 0 else None
@@ -258,15 +247,9 @@ class GymDataTransformation(DataTransformation):
         feature_x_dict = OrderedDict()
         feature_y_dict = OrderedDict()
 
-        processed_predictions = []
         for feature in self.features:
-            processed_predictions.append(
-                self._process_predictions(x_end_timestamp, y_start_timestamp,
-                       raw_data_dict, target_timestamp, feature)
-            )
-
-        for prediction in processed_predictions:
-            feature_name, feature_x, feature_y = prediction
+            feature_name, feature_x, feature_y = self._process_predictions(x_end_timestamp, y_start_timestamp,
+                                      raw_data_dict, target_timestamp, feature)
             feature_x_dict[feature_name] = feature_x
             if feature_y is not None:
                 feature_y_dict[feature_name] = feature_y
@@ -274,7 +257,7 @@ class GymDataTransformation(DataTransformation):
         if len(feature_y_dict) > 0:
             assert len(feature_y_dict) == 1, 'Only one target is allowed'
         else:
-            feature_y_dict = None
+            feature_y_dict = OrderedDict()
 
         return feature_x_dict, feature_y_dict
 
@@ -289,23 +272,15 @@ class GymDataTransformation(DataTransformation):
         :return:
         """
         feature_name = feature.full_name if feature.full_name in raw_data_dict.keys() else feature.name
-        feature_x = feature.get_prediction_features(
-            raw_data_dict[feature_name].loc[:],
-            x_timestamp
-        )
+        feature_x = feature.get_prediction_features(raw_data_dict[feature_name], x_timestamp)
 
         feature_y = None
         if feature.is_target:
             feature_y = feature.get_prediction_targets(
                 raw_data_dict[self._get_feature_for_extract_y()].loc[:],
                 y_timestamp,
-                target_timestamp
+                target_timestamp,
+                self.n_forecasts
             )
-
-            #FIXME unclear why this transpose is necessary
-            if feature_y is not None:
-                transposed_y = feature_y.to_frame().transpose()
-                transposed_y.set_index(pd.DatetimeIndex([target_timestamp]), inplace=True)
-                feature_y = transposed_y
 
         return feature.full_name, feature_x, feature_y

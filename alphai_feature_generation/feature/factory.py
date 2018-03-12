@@ -37,7 +37,7 @@ class AbstractFeatureFactory(metaclass=ABCMeta):
         """
         targeted_features = [feature for feature in feature_config_list if feature['is_target']]
 
-        assert len(targeted_features) == 1, "Only one feature can be a target"
+        assert len(targeted_features) == 1, "Only one feature can be a target. {} found".format(targeted_features)
 
     def create_feature(self, feature_config):
         """
@@ -65,8 +65,6 @@ class AbstractFeatureFactory(metaclass=ABCMeta):
             feature_config.get('classify_per_series'),
             feature_config.get('normalise_per_series')
         )
-
-
 
 
 class FinancialFeatureFactory(AbstractFeatureFactory):
@@ -105,6 +103,16 @@ class FeatureList:
         :return int: max ndays of feature list
         """
         return max([feature.ndays for feature in self.feature_list])
+
+    def get_target_feature(self):
+        """
+        Return the target feature in self.features
+
+        :return FinancialFeature: target feature
+        """
+        for feature in self.feature_list:
+            if feature.is_target:
+                return feature
 
     def __iter__(self):
         return iter(self.feature_list)

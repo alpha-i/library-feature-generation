@@ -1,4 +1,9 @@
+from collections import OrderedDict
+from datetime import timedelta, datetime
 from unittest import TestCase
+import os
+
+import pickle
 
 import numpy as np
 import pandas as pd
@@ -6,12 +11,14 @@ import pytest
 
 from alphai_feature_generation.transformation.financial import FinancialDataTransformation
 
-from tests.helpers import TEST_ARRAY
+from tests.helpers import TEST_ARRAY, TEST_DATA_PATH
 
-from tests.transformation.financial.helpers import sample_hourly_ohlcv_data_dict, \
-    sample_fin_data_transf_feature_factory_list_nobins, sample_fin_data_transf_feature_factory_list_bins, \
-    sample_historical_universes, \
+from tests.transformation.financial.helpers import (
+    sample_ohlcv_hourly,
+    sample_feature_configuration_list,
+    sample_historical_universes,
     load_preset_config, load_expected_results
+)
 
 SAMPLE_TRAIN_LABELS = np.stack((TEST_ARRAY, TEST_ARRAY, TEST_ARRAY, TEST_ARRAY, TEST_ARRAY))
 SAMPLE_PREDICT_LABELS = SAMPLE_TRAIN_LABELS[:, int(0.5 * SAMPLE_TRAIN_LABELS.shape[1])]
@@ -25,51 +32,25 @@ REL_TOL = 1e-4
 class TestFinancialDataTransformation(TestCase):
 
     def setUp(self):
-        configuration_nobins = {
-            'feature_config_list': sample_fin_data_transf_feature_factory_list_nobins,
-            'features_ndays': 2,
-            'features_resample_minutes': 60,
-            'features_start_market_minute': 1,
-            FinancialDataTransformation.KEY_EXCHANGE: 'NYSE',
-            'prediction_frequency_ndays': 1,
-            'prediction_market_minute': 30,
-            'target_delta': {
-                'value': 5,
-                'unit': 'days'
-            },
-            'target_market_minute': 30,
-            'n_classification_bins': 5,
-            'nassets': 5,
-            'local': False,
-            'classify_per_series': False,
-            'normalise_per_series': False,
-            'fill_limit': 0
-        }
-
-        self.transformation_without_bins = FinancialDataTransformation(configuration_nobins)
-
         configuration_bins = {
-            'feature_config_list': sample_fin_data_transf_feature_factory_list_bins,
+            'feature_config_list': sample_feature_configuration_list,
             'features_ndays': 2,
             'features_resample_minutes': 60,
             'features_start_market_minute': 1,
             FinancialDataTransformation.KEY_EXCHANGE: 'NYSE',
             'prediction_frequency_ndays': 1,
             'prediction_market_minute': 30,
-            'target_delta': {
-                'value': 5,
-                'unit': 'days'
-            },
+            'target_delta': timedelta(days=5),
             'target_market_minute': 30,
             'n_classification_bins': 5,
-            'nassets': 5,
+            'n_assets': 5,
             'local': False,
             'classify_per_series': False,
             'normalise_per_series': False,
             'fill_limit': 0
         }
 
-        self.transformation_with_bins = FinancialDataTransformation(configuration_bins)
+        self.transformation = FinancialDataTransformation(configuration_bins)
 
     @pytest.mark.skip(reason='the test for classify_per_series=False must be implemented')
     def test_classify_per_series_false(self):
@@ -80,7 +61,7 @@ class TestFinancialDataTransformation(TestCase):
         pass
 
     @pytest.mark.skip(reason='The test for transformation with bins must be implemented')
-    def test_financial_transformation_with_bins(self):
+    def test_financial_transformation(self):
         pass
 
     @pytest.mark.skip(reason='The test for prediction at market close must be implemented')
@@ -92,14 +73,14 @@ class TestFinancialDataTransformation(TestCase):
         pass
 
     def test_get_total_ticks_x(self):
-        assert self.transformation_without_bins.get_total_ticks_x() == 15
+        assert self.transformation.get_total_ticks_x() == 15
 
     def test_build_target_delta(self):
-        assert self.transformation_without_bins.target_delta.days == 5
+        assert self.transformation.target_delta.days == 5
 
     def test_extract_schedule_from_data(self):
 
-        data_schedule = self.transformation_without_bins._extract_schedule_from_data(sample_hourly_ohlcv_data_dict)
+        data_schedule = self.transformation._extract_schedule_from_data(sample_ohlcv_hourly)
 
         assert isinstance(data_schedule, pd.DataFrame)
         assert len(data_schedule) == 37
@@ -107,17 +88,18 @@ class TestFinancialDataTransformation(TestCase):
         assert data_schedule.iloc[-1].market_open == pd.Timestamp('2015-03-09 13:30:00+0000', tz='UTC')
 
     def test_get_target_feature(self):
-        target_feature = self.transformation_without_bins.get_target_feature()
+        target_feature = self.transformation.get_target_feature()
         expected_target_feature = [
-            feature for feature in self.transformation_without_bins.features if feature.is_target][0]
+            feature for feature in self.transformation.features if feature.is_target][0]
         assert target_feature == expected_target_feature
 
     def test_get_prediction_data_all_features_target(self):
-        raw_data_dict = sample_hourly_ohlcv_data_dict
-        prediction_timestamp = sample_hourly_ohlcv_data_dict['open'].index[98]
-        universe = sample_hourly_ohlcv_data_dict['open'].columns
-        target_timestamp = sample_hourly_ohlcv_data_dict['open'].index[133]
-        feature_x_dict, feature_y_dict = self.transformation_without_bins._collect_prediction_from_features(
+        raw_data_dict = sample_ohlcv_hourly
+        prediction_timestamp = sample_ohlcv_hourly['open'].index[98]
+        universe = sample_ohlcv_hourly['open'].columns
+        target_timestamp = sample_ohlcv_hourly['open'].index[133]
+
+        feature_x_dict, feature_y_dict = self.transformation._collect_prediction_from_features(
             raw_data_dict,
             prediction_timestamp,
             prediction_timestamp,
@@ -125,7 +107,7 @@ class TestFinancialDataTransformation(TestCase):
             target_timestamp,
         )
 
-        expected_n_time_dict = {'open_value': 15, 'high_log-return': 14, 'close_log-return': 14}
+        expected_n_time_dict = {'open_value': 15, 'high_log-return': 15, 'close_log-return': 15}
         expected_n_symbols = 5
         expected_n_features = 3
 
@@ -138,22 +120,22 @@ class TestFinancialDataTransformation(TestCase):
             assert feature_y_dict[key].shape == (1, expected_n_symbols)
 
     def test_get_prediction_data_all_features_no_target(self):
-        raw_data_dict = sample_hourly_ohlcv_data_dict
-        prediction_timestamp = sample_hourly_ohlcv_data_dict['open'].index[98]
-        feature_x_dict, feature_y_dict = self.transformation_without_bins._collect_prediction_from_features(
+        raw_data_dict = sample_ohlcv_hourly
+        prediction_timestamp = sample_ohlcv_hourly['open'].index[98]
+        feature_x_dict, feature_y_dict = self.transformation._collect_prediction_from_features(
             raw_data_dict,
             prediction_timestamp,
             prediction_timestamp,
         )
 
-        expected_n_time_dict = {'open_value': 15, 'high_log-return': 14, 'close_log-return': 14}
+        expected_features_length = {'open_value': 15, 'high_log-return': 15, 'close_log-return': 15}
         expected_n_symbols = 5
         expected_n_features = 3
 
         assert len(feature_x_dict.keys()) == expected_n_features
         for key in feature_x_dict.keys():
-            assert feature_x_dict[key].shape == (expected_n_time_dict[key], expected_n_symbols)
-        assert feature_y_dict is None
+            assert feature_x_dict[key].shape == (expected_features_length[key], expected_n_symbols)
+        assert not feature_y_dict
 
     def test_make_normalised_x_list(self):
 
@@ -167,11 +149,13 @@ class TestFinancialDataTransformation(TestCase):
 
         starting_x_list = [dummy_dict]
         expected_x_list = [normalised_dict]
-        feature = self.transformation_with_bins.features[0]
+        feature = self.transformation.features[0]
 
-        self.transformation_with_bins.fit_normalisation(symbols, starting_x_list, feature)
-        normalised_x_list = self.transformation_with_bins._make_normalised_x_list(starting_x_list,
-                                                                                  do_normalisation_fitting=True)
+        self.transformation.fit_normalisation(symbols, starting_x_list, feature)
+        normalised_x_list = self.transformation._make_normalised_x_list(
+            starting_x_list,
+            do_normalisation_fitting=True
+        )
         assert normalised_x_list[0]['open_value']['AAPL'].equals(expected_x_list[0]['open_value']['AAPL'])
 
     def test_create_predict_data(self):
@@ -185,9 +169,9 @@ class TestFinancialDataTransformation(TestCase):
         fintransform = FinancialDataTransformation(config)
 
         # have to run train first so that the normalizers are fit
-        _, _ = fintransform.create_train_data(sample_hourly_ohlcv_data_dict, sample_historical_universes)
+        _, _ = fintransform.create_train_data(sample_ohlcv_hourly, sample_historical_universes)
         predict_x, symbols, predict_timestamp, target_timestamp = fintransform.create_predict_data(
-            sample_hourly_ohlcv_data_dict)
+            sample_ohlcv_hourly)
 
         assert predict_timestamp == pd.Timestamp('2015-03-09 14:00:00+0000', tz='UTC')
 
@@ -230,9 +214,9 @@ class TestFinancialDataTransformation(TestCase):
         fintransform = FinancialDataTransformation(config)
 
         # have to run train first so that the normalizers are fit
-        _, _ = fintransform.create_train_data(sample_hourly_ohlcv_data_dict, sample_historical_universes)
+        _, _ = fintransform.create_train_data(sample_ohlcv_hourly, sample_historical_universes)
         predict_x, symbols, predict_timestamp, target_timestamp = fintransform.create_predict_data(
-            sample_hourly_ohlcv_data_dict)
+            sample_ohlcv_hourly)
 
         assert predict_timestamp == pd.Timestamp('2015-03-09 20:00:00+0000', tz='UTC')
         assert len(predict_x.keys()) == expected_n_features
@@ -262,6 +246,73 @@ class TestFinancialDataTransformation(TestCase):
         assert len(symbols) == expected_n_symbols
         assert list(symbols) == ['AAPL', 'GOOG', 'INTC', 'AMZN', 'BAC']
 
+    def test_stack_samples_for_each_feature(self):
+
+        config = {'classify_per_series': False,
+         'calendar_name': 'NYSE',
+         'feature_config_list': [
+             {'classify_per_series': False,
+              'calendar_name': 'NYSE',
+              'is_target': False,
+              'length': 15,
+              'local': True,
+              'name': 'open',
+              'nbins': 5,
+              'ndays': 2,
+              'normalise_per_series': False,
+              'normalization': None,
+              'resample_minutes': 0,
+              'start_market_minute': 1,
+              'transformation': {'name': 'value'}},
+             {'classify_per_series': False,
+              'calendar_name': 'NYSE',
+              'is_target': False,
+              'length': 15,
+              'local': False,
+              'name': 'close',
+              'nbins': 5,
+              'ndays': 2,
+              'normalise_per_series': False,
+              'normalization': None,
+              'resample_minutes': 0,
+              'start_market_minute': 1,
+              'transformation': {'name': 'log-return'}},
+             {'classify_per_series': False,
+              'calendar_name': 'NYSE',
+              'is_target': True,
+              'length': 15,
+              'local': False,
+              'name': 'high',
+              'nbins': 5,
+              'ndays': 2,
+              'normalise_per_series': False,
+              'normalization': 'standard',
+              'resample_minutes': 0,
+              'start_market_minute': 1,
+              'transformation': {'name': 'log-return'}}
+         ],
+         'features_ndays': 2,
+         'features_resample_minutes': 60,
+         'features_start_market_minute': 1,
+         'fill_limit': 0,
+         'local': False,
+         'n_classification_bins': 5,
+         'n_assets': 5,
+         'normalise_per_series': False,
+         'prediction_frequency_ndays': 1,
+         'prediction_market_minute': 30,
+         'target_delta': timedelta(5),
+         'target_market_minute': 30
+        }
+
+        transformation = FinancialDataTransformation(config)
+
+        fixtures = pickle.load(open(os.path.join(TEST_DATA_PATH, 'stack_sample_data.pkl'), 'rb'))
+
+        stacked_samples, valid_symbols = transformation.stack_samples_for_each_feature(fixtures['samples'])
+        np.testing.assert_array_equal(stacked_samples['close_log-return'], fixtures['stacked_samples']['close_log-return'])
+        assert list(valid_symbols) == list(fixtures['valid_symbols'])
+
 
 @pytest.mark.parametrize("index", [0, 1, 2, 3])
 def test_create_data(index):
@@ -275,7 +326,7 @@ def test_create_data(index):
     exp_x_mean, exp_y_mean, expected_sample = load_expected_results(index)
 
     fintransform = FinancialDataTransformation(config)
-    train_x, train_y = fintransform.create_train_data(sample_hourly_ohlcv_data_dict,
+    train_x, train_y = fintransform.create_train_data(sample_ohlcv_hourly,
                                                       sample_historical_universes)
 
     assert len(train_x.keys()) == expected_n_features

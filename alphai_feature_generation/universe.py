@@ -14,9 +14,6 @@ from alphai_feature_generation.cleaning import (
     slice_data_dict
 )
 
-
-
-
 logger = logging.getLogger(__name__)
 
 METHOD_FIXED = 'fixed'
@@ -42,7 +39,13 @@ class AbstractUniverseProvider(metaclass=ABCMeta):
 
 
 class VolumeUniverseProvider(AbstractUniverseProvider):
-    def __init__(self, configuration):
+    def __init__(self,
+                 n_assets,
+                 ndays_window,
+                 update_frequency,
+                 calendar_name,
+                 dropna
+                 ):
         """
         Provides assets according to an input universe dictionary indexed by year
         :param nassets: Number of assets to select
@@ -52,14 +55,12 @@ class VolumeUniverseProvider(AbstractUniverseProvider):
         :param dropna: if True drops columns containing any nan after gaps-filling
 
         """
+        self._nassets = n_assets
+        self._ndays_window = ndays_window
+        self._update_frequency = update_frequency
+        self._dropna = dropna
 
-
-        self._nassets = configuration['nassets']
-        self._ndays_window = configuration['ndays_window']
-        self._update_frequency = configuration['update_frequency']
-        self._dropna = configuration['dropna']
-
-        self._exchange_calendar = mcal.get_calendar(configuration['exchange'])
+        self._exchange_calendar = mcal.get_calendar(calendar_name)
 
         self._nminutes_window = self._ndays_window * self._exchange_calendar.get_minutes_in_one_day()
         self._rrule = FREQUENCY_RRULE_MAP[self._update_frequency]

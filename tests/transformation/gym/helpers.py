@@ -1,4 +1,5 @@
 import os
+from datetime import timedelta
 from itertools import combinations
 
 import pandas as pd
@@ -30,40 +31,13 @@ for key in COLUMNS_FEATURES:
     gym_sample_hourly[key] = gym_sample_hourly_ohlcv_data_column
 
 
-sample_features_no_bin = [
-    {
-        'name': 'hour',
-        'transformation': {'name': 'value'},
-        'normalization': None,
-        'nbins': None,
-        'is_target': False,
-        'local': True
-    },
-    {
-        'name': 'temperature',
-        'transformation': {'name': 'log-return'},
-        'normalization': None,
-        'nbins': None,
-        'is_target': False,
-        'local': True
-    },
-    {
-        'name': 'number_people',
-        'transformation': {'name': 'log-return'},
-        'normalization': 'standard',
-        'nbins': 5,
-        'is_target': True,
-        'local': True
-    },
-]
-
 sample_features_fixed_length = [
     {
         'name': 'hour',
         'normalization': 'standard',
         'resolution': 15,
         'length': 2,
-        'transformation': {'name': 'log-return'},
+        'transformation': {'name': 'value'},
         'is_target': False,
     },
     {
@@ -79,34 +53,37 @@ sample_features_fixed_length = [
         'normalization': 'standard',
         'resolution': 150,
         'length': 2,
-        'transformation': {'name': 'log-return'},
+        'transformation': {'name': 'value'},
         'is_target': True
     },
 ]
-sample_features_list_bins = [
+sample_feature_list = [
     {
         'name': 'hour',
         'transformation': {'name': 'value'},
         'normalization': None,
         'nbins': None,
+        'length': 5,
         'is_target': False,
         'local': True
     },
     {
         'name': 'temperature',
-        'transformation': {'name': 'log-return'},
+        'transformation': {'name': 'value'},
         'normalization': None,
         'nbins': None,
         'is_target': False,
-        'local': False
+        'local': False,
+        'length': 5,
     },
     {
         'name': 'number_people',
-        'transformation': {'name': 'log-return'},
+        'transformation': {'name': 'value'},
         'normalization': 'standard',
         'nbins': 5,
         'is_target': True,
-        'local': False
+        'local': False,
+        'length': 5,
     },
 ]
 
@@ -139,20 +116,17 @@ for idx, (period_start_date, period_end_date) in enumerate(zip(rrule_dates[:-1],
 
 def load_preset_config(expected_n_symbols, iteration=0):
     config = {
-        'feature_config_list': sample_features_list_bins,
+        'feature_config_list': sample_feature_list,
         'features_ndays': 2,
         'features_resample_minutes': 60,
         'features_start_market_minute': 1,
-        GymDataTransformation.KEY_EXCHANGE: 'GYMUK',
+        'calendar_name': 'GYMUK',
         'prediction_frequency_ndays': 1,
         'prediction_market_minute': 60,
-        'target_delta': {
-            'value': 5,
-            'unit': 'days'
-        },
+        'target_delta': timedelta(days=5),
         'target_market_minute': 60,
         'n_classification_bins': 5,
-        'nassets': expected_n_symbols,
+        'n_assets': expected_n_symbols,
         'local': False,
         'classify_per_series': False,
         'normalise_per_series': False,
@@ -179,14 +153,14 @@ REL_TOL = 1e-4
 
 def load_expected_results(iteration):
     return_value_list = [
-        {'x_mean': 13.501594896331738, 'y_mean': 0.2},
-        {'x_mean': 13.501594896331738, 'y_mean': 0.2},  # Test classification and normalisation
-        {'x_mean': np.float32(np.nan), 'y_mean': 0.2},  # Test length/resolution requests
+        {'x_mean': 8.06938775510204, 'y_mean': 0.2},
+        {'x_mean': 8.06938775510204, 'y_mean': 0.2},  # Test classification and normalisation
+        {'x_mean': -6.57070769676113e-17, 'y_mean': 0.2},  # Test length/resolution requests
     ]
 
     try:
         return_value = return_value_list[iteration]
-        expected_sample = [15., 16., 17., 18.]
+        expected_sample = [23.,  0.,  1.,  6.]
         return return_value['x_mean'], return_value['y_mean'], expected_sample
     except KeyError:
         raise ValueError('Requested configuration not implemented')
