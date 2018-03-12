@@ -11,42 +11,16 @@ from tests.helpers import TEST_DATA_PATH
 COLUMNS_OHLCV = 'open high low close volume'.split()
 
 
-sample_hourly_ohlcv_data_dict = {}
+sample_ohlcv_hourly = {}
 for key in COLUMNS_OHLCV:
     sample_hourly_ohlcv_data_column = pd.read_csv(
         os.path.join(TEST_DATA_PATH, 'financial_data_dict', 'sample_%s_hourly.csv' % key),
         index_col=0)
     sample_hourly_ohlcv_data_column.index = pd.to_datetime(sample_hourly_ohlcv_data_column.index,
                                                            utc=True)
-    sample_hourly_ohlcv_data_dict[key] = sample_hourly_ohlcv_data_column
+    sample_ohlcv_hourly[key] = sample_hourly_ohlcv_data_column
 
 
-sample_fin_data_transf_feature_factory_list_nobins = [
-    {
-        'name': 'open',
-        'transformation': {'name': 'value'},
-        'normalization': None,
-        'nbins': None,
-        'is_target': False,
-        'local': True
-    },
-    {
-        'name': 'close',
-        'transformation': {'name': 'log-return'},
-        'normalization': None,
-        'nbins': None,
-        'is_target': False,
-        'local': True
-    },
-    {
-        'name': 'high',
-        'transformation': {'name': 'log-return'},
-        'normalization': 'standard',
-        'nbins': 5,
-        'is_target': True,
-        'local': True
-    },
-]
 sample_fin_data_transf_feature_fixed_length = [
     {
         'name': 'close',
@@ -73,7 +47,8 @@ sample_fin_data_transf_feature_fixed_length = [
         'is_target': True
     },
 ]
-sample_fin_data_transf_feature_factory_list_bins = [
+
+sample_feature_configuration_list = [
     {
         'name': 'open',
         'transformation': {'name': 'value'},
@@ -101,11 +76,11 @@ sample_fin_data_transf_feature_factory_list_bins = [
 ]
 
 
-sample_hourly_ohlcv_data_length = len(sample_hourly_ohlcv_data_dict['open'])
-sample_hourly_ohlcv_data_symbols = sample_hourly_ohlcv_data_dict['open'].columns
+sample_hourly_ohlcv_data_length = len(sample_ohlcv_hourly['open'])
+sample_hourly_ohlcv_data_symbols = sample_ohlcv_hourly['open'].columns
 universe_length = sample_hourly_ohlcv_data_length - 1
-start_date = sample_hourly_ohlcv_data_dict['open'].index[0]
-end_date = sample_hourly_ohlcv_data_dict['open'].index[-1]
+start_date = sample_ohlcv_hourly['open'].index[0]
+end_date = sample_ohlcv_hourly['open'].index[-1]
 rrule_dates = list(rrule.rrule(rrule.WEEKLY, dtstart=start_date, until=end_date))
 
 universe_combination_list = list(combinations(sample_hourly_ohlcv_data_symbols, 4))
@@ -129,7 +104,7 @@ for key in COLUMNS_OHLCV:
 
 def load_preset_config(expected_n_symbols, iteration=0):
     config = {
-        'feature_config_list': sample_fin_data_transf_feature_factory_list_bins,
+        'feature_config_list': sample_feature_configuration_list,
           'features_ndays': 2,
           'features_resample_minutes': 60,
           'features_start_market_minute': 1,

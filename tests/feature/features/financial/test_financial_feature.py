@@ -11,7 +11,7 @@ from tests.helpers import TEST_ARRAY
 from alphai_feature_generation.feature.features.financial import FinancialFeature
 
 from tests.feature.features.financial.helpers import sample_market_calendar
-from tests.transformation.financial.helpers import sample_hourly_ohlcv_data_dict
+from tests.transformation.financial.helpers import sample_ohlcv_hourly
 
 SAMPLE_TRAIN_LABELS = np.stack((TEST_ARRAY, TEST_ARRAY, TEST_ARRAY, TEST_ARRAY, TEST_ARRAY))
 SAMPLE_PREDICT_LABELS = SAMPLE_TRAIN_LABELS[:, int(0.5 * SAMPLE_TRAIN_LABELS.shape[1])]
@@ -89,7 +89,7 @@ class TestFinancialFeature(TestCase):
         assert start_timestamp_x_3 == expected_start_timestamp_x3
 
     def test_select_prediction_data(self):
-        data_frame = sample_hourly_ohlcv_data_dict[self.feature_close_with_value_transform.name]
+        data_frame = sample_ohlcv_hourly[self.feature_close_with_value_transform.name]
         start_date = data_frame.index[0].date()
         end_date = data_frame.index[-1].date()
 
@@ -107,7 +107,7 @@ class TestFinancialFeature(TestCase):
 
     @staticmethod
     def _run_get_prediction_data_test(feature, expected_length):
-        data_frame = sample_hourly_ohlcv_data_dict[feature.name]
+        data_frame = sample_ohlcv_hourly[feature.name]
         start_date = data_frame.index[0].date()
         end_date = data_frame.index[-1].date()
 
@@ -242,7 +242,7 @@ class TestFeatureNormalization(TestCase):
         assert np.isclose(self.feature4.scaler.center_, np.median(symbol_data1), rtol=1e-4)
 
     def test_apply_normalisation(self):
-        data = deepcopy(sample_hourly_ohlcv_data_dict['open'])
+        data = deepcopy(sample_ohlcv_hourly['open'])
 
         for column in data.columns:
             self.feature1.fit_normalisation(symbol_data=data[column].values, symbol=column)

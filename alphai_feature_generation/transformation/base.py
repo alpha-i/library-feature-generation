@@ -6,7 +6,6 @@ from contextlib import contextmanager
 from datetime import timedelta
 from functools import partial
 
-
 import numpy as np
 
 import alphai_calendars as mcal
