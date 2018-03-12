@@ -1,15 +1,6 @@
-import datetime
 import logging
 import time
-from collections import namedtuple
 from functools import wraps
-
-import pandas as pd
-import pandas_market_calendars as mcal
-
-ROOM_FOR_SCHEDULE = 10
-
-MarketDay = namedtuple('MarketDay', 'open close')
 
 logger = logging.getLogger(__name__)
 

@@ -8,3 +8,4 @@ tables
 pyts
 future
 python-dateutil
+marshmallow==3.0.0b4
