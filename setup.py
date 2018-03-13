@@ -3,10 +3,10 @@ from setuptools import find_packages
 
 setup(
     name='alphai_feature_generation',
-    version='2.0.0-dev-gym',
+    version='2.0.0',
     description='Alpha-I Feature Generation',
-    author='Christopher Bonnett',
-    author_email='christopher.bonnett@alpha-i.co',
+    author='Fergus Simpson',
+    author_email='fergus.simpson@alpha-i.co',
     packages=find_packages(exclude=['doc', 'tests*']),
     install_requires=['pandas<0.22',
                       'scikit-learn',
