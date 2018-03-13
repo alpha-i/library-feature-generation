@@ -410,7 +410,7 @@ class DataTransformation(metaclass=ABCMeta):
                 stacked_training_set[feature_name] = np.expand_dims(feature_data, axis=0)
 
                 major_axis = getattr(feature_data, 'major_axis', [])
-                valid_symbols = major_axis if major_axis else getattr(feature_data, 'columns', [])
+                valid_symbols = major_axis if len(major_axis) else getattr(feature_data, 'columns', [])
 
             else:
                 feature_list = [sample[feature_name].values for sample in input_samples]
@@ -451,8 +451,12 @@ class DataTransformation(metaclass=ABCMeta):
         """
 
         max_feature_ndays = self.features.get_max_ndays()
+        data_schedule = self._extract_schedule_from_data(raw_data_dict)
 
-        return self._extract_schedule_from_data(raw_data_dict)[max_feature_ndays:-self.target_delta.days]
+        if self.target_delta.days > 0:
+            return data_schedule[max_feature_ndays:-self.target_delta.days]
+        else:
+            return data_schedule[max_feature_ndays:]
 
     def print_diagnostics(self, xdict, ydict):
         """
