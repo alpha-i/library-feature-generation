@@ -9,20 +9,19 @@ from sklearn.preprocessing import RobustScaler, MinMaxScaler, StandardScaler
 
 from alphai_feature_generation import (FINANCIAL_FEATURE_NORMALIZATIONS,
                                        MARKET_DAYS_SEARCH_MULTIPLIER, MIN_MARKET_DAYS_SEARCH)
-from alphai_feature_generation.classifier import BinDistribution, classify_labels, declassify_labels
+from alphai_feature_generation.classifier import BinDistribution
 from alphai_feature_generation.feature.resampling import ResamplingStrategy
 from alphai_feature_generation.feature.transform import Transformation
-from alphai_feature_generation.helpers import CalendarUtilities
 
 
 logger = logging.getLogger(__name__)
 
-KEY_EXCHANGE = 'exchange_name'
-
 
 class FinancialFeature(object):
+    """ Describes a feature intended to help predict a financial time series. """
+
     def __init__(self, name, transformation, normalization, nbins, length, ndays, resample_minutes, start_market_minute,
-                 is_target, exchange_calendar, local, classify_per_series=False, normalise_per_series=False):
+                 is_target, calendar, local, classify_per_series=False, normalise_per_series=False):
         """
         Object containing all the information to manipulate the data relative to a financial feature.
         :param str name: Name of the feature
@@ -35,7 +34,7 @@ class FinancialFeature(object):
         :param int resample_minutes: resampling frequency in number of minutes.
         :param int start_market_minute: number of minutes after market open the data collection should start from.
         :param bool is_target: if True the feature is a target.
-        :param pandas_market_calendar exchange_calendar: exchange calendar.
+        :param pandas_market_calendar calendar: exchange calendar.
         """
         # FIXME the get_default_flags args are temporary. We need to load a get_default_flags config in the unit tests.
 
@@ -47,13 +46,11 @@ class FinancialFeature(object):
         self.resample_minutes = resample_minutes
         self.start_market_minute = start_market_minute
         self.is_target = is_target
-        self.exchange_calendar = exchange_calendar
-        self.minutes_in_trading_day = CalendarUtilities.get_minutes_in_one_trading_day(exchange_calendar.name)
+        self.calendar = calendar
+        self.minutes_in_trading_day = self.calendar.get_minutes_in_one_day()
         self.n_series = None
         self.local = local
         self.length = length
-
-        self.bin_distribution = None
 
         self._assert_input(name, normalization, nbins, length, ndays, resample_minutes,
                            start_market_minute, is_target, local)
@@ -93,6 +90,7 @@ class FinancialFeature(object):
 
     def _assert_input(self, name, normalization, nbins, length, ndays, resample_minutes,
                       start_market_minute, is_target, local):
+        """ Make sure the inputs are sensible. """
 
         assert isinstance(name, str)
         assert normalization in FINANCIAL_FEATURE_NORMALIZATIONS
@@ -214,7 +212,7 @@ class FinancialFeature(object):
         """
         schedule_start_date = str(self._get_safe_schedule_start_date(prediction_timestamp))
         schedule_end_date = str(prediction_timestamp.date())
-        market_open_list = self.exchange_calendar.schedule(schedule_start_date, schedule_end_date).market_open
+        market_open_list = self.calendar.schedule(schedule_start_date, schedule_end_date).market_open
         prediction_market_open = market_open_list[prediction_timestamp.date()]
         prediction_market_open_idx = np.argwhere(market_open_list == prediction_market_open).flatten()[0]
         start_timestamp_x = market_open_list[prediction_market_open_idx - self.ndays] + timedelta(
@@ -315,8 +313,8 @@ class FinancialFeature(object):
             data_y = dataframe[symbol].values
 
             if symbol in self.bin_distribution_dict:
-                symbol_binning = self.bin_distribution_dict[symbol]
-                one_hot_labels = classify_labels(symbol_binning.bin_edges, data_y)
+                symbol_distribution = self.bin_distribution_dict[symbol]
+                one_hot_labels = symbol_distribution.classify_labels(data_y)
                 if one_hot_labels.shape[-1] > 1:
                     hot_dataframe[symbol] = np.squeeze(one_hot_labels)
             else:
@@ -347,7 +345,7 @@ class FinancialFeature(object):
                     series_bins = self.bin_distribution
 
                 means[series_idx], variances[series_idx] = \
-                    declassify_labels(series_bins, predict_y[:, series_idx, :])
+                    self.bin_distribution.declassify_labels(predict_y[:, series_idx, :])
         else:
             means = np.mean(predict_y, axis=0, dtype=np.float32)
             variances = np.var(predict_y, axis=0, dtype=np.float32)
@@ -370,8 +368,8 @@ class FinancialFeature(object):
 
         for i, symbol in enumerate(symbols):
             if symbol in self.bin_distribution_dict:
-                symbol_bins = self.bin_distribution_dict[symbol]
-                means[i], variances[i] = declassify_labels(symbol_bins, predict_y[:, i, :])
+                symbol_bin_distribution = self.bin_distribution_dict[symbol]
+                means[i], variances[i] = symbol_bin_distribution.declassify_labels(predict_y[:, i, :])
             else:
                 logger.debug("No bin distribution found for symbol: {}".format(symbol))
                 means[i] = np.nan
@@ -381,5 +379,8 @@ class FinancialFeature(object):
 
         diag_cov_matrix = np.diag(variances)
         return means, diag_cov_matrix
+
+    def __repr__(self):
+        return '<FinancialFeature object: name: {}. full_name: {}>'.format(self.name, self.full_name)
 
 

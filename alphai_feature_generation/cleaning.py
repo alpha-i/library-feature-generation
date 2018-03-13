@@ -34,14 +34,15 @@ def select_between_timestamps_data_frame(data_frame, start_timestamp=None, end_t
     :param end_timestamp: upper bound time stamp for data selection
     :return: selected data_frame
     """
-    assert start_timestamp is not None or end_timestamp is not None
+    assert start_timestamp or end_timestamp, "start_timestamp and end_timestamp cannot be both set to None"
     data_frame_timezone = data_frame.index.tz
     for ts in [start_timestamp, end_timestamp]:
-        if ts is not None:
-            if ts.tz is None:
-                assert data_frame_timezone is None
-            else:
+        if ts:
+            if ts.tz:
                 assert ts == ts.tz_convert(data_frame_timezone)
+            else:
+                assert data_frame_timezone is None
+
     time_conditions = []
     if start_timestamp is not None:
         time_conditions.append(data_frame.index >= start_timestamp)

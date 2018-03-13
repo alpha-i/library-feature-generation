@@ -96,7 +96,13 @@ class BinDistribution:
             hi_edge = self.bin_edges[i+1]
 
             single_bin_data = data[(data >= lo_edge) & (data <= hi_edge)]
-            weighted_bin_centres[i] = np.mean(single_bin_data)
+            weighted_estimate = np.mean(single_bin_data)
+
+            # Could yield nans if bins are empty.
+            if np.isnan(weighted_estimate):
+                weighted_bin_centres[i] = self.bin_centres[i]
+            else:
+                weighted_bin_centres[i] = weighted_estimate
 
         return weighted_bin_centres
 
@@ -121,12 +127,205 @@ class BinDistribution:
         return full_gap / n_bins
 
     def _calc_sheppards_correction(self):
-        """
-        Computes the extend to which the variance is overestimated when using binned data.
+        """ Computes the extend to which the variance is overestimated when using binned data.
 
         :return float: The amount by which the variance of the discrete pdf overestimates the continuous pdf
         """
         return np.median(self.bin_widths ** 2) / 12
+
+    def estimate_confidence_interval(self, pdf, confidence_interval=0.68):
+        """ Returns median and outer ranges of confidence interval. Default is 68%"""
+
+        median_val = 0.5
+        hi_val = median_val + confidence_interval / 2
+        low_val = median_val - confidence_interval / 2
+
+        median = self._calculate_single_confidence_interval(pdf, median_val)
+        lower_bound = self._calculate_single_confidence_interval(pdf, low_val)
+        upper_bound = self._calculate_single_confidence_interval(pdf, hi_val)
+
+        return median, lower_bound, upper_bound
+
+    def _calculate_single_confidence_interval(self, pdf, confidence_interval):
+        """ Estimate confidence level of a histogram by stepping through bins until we hit desired threshold. """
+        if confidence_interval < 0 or confidence_interval > 1:
+            raise ValueError("Invalid confidence interval {} requested.".format(confidence_interval))
+
+        pdf = pdf.flatten()
+        if not len(pdf) == self.n_bins:
+            raise ValueError("Pdf {} of length {} doesnt match expected number of bins {}".format(pdf, len(pdf), self.n_bins))
+
+        # First verify length of input
+        bin_index = 0
+        cumulative_sum = pdf[bin_index]
+
+        while cumulative_sum < confidence_interval:
+            bin_index += 1
+            cumulative_sum += pdf[bin_index]
+
+        # Now we know bin_index holds the median value. Just need to interpolate a bit
+        bin_total = pdf[bin_index]
+
+        if bin_index == 0:  # Treat edges of histogram as triangles
+            bin_offset = self.bin_edges[1] - self.weighted_bin_centres[0]
+            triangle_width = 3 * bin_offset  # Triangle CoM is 1/3
+            low_edge = self.bin_edges[1] - triangle_width
+            area_fill_fraction = confidence_interval / bin_total
+            linear_fill_fraction = np.sqrt(area_fill_fraction)
+            value = low_edge + triangle_width * linear_fill_fraction
+        elif bin_index == self.n_bins:
+            bin_offset = self.weighted_bin_centres[-1] - self.bin_edges[-2]
+            triangle_width = 3 * bin_offset  # Triangle CoM is 1/3
+            upper_edge = self.bin_edges[-2] + triangle_width
+            area_fill_fraction = (1 - confidence_interval) / bin_total
+            linear_fill_fraction = np.sqrt(area_fill_fraction)
+            value = upper_edge - triangle_width * linear_fill_fraction
+        else:
+            lower_edge = self.bin_edges[bin_index]
+            bin_width = self.bin_widths[bin_index]
+
+            overflow = cumulative_sum - confidence_interval
+            residue = bin_total - overflow
+
+            bin_fraction = residue / bin_total
+
+            value = lower_edge + bin_width * bin_fraction
+
+        return value
+
+    def declassify_single_pdf(self, pdf_array, use_median=True):
+        """  Here we keep the multple pdfs seperate, yielding a mean and variance for each.
+
+        :param pdf_array:
+        :param use_median:
+        :return:
+        """
+        point_estimates = self.extract_point_estimates(pdf_array, use_median)
+
+        mean = np.mean(point_estimates)
+        variance = np.sum(self.weighted_bin_centres ** 2 * pdf_array) - mean ** 2
+        variance -= self.sheppards_correction
+        variance = np.maximum(variance, self.sheppards_correction)  # Prevent variance becoming too small
+
+        return point_estimates, variance
+
+    def extract_point_estimates(self, pdf_array, use_median):
+        """
+        Finds the mean values of discrete probability mass functions into point estimates, taken to be the mean
+        bin_centres has shape [n_bins]
+        :param ndarray bin_centres: One-dimensional array
+        :param ndarray pdf_array: One or two-dimensional array corresponding to probability mass functions
+        :return ndarray: means of the pdfs
+        """
+
+        if pdf_array.ndim == 1:
+            pdf_array = np.expand_dims(pdf_array, axis=0)
+
+        n_points = pdf_array.shape[0]
+        points = np.zeros(n_points)
+
+        normalisation_offset = np.sum(pdf_array[0, :]) - 1.0
+
+        if np.abs(normalisation_offset) > 1e-3:
+            logger.warning('Probability mass function not normalised')
+            logger.debug('PDF Array shape: {}'.format(pdf_array.shape))
+            logger.debug('Normalisation offset: {}'.format(normalisation_offset))
+            logger.debug('Full pdf array: {}'.format(pdf_array))
+            logger.debug('Bin centres: {}'.format(self.bin_centres))
+
+            logger.debug('Attempting to continue with pathological distribution')
+            for i in range(n_points):
+                pdf_array[i, :] = pdf_array[i, :] / np.sum(pdf_array[i, :])
+
+        for i in range(n_points):
+            pdf = pdf_array[i, :]
+            if use_median:
+                points[i] = self.calculate_discrete_median(pdf)
+            else:
+                points[i] = np.sum(self.bin_centres * pdf)
+
+        if np.abs(normalisation_offset) > 1e-3:
+            logger.debug('Derived points: {}'.format(points))
+
+        return points
+
+    def classify_labels(self, labels):
+        """
+        Takes numerical values and returns their binned values in one-hot format
+        :param ndarray bin_edges: One dimensional array
+        :param ndarray labels:  One or two dimensional array (e.g. could be [batch_size, n_series])
+        :return ndarray: dimensions [labels.shape, n_bins]
+        """
+
+        n_label_dimensions = labels.ndim
+        label_shape = labels.shape
+        labels = labels.flatten()
+
+        n_labels = len(labels)
+        binned_labels = np.zeros((n_labels, self.n_bins))
+        nan_bins = np.array([np.nan] * self.n_bins)
+
+        for i in range(n_labels):
+            if np.isfinite(labels[i]):
+                binned_labels[i, :], _ = np.histogram(labels[i], self.bin_edges, density=False)
+            else:
+                binned_labels[i, :] = nan_bins
+
+        if n_label_dimensions == 2:
+            binned_labels = binned_labels.reshape(label_shape[0], label_shape[1], self.n_bins)
+        elif n_label_dimensions == 3:
+            binned_labels = binned_labels.reshape(label_shape[0], label_shape[1], label_shape[2], self.n_bins)
+        elif n_label_dimensions > 3:
+            raise ValueError("Label dimension too high:", n_label_dimensions)
+
+        return binned_labels
+
+    def declassify_labels(self, pdf_arrays):
+        """
+        Converts multiple discrete probability mass functions into means and standard deviations
+        pdf_arrays has shape [n_samples, n_bins]"
+        :param BinDistribution self : The distribution generated by make_template_distribution
+        :param ndarray pdf_arrays:  Of shape [n_samples, n_bins]
+        :return:
+        """
+
+        point_estimates = self.extract_point_estimates(pdf_arrays, use_median=False)
+
+        mean = np.mean(point_estimates)
+        variance = np.var(point_estimates) - self.sheppards_correction
+        variance = np.maximum(variance, self.sheppards_correction)  # Prevent variance becoming too small
+
+        return mean, variance
+
+    def calculate_discrete_median(self, pdf):
+        """ Estimate median of a histogram by stepping through bins until we hit 50% threshold. """
+
+        # First verify length of input
+        bin_index = 0
+        cumulative_sum = pdf[bin_index]
+
+        while cumulative_sum < 0.5:
+            bin_index += 1
+            cumulative_sum += pdf[bin_index]
+
+        # Now we know bin_index holds the median value. Just need to interpolate a bit
+        is_not_edge = (bin_index == 0 or bin_index == len(pdf))
+
+        if is_not_edge:  # Treat edges differently
+            lower_edge = self.bin_edges[bin_index]
+            bin_width = self.bin_widths[bin_index]
+
+            bin_total = pdf[bin_index]
+            overflow = cumulative_sum - 0.5
+            residue = bin_total - overflow
+
+            bin_fraction = residue / bin_total
+
+            median = lower_edge + bin_width * bin_fraction
+        else:
+            median = self.weighted_bin_centres[bin_index]
+
+        return median  # placeholder
 
 
 def _calculate_unit_gaussian_edges(n_edges):
@@ -146,90 +345,3 @@ def _calculate_unit_gaussian_edges(n_edges):
     return gaussian_edges
 
 
-def classify_labels(bin_edges, labels):
-    """
-    Takes numerical values and returns their binned values in one-hot format
-    :param ndarray bin_edges: One dimensional array
-    :param ndarray labels:  One or two dimensional array (e.g. could be [batch_size, n_series])
-    :return ndarray: dimensions [labels.shape, n_bins]
-    """
-
-    n_label_dimensions = labels.ndim
-    label_shape = labels.shape
-    labels = labels.flatten()
-
-    n_labels = len(labels)
-    n_bins = len(bin_edges) - 1
-    binned_labels = np.zeros((n_labels, n_bins))
-    nan_bins = np.array([np.nan] * n_bins)
-
-    for i in range(n_labels):
-        if np.isfinite(labels[i]):
-            binned_labels[i, :], _ = np.histogram(labels[i], bin_edges, density=False)
-        else:
-            binned_labels[i, :] = nan_bins
-
-    if n_label_dimensions == 2:
-        binned_labels = binned_labels.reshape(label_shape[0], label_shape[1], n_bins)
-    elif n_label_dimensions == 3:
-        binned_labels = binned_labels.reshape(label_shape[0], label_shape[1], label_shape[2], n_bins)
-    elif n_label_dimensions > 3:
-        raise ValueError("Label dimension too high:", n_label_dimensions)
-
-    return binned_labels
-
-
-def declassify_labels(dist, pdf_arrays):
-    """
-    Converts multiple discrete probability mass functions into means and standard deviations
-    pdf_arrays has shape [n_samples, n_bins]"
-    :param BinDistribution dist : The distribution generated by make_template_distribution
-    :param ndarray pdf_arrays:  Of shape [n_samples, n_bins]
-    :return:
-    """
-
-    point_estimates = extract_point_estimates(dist.weighted_bin_centres, pdf_arrays)
-
-    mean = np.mean(point_estimates)
-    variance = np.var(point_estimates) - dist.sheppards_correction
-    variance = np.maximum(variance, dist.sheppards_correction)  # Prevent variance becoming too small
-
-    return mean, variance
-
-
-def extract_point_estimates(bin_centres, pdf_array):
-    """
-    Finds the mean values of discrete probability mass functions into point estimates, taken to be the mean
-    bin_centres has shape [n_bins]
-    :param ndarray bin_centres: One-dimensional array
-    :param ndarray pdf_array: One or two-dimensional array corresponding to probability mass functions
-    :return ndarray: means of the pdfs
-    """
-
-    if pdf_array.ndim == 1:
-        pdf_array = np.expand_dims(pdf_array, axis=0)
-
-    n_points = pdf_array.shape[0]
-    points = np.zeros(n_points)
-
-    normalisation_offset = np.sum(pdf_array[0, :]) - 1.0
-
-    if np.abs(normalisation_offset) > 1e-3:
-        logger.warning('Probability mass function not normalised')
-        logger.debug('PDF Array shape: {}'.format(pdf_array.shape))
-        logger.debug('Normalisation offset: {}'.format(normalisation_offset))
-        logger.debug('Full pdf array: {}'.format(pdf_array))
-        logger.debug('Bin centres: {}'.format(bin_centres))
-
-        logger.debug('Attempting to continue with pathological distribution')
-        for i in range(n_points):
-            pdf_array[i, :] = pdf_array[i, :] / np.sum(pdf_array[i, :])
-
-    for i in range(n_points):
-        pdf = pdf_array[i, :]
-        points[i] = np.sum(bin_centres * pdf)
-
-    if np.abs(normalisation_offset) > 1e-3:
-        logger.debug('Derived points: {}'.format(points))
-
-    return points

@@ -1,9 +1,10 @@
 import pytest
 
-from alphai_feature_generation.feature import FinancialFeature
+from alphai_feature_generation.feature.features.financial import FinancialFeature
 from alphai_feature_generation.feature.transform import TransformMTF
 
-from tests.helpers import sample_market_calendar, sample_hourly_ohlcv_data_dict
+from tests.feature.features.financial.helpers import sample_market_calendar
+from tests.transformation.financial.helpers import sample_ohlcv_hourly
 
 
 def test_transform_mtf_bad_config():
@@ -25,14 +26,14 @@ def test_transform_mtf_x():
             resample_minutes=0,
             start_market_minute=150,
             is_target=True,
-            exchange_calendar=sample_market_calendar,
+            calendar=sample_market_calendar,
             local=True,
             length=10
         )
 
     transform = TransformMTF(transform_config)
 
-    data_dict_x = sample_hourly_ohlcv_data_dict
+    data_dict_x = sample_ohlcv_hourly
     raw_dataframe = data_dict_x[feature.name]
 
     transformed_data = transform.transform_x(feature, raw_dataframe)

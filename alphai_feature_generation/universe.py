@@ -6,13 +6,13 @@ import logging
 import numpy as np
 import pandas as pd
 
-from alphai_feature_generation.helpers import CalendarUtilities
-from alphai_feature_generation.cleaning import (
-    remove_duplicated_symbols_ohlcv,
-    slice_data_dict,
-    select_between_timestamps
-)
+import alphai_calendars as mcal
 
+from alphai_feature_generation.cleaning import (
+    select_between_timestamps,
+    remove_duplicated_symbols_ohlcv,
+    slice_data_dict
+)
 
 logger = logging.getLogger(__name__)
 
@@ -39,22 +39,30 @@ class AbstractUniverseProvider(metaclass=ABCMeta):
 
 
 class VolumeUniverseProvider(AbstractUniverseProvider):
-    def __init__(self, configuration):
+    def __init__(self,
+                 n_assets,
+                 ndays_window,
+                 update_frequency,
+                 calendar_name,
+                 dropna
+                 ):
         """
         Provides assets according to an input universe dictionary indexed by year
         :param nassets: Number of assets to select
         :param ndays_window: Number of days over which to calculate the period liquidity
         :param update_frequency: str in ['daily', 'weekly', 'monthly', 'yearly']: updates of the historical universe
+        :param exchange: the name of the calendar
         :param dropna: if True drops columns containing any nan after gaps-filling
+
         """
+        self._nassets = n_assets
+        self._ndays_window = ndays_window
+        self._update_frequency = update_frequency
+        self._dropna = dropna
 
-        self._nassets = configuration['nassets']
-        self._ndays_window = configuration['ndays_window']
-        self._update_frequency = configuration['update_frequency']
-        self._exchange = configuration['exchange']
-        self._dropna = configuration['dropna']
+        self._exchange_calendar = mcal.get_calendar(calendar_name)
 
-        self._nminutes_window = self._ndays_window * CalendarUtilities.get_minutes_in_one_trading_day(self._exchange)
+        self._nminutes_window = self._ndays_window * self._exchange_calendar.get_minutes_in_one_day()
         self._rrule = FREQUENCY_RRULE_MAP[self._update_frequency]
 
     def _get_universe_at(self, date, data_dict):
