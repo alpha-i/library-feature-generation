@@ -137,7 +137,7 @@ class GymDataTransformation(DataTransformation):
 
         return x_dict, y_dict, x_symbols, prediction_timestamp
 
-    def create_train_data(self, raw_data_dict):
+    def create_train_data(self, raw_data_dict, *args):
         """
         Prepare x and y data for training
         :param dict raw_data_dict: dictionary of dataframes containing features data.
