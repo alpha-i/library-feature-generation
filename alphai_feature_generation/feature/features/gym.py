@@ -379,11 +379,15 @@ class GymFeature(object):
 
         for i, symbol in enumerate(symbols):
             for j in range(n_forecasts):
-                if symbol in self.bin_distribution_dict:
+                pdf = predict_y[:, i, j, :]
+                if symbol in self.bin_distribution_dict and not np.any(np.isnan(pdf)):
                     symbol_bins = self.bin_distribution_dict[symbol]
-                    pdf = predict_y[:, i, j, :]
-                    means[j, i], lower_bound[j, i], upper_bound[j, i] = \
-                        symbol_bins.estimate_confidence_interval(pdf, confidence_interval)
+                    try:
+                        means[j, i], lower_bound[j, i], upper_bound[j, i] = \
+                            symbol_bins.estimate_confidence_interval(pdf, confidence_interval)
+                    except Exception as e:
+                        logging.debug(e)
+                        raise e
                 else:
                     logger.debug("No bin distribution found for symbol: {}".format(symbol))
                     means[j, i] = np.nan
@@ -393,5 +397,5 @@ class GymFeature(object):
         return means, lower_bound, upper_bound
 
     def __repr__(self):
-        return '<FinancialFeature object: name: {}. full_name: {}>'.format(self.name, self.full_name)
+        return '<GymFeature object: name: {}. full_name: {}>'.format(self.name, self.full_name)
 
