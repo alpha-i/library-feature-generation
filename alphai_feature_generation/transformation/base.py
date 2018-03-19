@@ -454,7 +454,7 @@ class DataTransformation(metaclass=ABCMeta):
         data_schedule = self._extract_schedule_from_data(raw_data_dict)
 
         if self.target_delta.days > 0:
-            return data_schedule[max_feature_ndays:-1]
+            return data_schedule[max_feature_ndays:-self.target_delta.days]
         else:
             return data_schedule[max_feature_ndays:]
 

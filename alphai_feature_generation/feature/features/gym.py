@@ -397,5 +397,5 @@ class GymFeature(object):
         return means, lower_bound, upper_bound
 
     def __repr__(self):
-        return '<GymFeature object: name: {}. full_name: {}>'.format(self.name, self.full_name)
+        return '<{} object: name: {}. full_name: {}>'.format(self.__class__.__name__, self.name, self.full_name)
 
