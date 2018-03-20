@@ -20,6 +20,7 @@ class GymFeature(object):
     """ Describes a feature intended to help predict attendance levels at a gym. """
 
     KEY_EXCHANGE = 'holiday_calendar'
+    GENERIC_SYMBOL = 'SYM'
 
     def __init__(self, name, transformation, normalization, nbins, length, ndays, resample_minutes, start_market_minute,
                  is_target, exchange_calendar, local, classify_per_series=False, normalise_per_series=False):
@@ -348,8 +349,10 @@ class GymFeature(object):
         for symbol in dataframe:
             data_y = dataframe[symbol].values
 
-            if symbol in self.bin_distribution_dict:
-                symbol_distribution = self.bin_distribution_dict[symbol]
+            key = symbol if self.classify_per_series else self.GENERIC_SYMBOL
+
+            if key in self.bin_distribution_dict:
+                symbol_distribution = self.bin_distribution_dict[key]
                 one_hot_labels = symbol_distribution.classify_labels(data_y)
                 if one_hot_labels.shape[-1] > 1:
                     hot_panel[symbol] = one_hot_labels
@@ -378,10 +381,12 @@ class GymFeature(object):
         assert predict_y.shape[1] == n_symbols, "Weird shape - predict y not equal to n symbols"
 
         for i, symbol in enumerate(symbols):
+            key = symbol if self.classify_per_series else self.GENERIC_SYMBOL
+
             for j in range(n_forecasts):
                 pdf = predict_y[:, i, j, :]
-                if symbol in self.bin_distribution_dict and not np.any(np.isnan(pdf)):
-                    symbol_bins = self.bin_distribution_dict[symbol]
+                if key in self.bin_distribution_dict and not np.any(np.isnan(pdf)):
+                    symbol_bins = self.bin_distribution_dict[key]
                     try:
                         means[j, i], lower_bound[j, i], upper_bound[j, i] = \
                             symbol_bins.estimate_confidence_interval(pdf, confidence_interval)
@@ -389,7 +394,7 @@ class GymFeature(object):
                         logging.debug(e)
                         raise e
                 else:
-                    logger.debug("No bin distribution found for symbol: {}".format(symbol))
+                    logger.debug("Nans or no bin distribution found for symbol: {}".format(symbol))
                     means[j, i] = np.nan
                     lower_bound[j, i] = np.nan
                     upper_bound[j, i] = np.nan
