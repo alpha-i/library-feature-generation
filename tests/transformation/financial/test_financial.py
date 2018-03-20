@@ -45,7 +45,7 @@ class TestFinancialDataTransformation(TestCase):
             'n_classification_bins': 5,
             'n_assets': 5,
             'local': False,
-            'classify_per_series': False,
+            'classify_per_series': True,
             'normalise_per_series': False,
             'fill_limit': 0
         }
@@ -248,10 +248,10 @@ class TestFinancialDataTransformation(TestCase):
 
     def test_stack_samples_for_each_feature(self):
 
-        config = {'classify_per_series': False,
+        config = {'classify_per_series': True,
          'calendar_name': 'NYSE',
          'feature_config_list': [
-             {'classify_per_series': False,
+             {'classify_per_series': True,
               'calendar_name': 'NYSE',
               'is_target': False,
               'length': 15,
@@ -264,7 +264,7 @@ class TestFinancialDataTransformation(TestCase):
               'resample_minutes': 0,
               'start_market_minute': 1,
               'transformation': {'name': 'value'}},
-             {'classify_per_series': False,
+             {'classify_per_series': True,
               'calendar_name': 'NYSE',
               'is_target': False,
               'length': 15,
@@ -277,7 +277,7 @@ class TestFinancialDataTransformation(TestCase):
               'resample_minutes': 0,
               'start_market_minute': 1,
               'transformation': {'name': 'log-return'}},
-             {'classify_per_series': False,
+             {'classify_per_series': True,
               'calendar_name': 'NYSE',
               'is_target': True,
               'length': 15,

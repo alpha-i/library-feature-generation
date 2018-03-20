@@ -116,7 +116,7 @@ def load_preset_config(expected_n_symbols, iteration=0):
           'n_classification_bins': 5,
           'n_assets': expected_n_symbols,
           'local': False,
-          'classify_per_series': False,
+          'classify_per_series': True,
           'normalise_per_series': False,
           'fill_limit': 0
     }
