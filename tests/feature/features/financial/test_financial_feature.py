@@ -34,7 +34,8 @@ class TestFinancialFeature(TestCase):
             is_target=True,
             calendar=sample_market_calendar,
             local=False,
-            length=15
+            length=15,
+            classify_per_series=True
         )
         self.feature_close_with_log_return_transform = FinancialFeature(
             name='close',
@@ -47,7 +48,8 @@ class TestFinancialFeature(TestCase):
             is_target=True,
             calendar=sample_market_calendar,
             local=False,
-            length=35
+            length=35,
+            classify_per_series=True
         )
         self.feature_high_with_log_return_transform = FinancialFeature(
             name='high',
@@ -60,7 +62,8 @@ class TestFinancialFeature(TestCase):
             is_target=True,
             calendar=sample_market_calendar,
             local=False,
-            length=69
+            length=69,
+            classify_per_series=True
         )
 
         self.feature_list = [

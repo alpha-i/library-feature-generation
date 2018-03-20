@@ -37,6 +37,7 @@ class DataTransformation(metaclass=ABCMeta):
 
     KEY_EXCHANGE = 'calendar_name'
     CONFIGURATION_SCHEMA = DataTransformationConfigurationSchema
+    GENERIC_SYMBOL = 'SYM'
 
     def __init__(self, configuration):
         """Initialise in accordance with the config dictionary.
@@ -314,9 +315,14 @@ class DataTransformation(metaclass=ABCMeta):
 
         # Fitting of bins
         logger.debug("Fitting y classification to: {}".format(target_feature.full_name))
-        for symbol in symbols:
-            symbol_data = self.extract_data_by_symbol(y_list, symbol, target_feature.full_name)
-            target_feature.fit_classification(symbol, symbol_data)
+
+        if self.classify_per_series:
+            for symbol in symbols:
+                    symbol_data = self.extract_data_by_symbol(y_list, symbol, target_feature.full_name)
+                    target_feature.fit_classification(symbol, symbol_data)
+        else:
+            all_data = self.extract_all_data(y_list, target_feature.full_name)
+            target_feature.fit_classification(self.GENERIC_SYMBOL, all_data)
 
         # Applying
         logger.debug("Applying y classification to: {}".format(target_feature.full_name))
