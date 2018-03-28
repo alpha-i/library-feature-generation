@@ -369,12 +369,13 @@ class FinancialFeature(object):
         variances = np.zeros(shape=(n_symbols,), dtype=np.float32)
         assert predict_y.shape[1] == n_symbols, "Weird shape - predict y not equal to n symbols"
 
-        for i, symbol in enumerate(symbols):
+        for i, original_symbol in enumerate(symbols):
+            symbol = original_symbol if self.classify_per_series else self.GENERIC_SYMBOL
             if symbol in self.bin_distribution_dict:
                 symbol_bin_distribution = self.bin_distribution_dict[symbol]
                 means[i], variances[i] = symbol_bin_distribution.declassify_labels(predict_y[:, i, :])
             else:
-                logger.debug("No bin distribution found for symbol: {}".format(symbol))
+                logger.debug("No bin distribution found for symbol: {}".format(original_symbol))
                 means[i] = np.nan
                 variances[i] = np.nan
 
