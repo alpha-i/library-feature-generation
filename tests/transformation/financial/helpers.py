@@ -8,19 +8,6 @@ from dateutil import rrule
 from alphai_feature_generation.transformation import FinancialDataTransformation
 from tests.helpers import TEST_DATA_PATH
 
-COLUMNS_OHLCV = 'open high low close volume'.split()
-
-
-sample_ohlcv_hourly = {}
-for key in COLUMNS_OHLCV:
-    sample_hourly_ohlcv_data_column = pd.read_csv(
-        os.path.join(TEST_DATA_PATH, 'financial_data_dict', 'sample_%s_hourly.csv' % key),
-        index_col=0)
-    sample_hourly_ohlcv_data_column.index = pd.to_datetime(sample_hourly_ohlcv_data_column.index,
-                                                           utc=True)
-    sample_ohlcv_hourly[key] = sample_hourly_ohlcv_data_column
-
-
 sample_fin_data_transf_feature_fixed_length = [
     {
         'name': 'close',
@@ -75,33 +62,6 @@ sample_feature_configuration_list = [
     },
 ]
 
-
-sample_hourly_ohlcv_data_length = len(sample_ohlcv_hourly['open'])
-sample_hourly_ohlcv_data_symbols = sample_ohlcv_hourly['open'].columns
-universe_length = sample_hourly_ohlcv_data_length - 1
-start_date = sample_ohlcv_hourly['open'].index[0]
-end_date = sample_ohlcv_hourly['open'].index[-1]
-rrule_dates = list(rrule.rrule(rrule.WEEKLY, dtstart=start_date, until=end_date))
-
-universe_combination_list = list(combinations(sample_hourly_ohlcv_data_symbols, 4))
-sample_historical_universes = pd.DataFrame(columns=['start_date', 'end_date', 'assets'])
-
-for idx, (period_start_date, period_end_date) in enumerate(zip(rrule_dates[:-1], rrule_dates[1:])):
-    sample_historical_universes.loc[idx] = [
-        period_start_date.date(),
-        period_end_date.date(),
-        list(universe_combination_list[idx % len(universe_combination_list)])
-    ]
-
-sample_daily_ohlcv_data = {}
-sample_daily_ohlcv_data_column = pd.read_csv(
-    os.path.join(TEST_DATA_PATH, 'financial_data_dict', 'sample_%s_daily.csv' % key),
-    index_col=0)
-for key in COLUMNS_OHLCV:
-    sample_daily_ohlcv_data_column.index = pd.to_datetime(sample_daily_ohlcv_data_column.index)
-    sample_daily_ohlcv_data[key] = sample_daily_ohlcv_data_column
-
-
 def load_preset_config(expected_n_symbols, iteration=0):
     config = {
         'feature_config_list': sample_feature_configuration_list,
@@ -151,3 +111,53 @@ def load_expected_results(iteration):
         return return_value['x_mean'], return_value['y_mean'], expected_sample
     except KeyError:
         raise ValueError('Requested configuration not implemented')
+
+
+COLUMNS_OHLCV = 'open high low close volume'.split()
+
+
+def build_ohlcv_sample_dataframe():
+    sample_dict = {}
+    for key in COLUMNS_OHLCV:
+        sample_hourly_ohlcv_data_column = pd.read_csv(
+            os.path.join(TEST_DATA_PATH, 'financial_data_dict', 'sample_%s_hourly.csv' % key),
+            index_col=0)
+        sample_hourly_ohlcv_data_column.index = pd.to_datetime(sample_hourly_ohlcv_data_column.index,
+                                                               utc=True)
+        sample_dict[key] = sample_hourly_ohlcv_data_column
+
+    return sample_dict
+
+
+def create_sample_historical_universe(ohlcv_sample):
+    historical_universe = pd.DataFrame(columns=['start_date', 'end_date', 'assets'])
+
+    sample_hourly_ohlcv_data_symbols = ohlcv_sample['open'].columns
+    start_date = ohlcv_sample['open'].index[0]
+    end_date = ohlcv_sample['open'].index[-1]
+    universe_combination_list = list(combinations(sample_hourly_ohlcv_data_symbols, 4))
+    rrule_dates = list(rrule.rrule(rrule.WEEKLY, dtstart=start_date, until=end_date))
+
+    for idx, (period_start_date, period_end_date) in enumerate(zip(rrule_dates[:-1], rrule_dates[1:])):
+        historical_universe.loc[idx] = [
+            period_start_date.date(),
+            period_end_date.date(),
+            list(universe_combination_list[idx % len(universe_combination_list)])
+        ]
+    return historical_universe
+
+
+def build_ohlcv_daily_sample():
+    sample_dict = {}
+    for feature_name in COLUMNS_OHLCV:
+        filename = os.path.join(TEST_DATA_PATH, 'financial_data_dict', 'sample_%s_daily.csv' % feature_name)
+        sample_for_feature = pd.read_csv(filename, index_col=0)
+        sample_for_feature.index = pd.to_datetime(sample_for_feature.index)
+        sample_dict[feature_name] = sample_for_feature
+
+    return sample_dict
+
+
+sample_daily_ohlcv_data = build_ohlcv_daily_sample()
+sample_ohlcv_hourly = build_ohlcv_sample_dataframe()
+sample_historical_universes = create_sample_historical_universe(sample_ohlcv_hourly)
