@@ -20,6 +20,8 @@ logger = logging.getLogger(__name__)
 class FinancialFeature(object):
     """ Describes a feature intended to help predict a financial time series. """
 
+    GENERIC_SYMBOL = 'SYM'
+
     def __init__(self, name, transformation, normalization, nbins, length, ndays, resample_minutes, start_market_minute,
                  is_target, calendar, local, classify_per_series=False, normalise_per_series=False):
         """
@@ -311,9 +313,10 @@ class FinancialFeature(object):
 
         for symbol in dataframe:
             data_y = dataframe[symbol].values
+            key = symbol if self.classify_per_series else self.GENERIC_SYMBOL
 
-            if symbol in self.bin_distribution_dict:
-                symbol_distribution = self.bin_distribution_dict[symbol]
+            if key in self.bin_distribution_dict:
+                symbol_distribution = self.bin_distribution_dict[key]
                 one_hot_labels = symbol_distribution.classify_labels(data_y)
                 if one_hot_labels.shape[-1] > 1:
                     hot_dataframe[symbol] = np.squeeze(one_hot_labels)
@@ -366,12 +369,13 @@ class FinancialFeature(object):
         variances = np.zeros(shape=(n_symbols,), dtype=np.float32)
         assert predict_y.shape[1] == n_symbols, "Weird shape - predict y not equal to n symbols"
 
-        for i, symbol in enumerate(symbols):
+        for i, original_symbol in enumerate(symbols):
+            symbol = original_symbol if self.classify_per_series else self.GENERIC_SYMBOL
             if symbol in self.bin_distribution_dict:
                 symbol_bin_distribution = self.bin_distribution_dict[symbol]
                 means[i], variances[i] = symbol_bin_distribution.declassify_labels(predict_y[:, i, :])
             else:
-                logger.debug("No bin distribution found for symbol: {}".format(symbol))
+                logger.debug("No bin distribution found for symbol: {}".format(original_symbol))
                 means[i] = np.nan
                 variances[i] = np.nan
 

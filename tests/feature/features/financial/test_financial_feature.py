@@ -222,7 +222,8 @@ class TestFeatureNormalization(TestCase):
             calendar=sample_market_calendar,
             local=False,
             length=35,
-            normalise_per_series=True
+            normalise_per_series=True,
+            classify_per_series=True
         )
 
     def test_fit_normalisation(self):
