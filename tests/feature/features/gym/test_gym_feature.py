@@ -11,13 +11,10 @@ from tests.helpers import TEST_ARRAY
 from alphai_feature_generation.feature.features.gym import GymFeature
 
 from tests.feature.features.gym.helpers import sample_gym_calendar
-from tests.transformation.gym.helpers import gym_sample_hourly
+from tests.transformation.gym.helpers import gym_data_fixtures
 
 SAMPLE_TRAIN_LABELS = np.stack((TEST_ARRAY, TEST_ARRAY, TEST_ARRAY, TEST_ARRAY, TEST_ARRAY))
-SAMPLE_PREDICT_LABELS = SAMPLE_TRAIN_LABELS[:, int(0.5 * SAMPLE_TRAIN_LABELS.shape[1])]
-
-SAMPLE_TRAIN_LABELS = {'open': SAMPLE_TRAIN_LABELS}
-SAMPLE_PREDICT_LABELS = {'open': SAMPLE_PREDICT_LABELS}
+SAMPLE_PREDICT_LABELS = {'open': SAMPLE_TRAIN_LABELS[:, int(0.5 * SAMPLE_TRAIN_LABELS.shape[1])]}
 
 
 class TestGymFeature(TestCase):
@@ -89,7 +86,7 @@ class TestGymFeature(TestCase):
         assert start_timestamp_x_3 == expected_start_timestamp_x3
 
     def test_select_prediction_data(self):
-        data_frame = gym_sample_hourly[self.feature_close_with_value_transform.name]
+        data_frame = gym_data_fixtures[self.feature_close_with_value_transform.name]
         start_date = data_frame.index[0].date()
         end_date = data_frame.index[-1].date()
 
@@ -107,7 +104,7 @@ class TestGymFeature(TestCase):
 
     @staticmethod
     def _run_get_prediction_data_test(feature, expected_length):
-        data_frame = gym_sample_hourly[feature.name]
+        data_frame = gym_data_fixtures[feature.name]
         start_date = data_frame.index[0].date()
         end_date = data_frame.index[-1].date()
 
@@ -245,7 +242,7 @@ class TestFeatureNormalization(TestCase):
         assert np.isclose(self.feature4.scaler.center_, np.median(symbol_data1), rtol=1e-4)
 
     def test_apply_normalisation(self):
-        data = deepcopy(gym_sample_hourly['hour'])
+        data = deepcopy(gym_data_fixtures['hour'])
 
         for column in data.columns:
             self.feature1.fit_normalisation(symbol_data=data[column].values, symbol=column)

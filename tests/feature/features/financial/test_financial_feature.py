@@ -11,13 +11,7 @@ from tests.helpers import TEST_ARRAY
 from alphai_feature_generation.feature.features.financial import FinancialFeature
 
 from tests.feature.features.financial.helpers import sample_market_calendar
-from tests.transformation.financial.helpers import fixture_data_dict
-
-SAMPLE_TRAIN_LABELS = np.stack((TEST_ARRAY, TEST_ARRAY, TEST_ARRAY, TEST_ARRAY, TEST_ARRAY))
-SAMPLE_PREDICT_LABELS = SAMPLE_TRAIN_LABELS[:, int(0.5 * SAMPLE_TRAIN_LABELS.shape[1])]
-
-SAMPLE_TRAIN_LABELS = {'open': SAMPLE_TRAIN_LABELS}
-SAMPLE_PREDICT_LABELS = {'open': SAMPLE_PREDICT_LABELS}
+from tests.transformation.financial.helpers import financial_data_fixtures
 
 
 class TestFinancialFeature(TestCase):
@@ -92,7 +86,7 @@ class TestFinancialFeature(TestCase):
         assert start_timestamp_x_3 == expected_start_timestamp_x3
 
     def test_select_prediction_data(self):
-        data_frame = fixture_data_dict[self.feature_close_with_value_transform.name]
+        data_frame = financial_data_fixtures[self.feature_close_with_value_transform.name]
         start_date = data_frame.index[0].date()
         end_date = data_frame.index[-1].date()
 
@@ -110,7 +104,7 @@ class TestFinancialFeature(TestCase):
 
     @staticmethod
     def _run_get_prediction_data_test(feature, expected_length):
-        data_frame = fixture_data_dict[feature.name]
+        data_frame = financial_data_fixtures[feature.name]
         start_date = data_frame.index[0].date()
         end_date = data_frame.index[-1].date()
 
@@ -132,12 +126,16 @@ class TestFinancialFeature(TestCase):
             self._run_get_prediction_data_test(feature, expected_length)
 
     def test_declassify_single_predict_y(self):
+
+        train_labels = np.stack((TEST_ARRAY, TEST_ARRAY, TEST_ARRAY, TEST_ARRAY, TEST_ARRAY))
+        predict_labels = {'open': train_labels[:, int(0.5 * train_labels.shape[1])]}
+
         for feature in self.feature_list:
             if feature.nbins:
-                predict_y = np.zeros_like(SAMPLE_PREDICT_LABELS[list(SAMPLE_PREDICT_LABELS.keys())[0]])
+                predict_y = np.zeros_like(predict_labels[list(predict_labels.keys())[0]])
                 predict_y[0] = 1
             else:
-                predict_y = SAMPLE_PREDICT_LABELS
+                predict_y = predict_labels
             with pytest.raises(NotImplementedError):
                 feature.declassify_single_predict_y(predict_y)
 
@@ -246,7 +244,7 @@ class TestFeatureNormalization(TestCase):
         assert np.isclose(self.feature4.scaler.center_, np.median(symbol_data1), rtol=1e-4)
 
     def test_apply_normalisation(self):
-        data = deepcopy(fixture_data_dict['open'])
+        data = deepcopy(financial_data_fixtures['open'])
 
         for column in data.columns:
             self.feature1.fit_normalisation(symbol_data=data[column].values, symbol=column)

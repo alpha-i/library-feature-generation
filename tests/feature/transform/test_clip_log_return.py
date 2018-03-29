@@ -9,7 +9,7 @@ from alphai_feature_generation.feature.transform import TransformClipLogReturn, 
 
 from tests.feature.transform import ASSERT_NDECIMALS
 from tests.feature.features.financial.helpers import sample_market_calendar
-from tests.transformation.financial.helpers import fixture_data_dict
+from tests.transformation.financial.helpers import financial_data_fixtures
 
 
 def test_transform_log_return_x():
@@ -32,7 +32,7 @@ def test_transform_log_return_x():
 
     transform = TransformClipLogReturn(transform_config)
 
-    data_dict_x = fixture_data_dict
+    data_dict_x = financial_data_fixtures
     raw_dataframe = data_dict_x[feature.name]
     symbol = 'AAPL'
 
@@ -73,7 +73,7 @@ def test_transform_log_return_y():
 
     transform = TransformClipLogReturn(transform_config)
 
-    data_dict_x = fixture_data_dict
+    data_dict_x = financial_data_fixtures
     raw_dataframe = data_dict_x[feature.name]
 
     data_frame_x = raw_dataframe.iloc[:-1]
@@ -106,7 +106,7 @@ def test_transform_x_log_return_with_local_feature():
         local=True,
         length=35
     )
-    data_dict_x = fixture_data_dict
+    data_dict_x = financial_data_fixtures
     raw_dataframe = data_dict_x[feature.name]
 
     transform = TransformClipLogReturn(transform_config)

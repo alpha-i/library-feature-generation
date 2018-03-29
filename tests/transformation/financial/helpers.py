@@ -1,12 +1,14 @@
-import os
 from datetime import timedelta
 from itertools import combinations
 
+import os
 import pandas as pd
 from dateutil import rrule
 
 from alphai_feature_generation.transformation import FinancialDataTransformation
-from tests.helpers import TEST_DATA_PATH
+from tests.helpers import build_dict_of_dataframe
+
+financial_data_fixtures = build_dict_of_dataframe(os.path.join('financial_data_dict', 'hourly'))
 
 sample_fin_data_transf_feature_fixed_length = [
     {
@@ -66,20 +68,20 @@ sample_feature_configuration_list = [
 def load_preset_config(expected_n_symbols, iteration=0):
     config = {
         'feature_config_list': sample_feature_configuration_list,
-          'features_ndays': 2,
-          'features_resample_minutes': 60,
-          'features_start_market_minute': 1,
-          FinancialDataTransformation.KEY_EXCHANGE: 'NYSE',
-          'prediction_frequency_ndays': 1,
-          'prediction_market_minute': 30,
-          'target_delta': timedelta(days=5),
-          'target_market_minute': 30,
-          'n_classification_bins': 5,
-          'n_assets': expected_n_symbols,
-          'local': False,
-          'classify_per_series': True,
-          'normalise_per_series': False,
-          'fill_limit': 0
+        'features_ndays': 2,
+        'features_resample_minutes': 60,
+        'features_start_market_minute': 1,
+        FinancialDataTransformation.KEY_EXCHANGE: 'NYSE',
+        'prediction_frequency_ndays': 1,
+        'prediction_market_minute': 30,
+        'target_delta': timedelta(days=5),
+        'target_market_minute': 30,
+        'n_classification_bins': 5,
+        'n_assets': expected_n_symbols,
+        'local': False,
+        'classify_per_series': True,
+        'normalise_per_series': False,
+        'fill_limit': 0
     }
 
     specific_cases = [
@@ -98,42 +100,13 @@ def load_preset_config(expected_n_symbols, iteration=0):
     return config
 
 
-def load_expected_results(iteration):
-    return_value_list = [
-        {'x_mean': 207.451975429, 'y_mean': 0.2},
-        {'x_mean': 207.451975429, 'y_mean': 0.2},  # Test predict_the_market_close
-        {'x_mean': 207.451975429, 'y_mean': 0.2},  # Test classification and normalisation
-        {'x_mean': 5.96046e-09, 'y_mean': 0.2},  # Test length/resolution requests
-    ]
-
-    try:
-        return_value = return_value_list[iteration]
-        expected_sample = [107.35616667, 498.748, 35.341, 288.86503167]
-        return return_value['x_mean'], return_value['y_mean'], expected_sample
-    except KeyError:
-        raise ValueError('Requested configuration not implemented')
-
-
-def build_hourly_dataframe_dict(fixute_folder, features_list):
-    sample_dict = {}
-    for key in features_list:
-        sample_hourly_ohlcv_data_column = pd.read_csv(
-            os.path.join(TEST_DATA_PATH, fixute_folder, 'sample_%s_hourly.csv' % key),
-            index_col=0)
-        sample_hourly_ohlcv_data_column.index = pd.to_datetime(sample_hourly_ohlcv_data_column.index,
-                                                               utc=True)
-        sample_dict[key] = sample_hourly_ohlcv_data_column
-
-    return sample_dict
-
-
-def create_sample_historical_universe(ohlcv_sample):
+def create_historical_universe(ohlcv_sample):
     historical_universe = pd.DataFrame(columns=['start_date', 'end_date', 'assets'])
 
-    sample_hourly_ohlcv_data_symbols = ohlcv_sample['open'].columns
+    symbols = ohlcv_sample['open'].columns
     start_date = ohlcv_sample['open'].index[0]
     end_date = ohlcv_sample['open'].index[-1]
-    universe_combination_list = list(combinations(sample_hourly_ohlcv_data_symbols, 4))
+    universe_combination_list = list(combinations(symbols, 4))
     rrule_dates = list(rrule.rrule(rrule.WEEKLY, dtstart=start_date, until=end_date))
 
     for idx, (period_start_date, period_end_date) in enumerate(zip(rrule_dates[:-1], rrule_dates[1:])):
@@ -142,8 +115,7 @@ def create_sample_historical_universe(ohlcv_sample):
             period_end_date.date(),
             list(universe_combination_list[idx % len(universe_combination_list)])
         ]
+
     return historical_universe
 
 
-fixture_data_dict = build_hourly_dataframe_dict('financial_data_dict', 'open high low close volume'.split())
-sample_historical_universes = create_sample_historical_universe(fixture_data_dict)
