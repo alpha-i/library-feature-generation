@@ -33,7 +33,7 @@ from alphai_feature_generation.cleaning import (
 
 
 from tests.feature.features.financial.helpers import sample_market_calendar
-from tests.transformation.financial.helpers import sample_ohlcv_hourly, COLUMNS_OHLCV
+from tests.transformation.financial.helpers import fixture_data_dict
 
 
 def create_cleaning_fixtures():
@@ -364,32 +364,32 @@ def test_select_trading_hours_data_dict_no_first_minute():
 
 
 def test_resample_ohlcv_type_io():
-    assert isinstance(resample_ohlcv(sample_ohlcv_hourly, '2H'), dict)
+    assert isinstance(resample_ohlcv(fixture_data_dict, '2H'), dict)
 
 
 def test_resample_ohlcv_size_output():
-    resampled_data = resample_ohlcv(sample_ohlcv_hourly, '2H')
-    for column in COLUMNS_OHLCV:
-        assert len(resampled_data[column]) / 4 == len(sample_ohlcv_hourly[column]) / 7
+    resampled_data = resample_ohlcv(fixture_data_dict, '2H')
+    for column in fixture_data_dict.keys():
+        assert len(resampled_data[column]) / 4 == len(fixture_data_dict[column]) / 7
 
 
 def test_resample_ohlcv_resampling_method():
-    resampled_data = resample_ohlcv(sample_ohlcv_hourly, '2H')
-    for column in COLUMNS_OHLCV:
+    resampled_data = resample_ohlcv(fixture_data_dict, '2H')
+    for column in fixture_data_dict.keys():
         if column.lower() == 'volume':
             assert_almost_equal(
-                resampled_data[column].sum() / sample_ohlcv_hourly[column].sum(),
-                len(COLUMNS_OHLCV) * [1.],
+                resampled_data[column].sum() / fixture_data_dict[column].sum(),
+                len(fixture_data_dict.keys()) * [1.],
                 decimal=2)
         else:
             assert_almost_equal(
-                resampled_data[column].mean() / sample_ohlcv_hourly[column].mean(),
-                len(COLUMNS_OHLCV) * [1.],
+                resampled_data[column].mean() / fixture_data_dict[column].mean(),
+                len(fixture_data_dict.keys()) * [1.],
                 decimal=2)
 
 
 def test_sample_minutes_after_market_open_data_frame():
-    data_frame = sample_ohlcv_hourly['close']
+    data_frame = fixture_data_dict['close']
     sampled_data_frame = \
         sample_minutes_after_market_open_data_frame(data_frame, sample_market_calendar, 30)
     assert len(sampled_data_frame) == len(data_frame) / 7
@@ -398,18 +398,18 @@ def test_sample_minutes_after_market_open_data_frame():
 def test_select_columns_data_dict_missing_columns():
     select_columns = ['CAT', 'DOG']
     with pytest.raises(KeyError):
-        select_columns_data_dict(sample_ohlcv_hourly, select_columns)
+        select_columns_data_dict(fixture_data_dict, select_columns)
 
 
 def test_select_columns_data_dict():
     select_columns = ['AAPL', 'GOOG']
-    selected_data_dict = select_columns_data_dict(sample_ohlcv_hourly, select_columns)
+    selected_data_dict = select_columns_data_dict(fixture_data_dict, select_columns)
 
     for column in select_columns:
         for map_key in selected_data_dict.keys():
             assert column in selected_data_dict[map_key]
             assert selected_data_dict[map_key][column].equals(
-                sample_ohlcv_hourly[map_key][column])
+                fixture_data_dict[map_key][column])
 
 
 def make_correlated_data_frame(mu, size):

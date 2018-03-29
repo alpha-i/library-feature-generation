@@ -3,10 +3,8 @@ from datetime import timedelta
 from itertools import combinations
 
 import pandas as pd
-import numpy as np
 from dateutil import rrule
 
-from alphai_feature_generation.transformation import GymDataTransformation
 from tests.helpers import TEST_DATA_PATH
 
 gym_sample_hourly = {}
@@ -104,15 +102,6 @@ for idx, (period_start_date, period_end_date) in enumerate(zip(rrule_dates[:-1],
         period_end_date.date(),
         list(universe_combination_list[idx % len(universe_combination_list)])
     ]
-
-# sample_daily_ohlcv_data = {}
-# sample_daily_ohlcv_data_column = pd.read_csv(
-#     os.path.join(TEST_DATA_PATH, 'sample_data_dict', 'sample_%s_daily.csv' % key),
-#     index_col=0)
-# for key in COLUMNS_FEATURES:
-#     sample_daily_ohlcv_data_column.index = pd.to_datetime(sample_daily_ohlcv_data_column.index)
-#     sample_daily_ohlcv_data[key] = sample_daily_ohlcv_data_column
-
 
 def load_preset_config(expected_n_symbols, iteration=0):
     config = {

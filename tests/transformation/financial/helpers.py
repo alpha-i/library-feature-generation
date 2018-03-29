@@ -62,6 +62,7 @@ sample_feature_configuration_list = [
     },
 ]
 
+
 def load_preset_config(expected_n_symbols, iteration=0):
     config = {
         'feature_config_list': sample_feature_configuration_list,
@@ -113,14 +114,11 @@ def load_expected_results(iteration):
         raise ValueError('Requested configuration not implemented')
 
 
-COLUMNS_OHLCV = 'open high low close volume'.split()
-
-
-def build_ohlcv_sample_dataframe():
+def build_hourly_dataframe_dict(fixute_folder, features_list):
     sample_dict = {}
-    for key in COLUMNS_OHLCV:
+    for key in features_list:
         sample_hourly_ohlcv_data_column = pd.read_csv(
-            os.path.join(TEST_DATA_PATH, 'financial_data_dict', 'sample_%s_hourly.csv' % key),
+            os.path.join(TEST_DATA_PATH, fixute_folder, 'sample_%s_hourly.csv' % key),
             index_col=0)
         sample_hourly_ohlcv_data_column.index = pd.to_datetime(sample_hourly_ohlcv_data_column.index,
                                                                utc=True)
@@ -147,17 +145,5 @@ def create_sample_historical_universe(ohlcv_sample):
     return historical_universe
 
 
-def build_ohlcv_daily_sample():
-    sample_dict = {}
-    for feature_name in COLUMNS_OHLCV:
-        filename = os.path.join(TEST_DATA_PATH, 'financial_data_dict', 'sample_%s_daily.csv' % feature_name)
-        sample_for_feature = pd.read_csv(filename, index_col=0)
-        sample_for_feature.index = pd.to_datetime(sample_for_feature.index)
-        sample_dict[feature_name] = sample_for_feature
-
-    return sample_dict
-
-
-sample_daily_ohlcv_data = build_ohlcv_daily_sample()
-sample_ohlcv_hourly = build_ohlcv_sample_dataframe()
-sample_historical_universes = create_sample_historical_universe(sample_ohlcv_hourly)
+fixture_data_dict = build_hourly_dataframe_dict('financial_data_dict', 'open high low close volume'.split())
+sample_historical_universes = create_sample_historical_universe(fixture_data_dict)

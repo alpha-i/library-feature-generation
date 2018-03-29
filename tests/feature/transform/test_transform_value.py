@@ -2,7 +2,7 @@ from alphai_feature_generation.feature.features.financial import FinancialFeatur
 from alphai_feature_generation.feature.transform import TransformValue
 
 from tests.feature.features.financial.helpers import sample_market_calendar
-from tests.transformation.financial.helpers import sample_ohlcv_hourly
+from tests.transformation.financial.helpers import fixture_data_dict
 
 
 def test_transform_value_x():
@@ -23,7 +23,7 @@ def test_transform_value_x():
         )
     transform = TransformValue(transform_config)
 
-    data_dict_x = sample_ohlcv_hourly
+    data_dict_x = fixture_data_dict
     raw_dataframe = data_dict_x[feature.name]
 
     transformed_data = transform.transform_x(feature, raw_dataframe)

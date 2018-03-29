@@ -14,7 +14,7 @@ from alphai_feature_generation.transformation.financial import FinancialDataTran
 from tests.helpers import TEST_ARRAY, TEST_DATA_PATH
 
 from tests.transformation.financial.helpers import (
-    sample_ohlcv_hourly,
+    fixture_data_dict,
     sample_feature_configuration_list,
     sample_historical_universes,
     load_preset_config, load_expected_results
@@ -80,7 +80,7 @@ class TestFinancialDataTransformation(TestCase):
 
     def test_extract_schedule_from_data(self):
 
-        data_schedule = self.transformation._extract_schedule_from_data(sample_ohlcv_hourly)
+        data_schedule = self.transformation._extract_schedule_from_data(fixture_data_dict)
 
         assert isinstance(data_schedule, pd.DataFrame)
         assert len(data_schedule) == 37
@@ -94,10 +94,10 @@ class TestFinancialDataTransformation(TestCase):
         assert target_feature == expected_target_feature
 
     def test_get_prediction_data_all_features_target(self):
-        raw_data_dict = sample_ohlcv_hourly
-        prediction_timestamp = sample_ohlcv_hourly['open'].index[98]
-        universe = sample_ohlcv_hourly['open'].columns
-        target_timestamp = sample_ohlcv_hourly['open'].index[133]
+        raw_data_dict = fixture_data_dict
+        prediction_timestamp = fixture_data_dict['open'].index[98]
+        universe = fixture_data_dict['open'].columns
+        target_timestamp = fixture_data_dict['open'].index[133]
 
         feature_x_dict, feature_y_dict = self.transformation._collect_prediction_from_features(
             raw_data_dict,
@@ -120,8 +120,8 @@ class TestFinancialDataTransformation(TestCase):
             assert feature_y_dict[key].shape == (1, expected_n_symbols)
 
     def test_get_prediction_data_all_features_no_target(self):
-        raw_data_dict = sample_ohlcv_hourly
-        prediction_timestamp = sample_ohlcv_hourly['open'].index[98]
+        raw_data_dict = fixture_data_dict
+        prediction_timestamp = fixture_data_dict['open'].index[98]
         feature_x_dict, feature_y_dict = self.transformation._collect_prediction_from_features(
             raw_data_dict,
             prediction_timestamp,
@@ -169,9 +169,9 @@ class TestFinancialDataTransformation(TestCase):
         fintransform = FinancialDataTransformation(config)
 
         # have to run train first so that the normalizers are fit
-        _, _ = fintransform.create_train_data(sample_ohlcv_hourly, sample_historical_universes)
+        _, _ = fintransform.create_train_data(fixture_data_dict, sample_historical_universes)
         predict_x, symbols, predict_timestamp, target_timestamp = fintransform.create_predict_data(
-            sample_ohlcv_hourly)
+            fixture_data_dict)
 
         assert predict_timestamp == pd.Timestamp('2015-03-09 14:00:00+0000', tz='UTC')
 
@@ -214,9 +214,9 @@ class TestFinancialDataTransformation(TestCase):
         fintransform = FinancialDataTransformation(config)
 
         # have to run train first so that the normalizers are fit
-        _, _ = fintransform.create_train_data(sample_ohlcv_hourly, sample_historical_universes)
+        _, _ = fintransform.create_train_data(fixture_data_dict, sample_historical_universes)
         predict_x, symbols, predict_timestamp, target_timestamp = fintransform.create_predict_data(
-            sample_ohlcv_hourly)
+            fixture_data_dict)
 
         assert predict_timestamp == pd.Timestamp('2015-03-09 20:00:00+0000', tz='UTC')
         assert len(predict_x.keys()) == expected_n_features
@@ -326,7 +326,7 @@ def test_create_data(index):
     exp_x_mean, exp_y_mean, expected_sample = load_expected_results(index)
 
     fintransform = FinancialDataTransformation(config)
-    train_x, train_y = fintransform.create_train_data(sample_ohlcv_hourly,
+    train_x, train_y = fintransform.create_train_data(fixture_data_dict,
                                                       sample_historical_universes)
 
     assert len(train_x.keys()) == expected_n_features
