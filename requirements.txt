@@ -1,11 +1,11 @@
 --extra-index-url https://pypi.fury.io/reW6hdjFCrSbpo3ehrBu/alpha-i/
-
-pandas < 0.22
+pandas<0.22
 scikit-learn
 numpy
 scipy
-pandas_market_calendars>=0.12
+alphai_calendars>=0.0.1,<1.0.0
 tables
 pyts
 future
 python-dateutil
+marshmallow==3.0.0b4
