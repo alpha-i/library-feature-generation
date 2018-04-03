@@ -6,38 +6,11 @@ import pandas as pd
 from dateutil import rrule
 
 from alphai_feature_generation.transformation import FinancialDataTransformation
-from tests.helpers import build_dict_of_dataframe
+from tests.helpers import load_test_data
 
-financial_data_fixtures = build_dict_of_dataframe(os.path.join('financial_data_dict', 'hourly'))
+financial_data_fixtures = load_test_data(os.path.join('financial_data_dict', 'hourly'))
 
-sample_fin_data_transf_feature_fixed_length = [
-    {
-        'name': 'close',
-        'normalization': 'standard',
-        'resolution': 15,
-        'length': 2,
-        'transformation': {'name': 'log-return'},
-        'is_target': False,
-    },
-    {
-        'name': 'close',
-        'normalization': 'standard',
-        'resolution': 15,
-        'length': 2,
-        'transformation': {'name': 'ewma', 'halflife': 6},
-        'is_target': False,
-    },
-    {
-        'name': 'high',
-        'normalization': 'standard',
-        'resolution': 150,
-        'length': 2,
-        'transformation': {'name': 'log-return'},
-        'is_target': True
-    },
-]
-
-sample_feature_configuration_list = [
+feature_list_default = [
     {
         'name': 'open',
         'transformation': {'name': 'value'},
@@ -65,13 +38,13 @@ sample_feature_configuration_list = [
 ]
 
 
-def load_preset_config(expected_n_symbols, iteration=0):
+def get_configuration(expected_n_symbols, iteration=0):
     config = {
-        'feature_config_list': sample_feature_configuration_list,
+        'feature_config_list': feature_list_default,
         'features_ndays': 2,
         'features_resample_minutes': 60,
         'features_start_market_minute': 1,
-        FinancialDataTransformation.KEY_EXCHANGE: 'NYSE',
+        'calendar_name': 'NYSE',
         'prediction_frequency_ndays': 1,
         'prediction_market_minute': 30,
         'target_delta': timedelta(days=5),
@@ -88,7 +61,32 @@ def load_preset_config(expected_n_symbols, iteration=0):
         {},
         {'predict_the_market_close': True},
         {'classify_per_series': True, 'normalise_per_series': True},
-        {'feature_config_list': sample_fin_data_transf_feature_fixed_length}
+        {'feature_config_list': [
+            {
+                'name': 'close',
+                'normalization': 'standard',
+                'resolution': 15,
+                'length': 2,
+                'transformation': {'name': 'log-return'},
+                'is_target': False,
+            },
+            {
+                'name': 'close',
+                'normalization': 'standard',
+                'resolution': 15,
+                'length': 2,
+                'transformation': {'name': 'ewma', 'halflife': 6},
+                'is_target': False,
+            },
+            {
+                'name': 'high',
+                'normalization': 'standard',
+                'resolution': 150,
+                'length': 2,
+                'transformation': {'name': 'log-return'},
+                'is_target': True
+            },
+        ]}
     ]
 
     try:

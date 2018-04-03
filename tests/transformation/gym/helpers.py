@@ -1,37 +1,10 @@
 from datetime import timedelta
 
-from tests.helpers import build_dict_of_dataframe
+from tests.helpers import load_test_data
 
-gym_data_fixtures = build_dict_of_dataframe('gym_data_dict')
+gym_data_fixtures = load_test_data('gym_data_dict')
 
-
-sample_features_fixed_length = [
-    {
-        'name': 'hour',
-        'normalization': 'standard',
-        'resolution': 15,
-        'length': 2,
-        'transformation': {'name': 'value'},
-        'is_target': False,
-    },
-    {
-        'name': 'hour',
-        'normalization': 'standard',
-        'resolution': 15,
-        'length': 2,
-        'transformation': {'name': 'ewma', 'halflife': 6},
-        'is_target': False,
-    },
-    {
-        'name': 'number_people',
-        'normalization': 'standard',
-        'resolution': 150,
-        'length': 2,
-        'transformation': {'name': 'value'},
-        'is_target': True
-    },
-]
-sample_feature_list = [
+feature_list_default = [
     {
         'name': 'hour',
         'transformation': {'name': 'value'},
@@ -64,7 +37,7 @@ sample_feature_list = [
 
 def load_preset_config(expected_n_symbols, iteration=0):
     config = {
-        'feature_config_list': sample_feature_list,
+        'feature_config_list': feature_list_default,
         'features_ndays': 2,
         'features_resample_minutes': 60,
         'features_start_market_minute': 1,
@@ -84,7 +57,33 @@ def load_preset_config(expected_n_symbols, iteration=0):
     specific_cases = [
         {},
         {'classify_per_series': True, 'normalise_per_series': True},
-        {'feature_config_list': sample_features_fixed_length}
+        {'feature_config_list': [
+            {
+                'name': 'hour',
+                'normalization': 'standard',
+                'resolution': 15,
+                'length': 2,
+                'transformation': {'name': 'value'},
+                'is_target': False,
+            },
+            {
+                'name': 'hour',
+                'normalization': 'standard',
+                'resolution': 15,
+                'length': 2,
+                'transformation': {'name': 'ewma', 'halflife': 6},
+                'is_target': False,
+            },
+            {
+                'name': 'number_people',
+                'normalization': 'standard',
+                'resolution': 150,
+                'length': 2,
+                'transformation': {'name': 'value'},
+                'is_target': True
+            },
+            ]
+        }
     ]
 
     try:

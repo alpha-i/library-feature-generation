@@ -8,7 +8,7 @@ import pytest
 
 from alphai_feature_generation.transformation.gym import GymDataTransformation
 from tests.transformation.gym.helpers import (load_preset_config,
-                                              sample_feature_list,
+                                              feature_list_default,
                                               gym_data_fixtures)
 
 
@@ -17,7 +17,7 @@ class TestGymDataTransformation(TestCase):
     def setUp(self):
 
         config = {
-            'feature_config_list': sample_feature_list,
+            'feature_config_list': feature_list_default,
             'features_ndays': 2,
             'features_resample_minutes': 60,
             'features_start_market_minute': 1,

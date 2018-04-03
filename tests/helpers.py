@@ -19,7 +19,7 @@ TEST_ARRAY = np.linspace(MIN_EDGE + EPS, MAX_EDGE - EPS, num=N_DATA)
 TEST_TRAIN_LABELS = np.stack((TEST_ARRAY, TEST_ARRAY, TEST_ARRAY))
 
 
-def build_dict_of_dataframe(fixture_folder):
+def load_test_data(fixture_folder):
     sample_dict = {}
 
     for feature_file in glob.glob(os.path.join(TEST_DATA_PATH, fixture_folder, '*.csv')):

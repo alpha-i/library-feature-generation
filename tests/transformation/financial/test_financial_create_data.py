@@ -3,7 +3,7 @@ import pytest
 
 from alphai_feature_generation.transformation import FinancialDataTransformation
 from tests.transformation.financial.helpers import (
-    load_preset_config,
+    get_configuration,
     financial_data_fixtures,
     create_historical_universe
 )
@@ -33,7 +33,7 @@ def test_create_data(index):
     expected_n_features = 3
     expected_n_bins = 5
 
-    config = load_preset_config(expected_n_symbols, index)
+    config = get_configuration(expected_n_symbols, index)
     exp_x_mean, exp_y_mean, expected_sample = _expected_results(index)
 
     transformation = FinancialDataTransformation(config)

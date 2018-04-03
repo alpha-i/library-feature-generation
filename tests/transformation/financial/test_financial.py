@@ -14,8 +14,8 @@ from tests.helpers import TEST_DATA_PATH
 
 from tests.transformation.financial.helpers import (
     financial_data_fixtures,
-    sample_feature_configuration_list,
-    load_preset_config,
+    feature_list_default,
+    get_configuration,
     create_historical_universe
 )
 
@@ -26,7 +26,7 @@ class TestFinancialDataTransformation(TestCase):
 
     def setUp(self):
         configuration_bins = {
-            'feature_config_list': sample_feature_configuration_list,
+            'feature_config_list': feature_list_default,
             'features_ndays': 2,
             'features_resample_minutes': 60,
             'features_start_market_minute': 1,
@@ -59,10 +59,6 @@ class TestFinancialDataTransformation(TestCase):
 
     @pytest.mark.skip(reason='The test for prediction at market close must be implemented')
     def test_create_data_with_prediction_at_market_close(self):
-        pass
-
-    @pytest.mark.skip(reason='The test for prediction at market close must be implemented')
-    def test_check_x_batch_dimensions(self):
         pass
 
     def test_get_total_ticks_x(self):
@@ -158,14 +154,14 @@ class TestFinancialDataTransformation(TestCase):
         expected_n_symbols = 5
         expected_n_features = 3
 
-        config = load_preset_config(expected_n_symbols)
-        fintransform = FinancialDataTransformation(config)
+        config = get_configuration(expected_n_symbols)
+        transformation = FinancialDataTransformation(config)
 
         # have to run train first so that the normalizers are fit
         historical_universe = create_historical_universe(financial_data_fixtures)
-        _, _ = fintransform.create_train_data(financial_data_fixtures, historical_universe)
+        _, _ = transformation.create_train_data(financial_data_fixtures, historical_universe)
 
-        predict_x, symbols, predict_timestamp, target_timestamp = fintransform.create_predict_data(
+        predict_x, symbols, predict_timestamp, target_timestamp = transformation.create_predict_data(
             financial_data_fixtures)
 
         assert predict_timestamp == pd.Timestamp('2015-03-09 14:00:00+0000', tz='UTC')
@@ -204,14 +200,14 @@ class TestFinancialDataTransformation(TestCase):
         expected_n_symbols = 5
         expected_n_features = 3
 
-        config = load_preset_config(expected_n_symbols)
+        config = get_configuration(expected_n_symbols)
         config['predict_the_market_close'] = True
-        fintransform = FinancialDataTransformation(config)
+        transformation = FinancialDataTransformation(config)
 
         # have to run train first so that the normalizers are fit
         historical_universe = create_historical_universe(financial_data_fixtures)
-        _, _ = fintransform.create_train_data(financial_data_fixtures, historical_universe)
-        predict_x, symbols, predict_timestamp, target_timestamp = fintransform.create_predict_data(
+        _, _ = transformation.create_train_data(financial_data_fixtures, historical_universe)
+        predict_x, symbols, predict_timestamp, target_timestamp = transformation.create_predict_data(
             financial_data_fixtures)
 
         assert predict_timestamp == pd.Timestamp('2015-03-09 20:00:00+0000', tz='UTC')
@@ -317,7 +313,7 @@ class TestFinancialDataTransformation(TestCase):
         test_dict_2 = {'open_value': np.zeros(0), 'close_log-return': np.zeros(15), 'high_log-return': np.zeros(15)}
         test_dict_3 = {'open_value': np.zeros(15), 'close_log-return': np.zeros(12), 'high_log-return': np.zeros(15)}
 
-        config = load_preset_config(expected_n_symbols)
+        config = get_configuration(expected_n_symbols)
         transformation = FinancialDataTransformation(config)
 
         assert transformation.check_x_batch_dimensions(test_dict_1)
