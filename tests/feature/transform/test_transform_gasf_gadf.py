@@ -3,7 +3,7 @@ import pytest
 from alphai_feature_generation.feature.features.financial import FinancialFeature
 from alphai_feature_generation.feature.transform import TransformGASF, TransformGADF
 from tests.feature.features.financial.helpers import sample_market_calendar
-from tests.transformation.financial.helpers import sample_ohlcv_hourly
+from tests.transformation.financial.helpers import financial_data_fixtures
 
 
 def _perform_test(feature, raw_dataframe, transform):
@@ -34,7 +34,7 @@ def test_tranform_gasf_x():
     )
 
     transform = TransformGASF(transform_config)
-    raw_dataframe = sample_ohlcv_hourly[feature.name]
+    raw_dataframe = financial_data_fixtures[feature.name]
 
     _perform_test(feature, raw_dataframe, transform)
 
@@ -64,6 +64,6 @@ def test_tranform_gadf_x():
 
     transform = TransformGADF(transform_config)
 
-    raw_dataframe = sample_ohlcv_hourly[feature.name]
+    raw_dataframe = financial_data_fixtures[feature.name]
 
     _perform_test(feature, raw_dataframe, transform)

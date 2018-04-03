@@ -7,10 +7,9 @@ from alphai_feature_generation.feature.features.financial import FinancialFeatur
 
 from alphai_feature_generation.feature.transform import TransformLogReturn
 
-
-from tests.helpers import ASSERT_NDECIMALS
+from tests.feature.transform import ASSERT_NDECIMALS
 from tests.feature.features.financial.helpers import sample_market_calendar
-from tests.transformation.financial.helpers import sample_ohlcv_hourly
+from tests.transformation.financial.helpers import financial_data_fixtures
 
 
 def test_transform_log_return_x():
@@ -33,7 +32,7 @@ def test_transform_log_return_x():
 
     transform = TransformLogReturn(transform_config)
 
-    data_dict_x = sample_ohlcv_hourly
+    data_dict_x = financial_data_fixtures
     raw_dataframe = data_dict_x[feature.name]
 
     transformed_data = transform.transform_x(feature, raw_dataframe)
@@ -70,7 +69,7 @@ def test_transform_log_return_y():
 
     transform = TransformLogReturn(transform_config)
 
-    data_dict_x = sample_ohlcv_hourly
+    data_dict_x = financial_data_fixtures
     raw_dataframe = data_dict_x[feature.name]
 
     data_frame_x = raw_dataframe.iloc[:-1]
@@ -101,7 +100,7 @@ def test_transform_x_log_return_with_local_feature():
         local=True,
         length=35
     )
-    data_dict_x = sample_ohlcv_hourly
+    data_dict_x = financial_data_fixtures
     raw_dataframe = data_dict_x[feature.name]
 
     transform = TransformLogReturn(transform_config)

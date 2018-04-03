@@ -10,8 +10,6 @@ from tests.helpers import (
     TEST_EDGES,
     TEST_BIN_CENTRES,
     TEST_TRAIN_LABELS,
-    RTOL,
-    ATOL,
 )
 
 
@@ -123,3 +121,6 @@ class TestBinDistribution(unittest.TestCase):
 
         self.assertTrue(np.allclose(estimated_points, points, rtol=RTOL, atol=ATOL))
 
+
+RTOL = 1e-5
+ATOL = 1e-8
